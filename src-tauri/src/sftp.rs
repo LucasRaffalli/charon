@@ -196,3 +196,75 @@ pub async fn sftp_active_connections(
 ) -> Result<Vec<String>, String> {
     Ok(pool.0.lock().await.keys().cloned().collect())
 }
+
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// Télécharge un fichier distant vers un chemin local.
+#[tauri::command]
+pub async fn sftp_download(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    remote_path: String,
+    local_path: String,
+) -> Result<u64, String> {
+    let pool = pool.0.lock().await;
+    let conn = pool
+        .get(&connection_id)
+        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+
+    let mut remote_file = conn
+        .sftp
+        .open(&remote_path)
+        .await
+        .map_err(|e| format!("Ouverture de {remote_path} impossible : {e}"))?;
+
+    let mut buffer = Vec::new();
+    remote_file
+        .read_to_end(&mut buffer)
+        .await
+        .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
+
+    let local = shellexpand_tilde(&local_path);
+    tokio::fs::write(&local, &buffer)
+        .await
+        .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+
+    Ok(buffer.len() as u64)
+}
+
+/// Envoie un fichier local vers un chemin distant.
+#[tauri::command]
+pub async fn sftp_upload(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    local_path: String,
+    remote_path: String,
+) -> Result<u64, String> {
+    let local = shellexpand_tilde(&local_path);
+    let buffer = tokio::fs::read(&local)
+        .await
+        .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
+
+    let pool = pool.0.lock().await;
+    let conn = pool
+        .get(&connection_id)
+        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+
+    let mut remote_file = conn
+        .sftp
+        .create(&remote_path)
+        .await
+        .map_err(|e| format!("Création de {remote_path} impossible : {e}"))?;
+
+    remote_file
+        .write_all(&buffer)
+        .await
+        .map_err(|e| format!("Écriture de {remote_path} impossible : {e}"))?;
+
+    remote_file
+        .sync_all()
+        .await
+        .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
+
+    Ok(buffer.len() as u64)
+}

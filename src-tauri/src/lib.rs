@@ -13,6 +13,8 @@ pub fn run() {
             sftp::sftp_list_dir,
             sftp::sftp_disconnect,
             sftp::sftp_active_connections,
+            sftp::sftp_download,
+            sftp::sftp_upload,
         ])
         .run(tauri::generate_context!())
         .expect("error while running charon");

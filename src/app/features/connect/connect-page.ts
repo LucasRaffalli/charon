@@ -8,6 +8,7 @@ import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
 import { ConnectionParams, RemoteProtocol, ServerEnvironment, ServerProfile } from '@app/interfaces';
+import { ConnectionFlowService } from '@app/services/connection-flow.service';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
@@ -39,6 +40,7 @@ export class ConnectPage {
   protected readonly profiles = inject(ProfilesService);
   protected readonly contextMenu = inject(ContextMenuService);
   private readonly dialog = inject(DialogService);
+  private readonly flow = inject(ConnectionFlowService);
 
   protected readonly protocol = signal<RemoteProtocol>('sftp');
   protected readonly host = signal('');
@@ -193,49 +195,12 @@ export class ConnectPage {
     if (this.sftp.loading()) {
       return;
     }
-    await this.connectWithTrust({
-      environment: profile.environment ?? null,
-      protocol: profile.protocol ?? 'sftp',
-      host: profile.host,
-      port: profile.port,
-      user: profile.user,
-      keyPath: profile.keyPath ?? null,
-      profileId: profile.id,
-    });
+    await this.flow.connectProfile(profile);
   }
 
-  /**
-   * Connexion avec TOFU explicite : si le serveur est inconnu, montre son
-   * empreinte et ne relance la connexion qu'après accord de l'utilisateur.
-   */
-  private async connectWithTrust(params: ConnectionParams): Promise<void> {
-    await this.sftp.connect(params);
-
-    const fingerprint = this.sftp.pendingKey();
-    if (!fingerprint) {
-      return;
-    }
-    this.sftp.clearPendingKey();
-
-    const trusted = await this.dialog.confirm({
-      title: 'Serveur inconnu',
-      message:
-        `Première connexion à ${params.host}. Empreinte de la clé du serveur :\n\n` +
-        `${fingerprint}\n\n` +
-        `Vérifie qu'elle correspond à celle attendue avant de continuer.`,
-      confirmLabel: 'Faire confiance',
-    });
-    if (trusted) {
-      await this.sftp.connect(params, fingerprint);
-      // Si l'empreinte a changé entre la confirmation et la relance,
-      // on abandonne : c'est le signe d'une usurpation en cours.
-      if (this.sftp.pendingKey()) {
-        this.sftp.clearPendingKey();
-        this.sftp.reportError(
-          'La clé du serveur a changé entre deux tentatives — connexion abandonnée par prudence.',
-        );
-      }
-    }
+  /** Connexion avec TOFU explicite — flux partagé avec la command palette. */
+  private connectWithTrust(params: ConnectionParams): Promise<void> {
+    return this.flow.connectWithTrust(params);
   }
 
   protected removeProfile(profile: ServerProfile): void {

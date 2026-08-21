@@ -1,0 +1,51 @@
+@if (palette.open()) {
+  <div class="overlay" (click)="palette.close()">
+    <div
+      class="palette"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
+      (click)="$event.stopPropagation()"
+    >
+      <input
+        #input
+        class="palette__input"
+        type="text"
+        placeholder="Tape une commande, un serveur, ou un chemin /…"
+        autocomplete="off"
+        spellcheck="false"
+        [value]="query()"
+        (input)="query.set(input.value)"
+        (keydown)="onKeydown($event)"
+      />
+
+      <ul class="palette__list" role="listbox">
+        @for (command of results(); track command.id; let index = $index) {
+          <li>
+            <button
+              type="button"
+              class="palette__item"
+              role="option"
+              [class.palette__item--selected]="index === selected()"
+              [attr.aria-selected]="index === selected()"
+              (mouseenter)="selected.set(index)"
+              (click)="run(command)"
+            >
+              <app-icon class="palette__icon" [name]="command.icon" [size]="15" />
+              <span class="palette__label">{{ command.label }}</span>
+              <span class="palette__hint">{{ command.hint }}</span>
+            </button>
+          </li>
+        } @empty {
+          <li class="palette__empty">Aucune commande ne correspond.</li>
+        }
+      </ul>
+
+      <footer class="palette__footer">
+        <span>↑↓ naviguer</span>
+        <span>↵ exécuter</span>
+        <span>échap fermer</span>
+      </footer>
+    </div>
+  </div>
+}

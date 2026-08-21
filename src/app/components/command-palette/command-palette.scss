@@ -1,0 +1,125 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 105; // sous les dialogues (110) : un prompt lancé par la palette passe devant
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  animation: palette-overlay-in 100ms ease;
+}
+
+.palette {
+  width: min(520px, calc(100vw - 2 * var(--space-lg)));
+  height: fit-content;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  animation: palette-in 140ms ease;
+}
+
+.palette__input {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+
+  &::placeholder {
+    color: var(--text-faint);
+  }
+}
+
+.palette__list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-2xs);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.palette__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+
+  &--selected {
+    background: var(--surface-active);
+  }
+}
+
+.palette__icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.palette__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette__hint {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.palette__empty {
+  padding: var(--space-md);
+  font-size: 12.5px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.palette__footer {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-2xs) var(--space-md);
+  border-top: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+@keyframes palette-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes palette-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .palette {
+    animation: none;
+  }
+}

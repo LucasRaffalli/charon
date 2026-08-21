@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { ActivityLog } from '@app/components/activity-log/activity-log';
 import { Icon } from '@app/components/icon/icon';
@@ -40,17 +40,22 @@ export class BottomPanel {
 
   protected readonly activeTab = computed(() => this.settings.bottomPanelTab());
 
-  /** Le terminal ne démarre qu'à la première activation de son onglet. */
-  protected readonly terminalStarted = signal(
-    this.settings.bottomPanelTab() === 'terminal' && this.settings.bottomPanelOpen(),
-  );
+  /** Le terminal ne démarre qu'à la première activation de son onglet
+   *  (verrou alimenté par les réglages : la command palette peut l'ouvrir). */
+  protected readonly terminalStarted = signal(false);
+
+  constructor() {
+    effect(() => {
+      if (this.settings.bottomPanelTab() === 'terminal' && this.settings.bottomPanelOpen()) {
+        this.terminalStarted.set(true);
+      }
+    });
+  }
 
   protected selectTab(id: string): void {
-    // Sélectionner un onglet déplie le panneau s'il était replié.
+    // Sélectionner un onglet déplie le panneau s'il était replié
+    // (l'effect du constructeur arme le terminal si besoin).
     this.settings.update({ bottomPanelTab: id, bottomPanelOpen: true });
-    if (id === 'terminal') {
-      this.terminalStarted.set(true);
-    }
   }
 
   protected toggle(): void {

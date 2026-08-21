@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
+import { CommandPalette } from '@app/components/command-palette/command-palette';
 import { ContextMenu } from '@app/components/context-menu/context-menu';
 import { DialogHost } from '@app/components/dialog-host/dialog-host';
 import { SettingsPanel } from '@app/components/settings-panel/settings-panel';
@@ -10,7 +11,7 @@ import { ThemeService } from '@app/services/theme.service';
 
 @Component({
   selector: 'app-root',
-  imports: [ConnectPage, ExplorerPage, SettingsPanel, DialogHost, ContextMenu],
+  imports: [CommandPalette, ConnectPage, ExplorerPage, SettingsPanel, DialogHost, ContextMenu],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
+import { Button } from '@app/components/button/button';
 import { Icon, IconName } from '@app/components/icon/icon';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
 import { LayoutMode } from '@app/interfaces';
 import { SettingsService } from '@app/services/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
+import { UpdaterService } from '@app/services/updater.service';
 
-type SettingsTab = 'appearance' | 'files' | 'connection';
+type SettingsTab = 'appearance' | 'files' | 'connection' | 'updates';
 
 interface TabOption {
   id: SettingsTab;
@@ -23,7 +25,7 @@ interface LayoutOption {
 
 @Component({
   selector: 'app-settings-panel',
-  imports: [Icon, TextField, Toggle],
+  imports: [Button, Icon, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -34,6 +36,7 @@ interface LayoutOption {
 export class SettingsPanel {
   protected readonly settings = inject(SettingsService);
   protected readonly themeService = inject(ThemeService);
+  protected readonly updater = inject(UpdaterService);
 
   protected readonly activeTab = signal<SettingsTab>('appearance');
 
@@ -41,7 +44,13 @@ export class SettingsPanel {
     { id: 'appearance', icon: 'palette', label: 'Apparence' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
     { id: 'connection', icon: 'server', label: 'Connexion' },
+    { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
   ];
+
+  /** Pourcentage du téléchargement de mise à jour (0 si taille inconnue). */
+  protected downloadPercent(transferred: number, total: number): number {
+    return total > 0 ? Math.min(100, Math.round((transferred / total) * 100)) : 0;
+  }
 
   protected readonly themeOptions = THEME_OPTIONS;
 

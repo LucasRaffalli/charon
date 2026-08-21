@@ -149,11 +149,32 @@ aucune application ne peut s'en protéger.
     (RUSTSEC-2025-0052), pas une vulnérabilité — migration de suppaftp
     suivie.
 
+### Mises à jour signées
+
+Les mises à jour passent par `tauri-plugin-updater` : la vérification et le
+téléchargement se font **côté Rust** (pas dans la WebView), et chaque archive
+est vérifiée contre la **clé publique embarquée** dans l'application avant
+toute installation — un `latest.json` ou un binaire altéré sur le serveur est
+rejeté. La clé privée vit hors du dépôt (`~/.tauri/charon-updater.key`).
+
+Publication d'une version :
+
+```bash
+# 1. incrémenter "version" dans src-tauri/tauri.conf.json
+# 2. build signé
+TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/charon-updater.key npm run tauri build
+# 3. générer le manifeste
+scripts/make-latest-json.sh https://ton-vps.exemple/charon > latest.json
+# 4. téléverser latest.json + l'archive .app.tar.gz sur le VPS
+```
+
+L'endpoint est déclaré dans `tauri.conf.json` (`plugins.updater.endpoints`).
+
 ### Limites connues (feuille de route sécurité)
 
 1. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
-   application privée. Le futur updater (`tauri-plugin-updater`) vérifiera
-   les signatures avec sa propre paire de clés — non négociable.
+   application privée — l'intégrité des mises à jour est assurée par la
+   signature de l'updater ci-dessus, pas par Gatekeeper.
 
 ## Pourquoi ne pas écrire nos propres sockets / notre propre SSH ?
 

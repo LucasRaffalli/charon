@@ -1,0 +1,24 @@
+@if (activity.entries().length > 0) {
+  <div class="toolbar">
+    <button type="button" class="toolbar__action" (click)="copy()">
+      {{ copied() ? 'Copié ✓' : 'Copier' }}
+    </button>
+    <button type="button" class="toolbar__action" (click)="activity.clear()">Vider</button>
+  </div>
+
+  <ul class="list">
+    @for (entry of activity.entries(); track $index) {
+      <li class="row" [class.row--ko]="!entry.ok">
+        <span class="row__time">{{ entry.at | date: 'HH:mm:ss' }}</span>
+        <app-icon class="row__icon" [name]="iconFor(entry.kind)" [size]="13" />
+        <span class="row__target" [title]="entry.target">{{ entry.target }}</span>
+        @if (entry.detail; as detail) {
+          <span class="row__detail" [title]="detail">{{ detail }}</span>
+        }
+        <span class="row__scope">{{ entry.scope === 'local' ? 'local' : 'serveur' }}</span>
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty">Aucune activité enregistrée. Le journal reste sur ce Mac.</p>
+}

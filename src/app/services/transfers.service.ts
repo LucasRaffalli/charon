@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 import { Transfer, TransferDirection, TransferProgressEvent } from '@app/interfaces';
+import { ActivityLogService } from '@app/services/activity-log.service';
 import { LocalFsService } from '@app/services/local-fs.service';
 import { SftpService } from '@app/services/sftp.service';
 
@@ -23,6 +24,7 @@ const STORAGE_KEY = 'charon:transfers';
 export class TransfersService {
   private readonly sftp = inject(SftpService);
   private readonly localFs = inject(LocalFsService);
+  private readonly activity = inject(ActivityLogService);
   private readonly _transfers = signal<Transfer[]>(this.load());
 
   readonly transfers = this._transfers.asReadonly();
@@ -62,6 +64,7 @@ export class TransfersService {
       return false;
     }
     this.patch(transfer.id, { status: 'active', error: null });
+    this.activity.log('resume', 'remote', transfer.remotePath);
     const done = await this.run(transfer.id, () =>
       invoke<number>(this.sftp.commandFor(transfer.direction), {
         connectionId: transfer.connectionId,
@@ -136,22 +139,33 @@ export class TransfersService {
 
   /** Exécute l'opération et traduit le résultat en statut de la file. */
   private async run(id: string, operation: () => Promise<number>): Promise<boolean> {
+    const target = () => this._transfers().find((t) => t.id === id);
     try {
       const written = await operation();
       this.patch(id, { status: 'done', transferred: written });
+      const transfer = target();
+      if (transfer) {
+        this.activity.log(transfer.direction, 'remote', transfer.remotePath, `${written} octets`);
+      }
       return true;
     } catch (error) {
       const message = typeof error === 'string' ? error : String(error);
+      const transfer = target();
       if (message === CANCELLED_TAG) {
         this.patch(id, { status: 'cancelled' });
+        if (transfer) {
+          this.activity.log('cancel', 'remote', transfer.remotePath);
+        }
       } else {
         // Le backend conserve le .charonpart : reprise possible si des
         // octets étaient passés, sinon simple erreur.
-        const transfer = this._transfers().find((t) => t.id === id);
         this.patch(id, {
           status: transfer && transfer.transferred > 0 ? 'interrupted' : 'error',
           error: message,
         });
+        if (transfer) {
+          this.activity.log(transfer.direction, 'remote', transfer.remotePath, message, false);
+        }
       }
       return false;
     }

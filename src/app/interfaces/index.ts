@@ -1,3 +1,4 @@
+export * from './activity';
 export * from './connection';
 export * from './file-entry';
 export * from './path-segment';

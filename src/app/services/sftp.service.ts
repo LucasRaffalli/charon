@@ -1,8 +1,9 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 import { ConnectionParams, FileEntryDto, RemoteProtocol } from '@app/interfaces';
+import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 
 /** Balise émise par le backend quand la clé d'un hôte inconnu attend confirmation. */
@@ -11,6 +12,7 @@ const UNKNOWN_KEY_TAG = 'CHARON_UNKNOWN_KEY:';
 /** Navigation et transferts sur le serveur distant, via le backend Rust. */
 @Injectable({ providedIn: 'root' })
 export class SftpService extends FileBrowserState {
+  private readonly activity = inject(ActivityLogService);
   private readonly _connectionId = signal<string | null>(null);
   private readonly _pendingKey = signal<string | null>(null);
   private readonly _protocol = signal<RemoteProtocol>('sftp');
@@ -39,6 +41,7 @@ export class SftpService extends FileBrowserState {
       this._currentPath.set('/');
       this._entries.set([]);
       this._error.set('Session fermée pour inactivité.');
+      this.activity.log('disconnect', 'remote', event.payload, 'inactivité');
     });
   }
 
@@ -48,24 +51,44 @@ export class SftpService extends FileBrowserState {
     );
   }
 
-  protected createDir(path: string): Promise<void> {
-    return this.withConnection((id) => invoke(this.commandFor('mkdir'), { connectionId: id, path }));
+  protected async createDir(path: string): Promise<void> {
+    try {
+      await this.withConnection((id) =>
+        invoke(this.commandFor('mkdir'), { connectionId: id, path }),
+      );
+      this.activity.log('mkdir', 'remote', path);
+    } catch (error) {
+      this.activity.log('mkdir', 'remote', path, String(error), false);
+      throw error;
+    }
   }
 
   /** Fichier : suppression simple. Dossier : suppression récursive
    *  (la confirmation renforcée est gérée par l'UI en amont). */
-  protected removeEntry(path: string, isDir: boolean): Promise<void> {
-    return this.withConnection((id) =>
-      isDir
-        ? invoke(this.commandFor('remove_all'), { connectionId: id, path })
-        : invoke(this.commandFor('remove'), { connectionId: id, path, isDir }),
-    );
+  protected async removeEntry(path: string, isDir: boolean): Promise<void> {
+    try {
+      await this.withConnection((id) =>
+        isDir
+          ? invoke(this.commandFor('remove_all'), { connectionId: id, path })
+          : invoke(this.commandFor('remove'), { connectionId: id, path, isDir }),
+      );
+      this.activity.log('remove', 'remote', path, isDir ? 'récursif' : null);
+    } catch (error) {
+      this.activity.log('remove', 'remote', path, String(error), false);
+      throw error;
+    }
   }
 
-  protected renameEntry(from: string, to: string): Promise<void> {
-    return this.withConnection((id) =>
-      invoke(this.commandFor('rename'), { connectionId: id, from, to }),
-    );
+  protected async renameEntry(from: string, to: string): Promise<void> {
+    try {
+      await this.withConnection((id) =>
+        invoke(this.commandFor('rename'), { connectionId: id, from, to }),
+      );
+      this.activity.log('rename', 'remote', from, `→ ${to}`);
+    } catch (error) {
+      this.activity.log('rename', 'remote', from, String(error), false);
+      throw error;
+    }
   }
 
   async connect(params: ConnectionParams, acceptNewKey?: string): Promise<void> {
@@ -106,6 +129,7 @@ export class SftpService extends FileBrowserState {
 
     this._protocol.set(protocol);
     this._connectionId.set(id);
+    this.activity.log('connect', 'remote', id);
 
     if (protocol === 'sftp') {
       // Dossier personnel si possible, racine sinon.
@@ -136,6 +160,7 @@ export class SftpService extends FileBrowserState {
     }
 
     await this.run(() => invoke(this.commandFor('disconnect'), { connectionId: id }));
+    this.activity.log('disconnect', 'remote', id);
     this._connectionId.set(null);
     this._protocol.set('sftp');
     this._currentPath.set('/');

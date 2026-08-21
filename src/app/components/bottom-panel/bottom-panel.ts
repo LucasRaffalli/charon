@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
+import { ActivityLog } from '@app/components/activity-log/activity-log';
 import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TransferPanel } from '@app/components/transfer-panel/transfer-panel';
@@ -8,12 +9,12 @@ import { TransfersService } from '@app/services/transfers.service';
 
 /**
  * Panneau inférieur multi-features, sous les deux colonnes de l'explorateur.
- * Onglets actuels : Transferts. À venir : Journal, Terminal.
+ * Onglets actuels : Transferts, Journal. À venir : Terminal.
  * État (déplié + onglet actif) persisté dans les réglages.
  */
 @Component({
   selector: 'app-bottom-panel',
-  imports: [Icon, Tabs, TransferPanel],
+  imports: [ActivityLog, Icon, Tabs, TransferPanel],
   templateUrl: './bottom-panel.html',
   styleUrl: './bottom-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +31,7 @@ export class BottomPanel {
         label: active > 0 ? `Transferts · ${active}` : 'Transferts',
         icon: 'arrow-down-up',
       },
+      { id: 'journal', label: 'Journal', icon: 'info' },
     ];
   });
 

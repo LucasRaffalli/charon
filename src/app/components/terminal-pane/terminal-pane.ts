@@ -4,6 +4,7 @@ import {
   DestroyRef,
   ElementRef,
   afterNextRender,
+  effect,
   inject,
   signal,
   viewChild,
@@ -14,6 +15,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
 import { SftpService } from '@app/services/sftp.service';
+import { ThemeService } from '@app/services/theme.service';
 
 interface TermEvent {
   id: string;
@@ -38,6 +40,7 @@ const decode = (data: string): Uint8Array =>
 })
 export class TerminalPane {
   protected readonly sftp = inject(SftpService);
+  private readonly theme = inject(ThemeService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly closed = signal(false);
@@ -50,6 +53,13 @@ export class TerminalPane {
 
   constructor() {
     afterNextRender(() => void this.open());
+    // Suit le thème de l'app : xterm fige ses couleurs sinon (bloc gris
+    // après un changement de thème). rAF : lire les customs properties
+    // APRÈS que data-theme a été appliqué au DOM.
+    effect(() => {
+      this.theme.theme();
+      requestAnimationFrame(() => this.applyTheme());
+    });
     this.destroyRef.onDestroy(() => {
       const id = this.terminalId;
       if (id) {
@@ -57,6 +67,22 @@ export class TerminalPane {
       }
       this.terminal?.dispose();
     });
+  }
+
+  /** Cale les couleurs d'xterm sur les custom properties du thème courant. */
+  private applyTheme(): void {
+    const terminal = this.terminal;
+    if (!terminal) {
+      return;
+    }
+    const styles = getComputedStyle(document.documentElement);
+    const read = (name: string): string | undefined => styles.getPropertyValue(name).trim() || undefined;
+    terminal.options.theme = {
+      background: read('--surface') ?? '#1e1e1e',
+      foreground: read('--text') ?? '#d4d4d4',
+      cursor: read('--accent'),
+      selectionBackground: read('--surface-active'),
+    };
   }
 
   private async open(): Promise<void> {
@@ -71,15 +97,12 @@ export class TerminalPane {
       fontSize: 12,
       fontFamily: styles.getPropertyValue('--font-mono') || 'monospace',
       cursorBlink: true,
-      theme: {
-        background: styles.getPropertyValue('--surface').trim() || '#1e1e1e',
-        foreground: styles.getPropertyValue('--text').trim() || '#d4d4d4',
-      },
     });
     terminal.loadAddon(this.fit);
     terminal.open(element);
     this.fit.fit();
     this.terminal = terminal;
+    this.applyTheme();
 
     try {
       const id = await invoke<string>('shell_open', {

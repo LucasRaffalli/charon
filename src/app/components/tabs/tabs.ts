@@ -72,6 +72,15 @@ export class Tabs {
       requestAnimationFrame(() => this.indicatorReady.set(true));
     });
 
+    // Les libellés peuvent changer de largeur (ex : compteur « Transferts · 2 ») :
+    // re-mesurer l'indicateur après le rendu du nouveau texte, sinon il
+    // garde l'ancienne largeur et empiète sur les onglets voisins.
+    effect(() => {
+      this.tabs();
+      this.active();
+      requestAnimationFrame(() => this.positionIndicator());
+    });
+
     effect(() => {
       const index = this.tabs().findIndex((tab) => tab.id === this.active());
       if (index === -1) {

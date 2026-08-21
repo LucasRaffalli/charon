@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
-import { Button } from '@app/components/button/button';
 import { Icon } from '@app/components/icon/icon';
 import { Transfer } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { TransfersService } from '@app/services/transfers.service';
 
+/** Contenu de l'onglet Transferts du panneau inférieur. */
 @Component({
   selector: 'app-transfer-panel',
-  imports: [Button, Icon, FileSizePipe],
+  imports: [Icon, FileSizePipe],
   templateUrl: './transfer-panel.html',
   styleUrl: './transfer-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

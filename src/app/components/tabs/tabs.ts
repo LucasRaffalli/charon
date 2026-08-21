@@ -46,6 +46,8 @@ export class Tabs {
   readonly active = model.required<string>();
   /** Étire les onglets sur toute la largeur (le dernier colle au bord droit). */
   readonly stretch = input(false, { transform: booleanAttribute });
+  /** Replie le panneau : seule la barre d'onglets reste visible. */
+  readonly collapsed = input(false, { transform: booleanAttribute });
 
   protected readonly activeIsFirst = computed(() => this.tabs()[0]?.id === this.active());
   protected readonly activeIsLast = computed(
@@ -56,7 +58,8 @@ export class Tabs {
   protected readonly indicatorReady = signal(false);
 
   private readonly indicator = viewChild.required<ElementRef<HTMLElement>>('indicator');
-  private readonly content = viewChild.required<ElementRef<HTMLElement>>('content');
+  // Optionnel : absent quand le panneau est replié.
+  private readonly content = viewChild<ElementRef<HTMLElement>>('content');
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('tabBtn');
 
   private previousIndex: number | null = null;
@@ -65,7 +68,7 @@ export class Tabs {
   constructor() {
     afterNextRender(() => {
       this.positionIndicator();
-      this.lastContentHeight = this.content().nativeElement.offsetHeight;
+      this.lastContentHeight = this.content()?.nativeElement.offsetHeight ?? null;
       requestAnimationFrame(() => this.indicatorReady.set(true));
     });
 
@@ -105,7 +108,11 @@ export class Tabs {
   }
 
   private animateContent(direction: number): void {
-    const element = this.content().nativeElement;
+    const element = this.content()?.nativeElement;
+    if (!element) {
+      this.lastContentHeight = null;
+      return;
+    }
     const newHeight = element.offsetHeight;
     const oldHeight = this.lastContentHeight;
     this.lastContentHeight = newHeight;

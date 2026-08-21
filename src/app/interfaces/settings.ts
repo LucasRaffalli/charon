@@ -9,4 +9,8 @@ export interface Settings {
   localPaneHeight: number;
   /** Minutes d'inactivité avant fermeture d'une connexion (0 = jamais). */
   idleMinutes: number;
+  /** Panneau inférieur déplié ? */
+  bottomPanelOpen: boolean;
+  /** Onglet actif du panneau inférieur. */
+  bottomPanelTab: string;
 }

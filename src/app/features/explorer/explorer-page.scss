@@ -256,11 +256,21 @@
   color: var(--text-faint);
 }
 
+// --- Panneau inférieur ---
+
+app-bottom-panel {
+  margin: var(--space-2xs) var(--space-xs) var(--space-xs);
+}
+
 // --- Variante bento : chaque zone devient une carte ---
 
 .explorer--bento {
   padding: var(--space-xs);
   gap: var(--space-2xs);
+
+  app-bottom-panel {
+    margin: 0;
+  }
 
   .explorer__toolbar {
     border: 1px solid var(--border);

@@ -1,0 +1,26 @@
+<div class="bottom" [class.bottom--collapsed]="!settings.bottomPanelOpen()">
+  <app-tabs
+    [tabs]="tabs()"
+    [active]="activeTab()"
+    [collapsed]="!settings.bottomPanelOpen()"
+    (activeChange)="selectTab($event)"
+  >
+    <div class="bottom__content">
+      @switch (activeTab()) {
+        @case ('transfers') {
+          <app-transfer-panel />
+        }
+      }
+    </div>
+  </app-tabs>
+
+  <button
+    type="button"
+    class="bottom__toggle"
+    [title]="settings.bottomPanelOpen() ? 'Replier le panneau' : 'Déplier le panneau'"
+    [attr.aria-expanded]="settings.bottomPanelOpen()"
+    (click)="toggle()"
+  >
+    <app-icon name="chevron-right" [size]="14" />
+  </button>
+</div>

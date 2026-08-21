@@ -1,87 +1,79 @@
 @if (transfers.transfers().length > 0) {
-  <section class="panel" aria-label="Transferts">
-    <header class="panel__header">
-      <app-icon name="arrow-down-up" [size]="14" />
-      <h2 class="panel__title">Transferts</h2>
-      @if (transfers.activeCount() > 0) {
-        <span class="panel__count">{{ transfers.activeCount() }}</span>
-      } @else {
-        <app-button
-          variant="ghost"
-          iconOnly
-          title="Effacer les transferts terminés"
-          (click)="transfers.clearFinished()"
-        >
-          <app-icon name="close" [size]="14" />
-        </app-button>
-      }
-    </header>
+  @if (transfers.activeCount() === 0) {
+    <div class="toolbar">
+      <button type="button" class="toolbar__clear" (click)="transfers.clearFinished()">
+        <app-icon name="close" [size]="12" />
+        Effacer les terminés
+      </button>
+    </div>
+  }
 
-    <ul class="panel__list">
-      @for (transfer of transfers.transfers(); track transfer.id) {
-        <li
-          class="row"
-          [class.row--error]="transfer.status === 'error'"
-          [class.row--muted]="transfer.status === 'cancelled'"
-        >
-          <app-icon
-            class="row__direction"
-            [name]="transfer.direction === 'download' ? 'download' : 'upload'"
-            [size]="14"
-          />
+  <ul class="list">
+    @for (transfer of transfers.transfers(); track transfer.id) {
+      <li
+        class="row"
+        [class.row--error]="transfer.status === 'error'"
+        [class.row--muted]="transfer.status === 'cancelled'"
+      >
+        <app-icon
+          class="row__direction"
+          [name]="transfer.direction === 'download' ? 'download' : 'upload'"
+          [size]="14"
+        />
 
-          <div class="row__body">
-            <div class="row__top">
-              <span class="row__name" [title]="transfer.error ?? transfer.name">
-                {{ transfer.name }}
-              </span>
-              <span class="row__status">
-                @if (transfer.status === 'active') {
-                  {{ transfer.transferred | fileSize }}
-                  @if (transfer.total > 0) {
-                    / {{ transfer.total | fileSize }}
-                  }
-                } @else {
-                  {{ statusLabel(transfer) }}
+        <div class="row__body">
+          <div class="row__top">
+            <span class="row__name" [title]="transfer.error ?? transfer.name">
+              {{ transfer.name }}
+            </span>
+            <span class="row__status">
+              @if (transfer.status === 'active') {
+                {{ transfer.transferred | fileSize }}
+                @if (transfer.total > 0) {
+                  / {{ transfer.total | fileSize }}
                 }
-              </span>
-            </div>
-            <div
-              class="row__bar"
-              role="progressbar"
-              [attr.aria-valuenow]="percent(transfer)"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <div class="row__fill" [style.width.%]="percent(transfer)"></div>
-            </div>
+              } @else {
+                {{ statusLabel(transfer) }}
+              }
+            </span>
           </div>
+          <div
+            class="row__bar"
+            role="progressbar"
+            [attr.aria-valuenow]="percent(transfer)"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div class="row__fill" [style.width.%]="percent(transfer)"></div>
+          </div>
+        </div>
 
-          @if (transfer.status === 'active') {
-            <button
-              type="button"
-              class="row__cancel"
-              title="Annuler ce transfert"
-              [attr.aria-label]="'Annuler le transfert de ' + transfer.name"
-              (click)="transfers.cancel(transfer.id)"
-            >
-              <app-icon name="close" [size]="13" />
-            </button>
-          } @else if (transfers.canResume(transfer)) {
-            <button
-              type="button"
-              class="row__resume"
-              title="Reprendre ce transfert"
-              [attr.aria-label]="'Reprendre le transfert de ' + transfer.name"
-              (click)="transfers.resume(transfer)"
-            >
-              <app-icon name="refresh" [size]="13" />
-            </button>
-          } @else if (transfer.status === 'done') {
-            <app-icon class="row__done" name="check" [size]="14" />
-          }
-        </li>
-      }
-    </ul>
-  </section>
+        @if (transfer.status === 'active') {
+          <button
+            type="button"
+            class="row__cancel"
+            title="Annuler ce transfert"
+            [attr.aria-label]="'Annuler le transfert de ' + transfer.name"
+            (click)="transfers.cancel(transfer.id)"
+          >
+            <app-icon name="close" [size]="13" />
+          </button>
+        } @else if (transfers.canResume(transfer)) {
+          <button
+            type="button"
+            class="row__resume"
+            title="Reprendre ce transfert"
+            [attr.aria-label]="'Reprendre le transfert de ' + transfer.name"
+            (click)="transfers.resume(transfer)"
+          >
+            <app-icon name="refresh" [size]="13" />
+          </button>
+        } @else if (transfer.status === 'done') {
+          <app-icon class="row__done" name="check" [size]="14" />
+        }
+      </li>
+    }
+  </ul>
+} @else {
+  <p class="empty">Aucun transfert pour l'instant.</p>
 }

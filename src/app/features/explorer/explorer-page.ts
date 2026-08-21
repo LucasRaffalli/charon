@@ -17,8 +17,8 @@ import { Icon } from '@app/components/icon/icon';
 import { ResizeHandle } from '@app/components/resize-handle/resize-handle';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
+import { BottomPanel } from '@app/components/bottom-panel/bottom-panel';
 import { ServerTree } from '@app/components/server-tree/server-tree';
-import { TransferPanel } from '@app/components/transfer-panel/transfer-panel';
 import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
@@ -38,12 +38,12 @@ const isValidEntryName = (name: string): boolean =>
   selector: 'app-explorer-page',
   imports: [
     Alert,
+    BottomPanel,
     Button,
     FilePane,
     Icon,
     ResizeHandle,
     ServerTree,
-    TransferPanel,
     FileSizePipe,
   ],
   templateUrl: './explorer-page.html',

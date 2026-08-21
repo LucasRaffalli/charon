@@ -11,6 +11,8 @@ const DEFAULT_SETTINGS: Settings = {
   sidebarWidth: 280,
   localPaneHeight: 300,
   idleMinutes: 15,
+  bottomPanelOpen: true,
+  bottomPanelTab: 'transfers',
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -27,6 +29,8 @@ export class SettingsService {
   readonly sidebarWidth = computed(() => this._settings().sidebarWidth);
   readonly localPaneHeight = computed(() => this._settings().localPaneHeight);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
+  readonly bottomPanelOpen = computed(() => this._settings().bottomPanelOpen);
+  readonly bottomPanelTab = computed(() => this._settings().bottomPanelTab);
 
   constructor() {
     effect(() => {

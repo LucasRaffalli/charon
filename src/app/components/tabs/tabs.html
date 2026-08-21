@@ -26,13 +26,15 @@
   }
 </div>
 
-<div
-  class="tabs__panel"
-  role="tabpanel"
-  [class.tabs__panel--flush-left]="activeIsFirst()"
-  [class.tabs__panel--flush-right]="stretch() && activeIsLast()"
->
-  <div class="tabs__content" #content>
-    <ng-content />
+@if (!collapsed()) {
+  <div
+    class="tabs__panel"
+    role="tabpanel"
+    [class.tabs__panel--flush-left]="activeIsFirst()"
+    [class.tabs__panel--flush-right]="stretch() && activeIsLast()"
+  >
+    <div class="tabs__content" #content>
+      <ng-content />
+    </div>
   </div>
-</div>
+}

@@ -66,6 +66,26 @@
       <app-tabs stretch [tabs]="connectTabs" [(active)]="activeTab">
         <div class="connect__tab-fields">
           @if (activeTab() === 'server') {
+            <div class="connect__protocols" role="radiogroup" aria-label="Protocole">
+              <span
+                class="connect__protocols-pill"
+                aria-hidden="true"
+                [style.transform]="'translateX(' + protocolIndex() * 100 + '%)'"
+              ></span>
+              @for (option of protocols; track option.value) {
+                <button
+                  type="button"
+                  class="connect__protocol"
+                  role="radio"
+                  [class.connect__protocol--active]="protocol() === option.value"
+                  [attr.aria-checked]="protocol() === option.value"
+                  (click)="setProtocol(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
+
             <app-text-field
               label="Hôte"
               name="host"
@@ -88,7 +108,7 @@
                 [(value)]="port"
               />
             </div>
-          } @else {
+          } @else if (protocol() === 'sftp') {
             <app-text-field
               label="Clé SSH"
               name="key-path"
@@ -105,6 +125,22 @@
               hint="Laisser vide si la clé n'est pas chiffrée"
               [(value)]="passphrase"
             />
+          } @else {
+            <app-text-field
+              label="Mot de passe"
+              name="ftp-password"
+              type="password"
+              placeholder="••••••••"
+              hint="Laisser vide pour une connexion anonyme"
+              [(value)]="password"
+            />
+
+            @if (protocol() === 'ftp') {
+              <p class="connect__warn">
+                FTP transmet identifiants et fichiers <strong>en clair</strong> —
+                préfère FTPS ou SFTP dès que possible.
+              </p>
+            }
           }
         </div>
       </app-tabs>

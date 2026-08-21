@@ -1,7 +1,9 @@
 mod fs;
+mod ftp;
 mod profiles;
 mod sftp;
 
+use ftp::FtpPool;
 use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,12 +28,14 @@ pub fn run() {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                     sftp::reap_idle_connections(&handle).await;
+                    ftp::reap_idle_connections(&handle).await;
                 }
             });
 
             Ok(())
         })
         .manage(ConnectionPool::default())
+        .manage(FtpPool::default())
         .manage(TransferRegistry::default())
         .manage(IdleConfig::default())
         .invoke_handler(tauri::generate_handler![
@@ -47,6 +51,15 @@ pub fn run() {
             sftp::sftp_remove,
             sftp::sftp_remove_all,
             sftp::sftp_rename,
+            ftp::ftp_connect,
+            ftp::ftp_list_dir,
+            ftp::ftp_disconnect,
+            ftp::ftp_mkdir,
+            ftp::ftp_remove,
+            ftp::ftp_remove_all,
+            ftp::ftp_rename,
+            ftp::ftp_download,
+            ftp::ftp_upload,
             fs::local_home_dir,
             fs::local_list_dir,
             fs::local_mkdir,

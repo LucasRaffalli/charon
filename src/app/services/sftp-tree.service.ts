@@ -156,7 +156,10 @@ export class SftpTreeService {
       return null;
     }
     try {
-      const entries = await invoke<FileEntryDto[]>('sftp_list_dir', { connectionId, path });
+      const entries = await invoke<FileEntryDto[]>(this.sftp.commandFor('list_dir'), {
+        connectionId,
+        path,
+      });
       return entries
         .filter((entry) => entry.is_dir)
         .map((entry) => ({

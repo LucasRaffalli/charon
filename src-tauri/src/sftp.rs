@@ -13,11 +13,11 @@ use tokio::sync::Mutex;
 /// Préfixe d'erreur balisée pour le front : hôte inconnu, empreinte à confirmer.
 const UNKNOWN_KEY_TAG: &str = "CHARON_UNKNOWN_KEY:";
 /// Erreur balisée pour le front : transfert annulé par l'utilisateur.
-const CANCELLED_TAG: &str = "CHARON_CANCELLED";
+pub(crate) const CANCELLED_TAG: &str = "CHARON_CANCELLED";
 /// Taille des chunks de streaming (download et upload).
-const CHUNK_SIZE: usize = 1024 * 1024;
+pub(crate) const CHUNK_SIZE: usize = 1024 * 1024;
 /// Émettre un event de progression au plus tous les N octets transférés.
-const PROGRESS_STEP: u64 = 512 * 1024;
+pub(crate) const PROGRESS_STEP: u64 = 512 * 1024;
 
 // ---------- État partagé ----------
 
@@ -194,7 +194,7 @@ pub async fn reap_idle_connections(app: &AppHandle) {
     }
 }
 
-fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) -> Arc<AtomicBool> {
+pub(crate) fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) -> Arc<AtomicBool> {
     let flag = Arc::new(AtomicBool::new(false));
     registry
         .inner()
@@ -205,11 +205,11 @@ fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) 
     flag
 }
 
-fn unregister_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) {
+pub(crate) fn unregister_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) {
     registry.inner().0.lock().unwrap().remove(transfer_id);
 }
 
-fn emit_progress(app: &AppHandle, id: &str, transferred: u64, total: u64) {
+pub(crate) fn emit_progress(app: &AppHandle, id: &str, transferred: u64, total: u64) {
     let _ = app.emit(
         "transfer:progress",
         TransferProgress {
@@ -238,7 +238,7 @@ fn resolve_key_path(explicit: Option<String>) -> Result<std::path::PathBuf, Stri
     Err("Aucune clé SSH trouvée dans ~/.ssh".into())
 }
 
-fn shellexpand_tilde(p: &str) -> String {
+pub(crate) fn shellexpand_tilde(p: &str) -> String {
     if let Some(rest) = p.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
             return home.join(rest).to_string_lossy().into_owned();
@@ -450,7 +450,7 @@ pub async fn sftp_remove(
 
 /// Garde-fou de la suppression récursive : au-delà, on refuse (arbre suspect
 /// ou boucle côté serveur).
-const MAX_RECURSIVE_ENTRIES: usize = 100_000;
+pub(crate) const MAX_RECURSIVE_ENTRIES: usize = 100_000;
 
 /// Supprime récursivement un dossier distant : walk complet d'abord
 /// (fichiers puis dossiers en ordre inverse), suppression ensuite.

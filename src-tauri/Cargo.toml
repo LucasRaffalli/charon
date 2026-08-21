@@ -22,6 +22,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util
 # plusieurs côté client (DoS/panique face à un serveur malveillant).
 russh = "0.62.7"
 russh-sftp = "2"
+suppaftp = { version = "6", features = ["async-secure", "async-native-tls"] }
+futures-util = { version = "0.3", features = ["io"] }
 keyring = { version = "3", features = ["apple-native"] }
 tauri-plugin-store = "2"
 thiserror = "2"

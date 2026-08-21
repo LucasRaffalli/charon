@@ -25,6 +25,9 @@ pub struct Profile {
     pub key_path: Option<String>,
     #[serde(default)]
     pub has_secret: bool,
+    /// « sftp » (défaut), « ftps » ou « ftp ».
+    #[serde(default)]
+    pub protocol: Option<String>,
 }
 
 // ---------- Helpers ----------

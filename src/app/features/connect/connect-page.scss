@@ -237,3 +237,60 @@
   flex-direction: column;
   gap: var(--space-sm);
 }
+
+// Sélecteur de protocole (onglet Serveur) : pastille glissante.
+.connect__protocols {
+  position: relative;
+  display: flex;
+  padding: 3px;
+  background: var(--surface-active);
+  border-radius: var(--radius-md);
+}
+
+.connect__protocols-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3); // 3 protocoles à parts égales
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.connect__protocol {
+  position: relative; // au-dessus de la pastille
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover,
+  &--active {
+    color: var(--text);
+  }
+
+  &--active {
+    cursor: default;
+  }
+}
+
+// Avertissement FTP non chiffré.
+.connect__warn {
+  padding: var(--space-2xs) var(--space-xs);
+  font-size: 11.5px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+}

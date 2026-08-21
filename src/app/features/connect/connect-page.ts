@@ -7,14 +7,19 @@ import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
-import { ConnectionParams, ServerProfile } from '@app/interfaces';
+import { ConnectionParams, RemoteProtocol, ServerProfile } from '@app/interfaces';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 
-const DEFAULT_SSH_PORT = 22;
+const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
+
+interface ProtocolOption {
+  value: RemoteProtocol;
+  label: string;
+}
 
 @Component({
   selector: 'app-connect-page',
@@ -30,12 +35,28 @@ export class ConnectPage {
   protected readonly contextMenu = inject(ContextMenuService);
   private readonly dialog = inject(DialogService);
 
+  protected readonly protocol = signal<RemoteProtocol>('sftp');
   protected readonly host = signal('');
-  protected readonly port = signal(String(DEFAULT_SSH_PORT));
+  protected readonly port = signal(String(DEFAULT_PORTS.sftp));
   protected readonly user = signal('');
   protected readonly passphrase = signal('');
   protected readonly keyPath = signal('');
+  protected readonly password = signal('');
   protected readonly remember = signal(false);
+
+  protected readonly protocols: readonly ProtocolOption[] = [
+    { value: 'sftp', label: 'SFTP' },
+    { value: 'ftps', label: 'FTPS' },
+    { value: 'ftp', label: 'FTP' },
+  ];
+
+  /** Position de la pastille glissante du sélecteur de protocole. */
+  protected readonly protocolIndex = computed(() =>
+    Math.max(
+      0,
+      this.protocols.findIndex((option) => option.value === this.protocol()),
+    ),
+  );
   protected readonly profileName = signal('');
   protected readonly drawerOpen = signal(false);
 
@@ -62,33 +83,38 @@ export class ConnectPage {
       return;
     }
 
+    const protocol = this.protocol();
     const host = this.host().trim();
     const user = this.user().trim();
-    const port = Number(this.port()) || DEFAULT_SSH_PORT;
-    const passphrase = this.passphrase();
-    const keyPath = this.keyPath().trim() || null;
+    const port = Number(this.port()) || DEFAULT_PORTS[protocol];
+    const keyPath = protocol === 'sftp' ? this.keyPath().trim() || null : null;
+    // Le secret saisi : passphrase de clé (SFTP) ou mot de passe (FTP/FTPS).
+    const secret = protocol === 'sftp' ? this.passphrase() : this.password();
 
-    // Édition avec passphrase laissée vide : le backend relit celle de
+    // Édition avec secret laissé vide : le backend relit celui de
     // l'ancien profil dans le trousseau via profileId.
     await this.connectWithTrust({
+      protocol,
       host,
       port,
       user,
       keyPath,
-      keyPassphrase: passphrase || null,
-      profileId: passphrase ? null : this.editingId(),
+      keyPassphrase: protocol === 'sftp' ? secret || null : null,
+      password: protocol === 'sftp' ? null : secret || null,
+      profileId: secret ? null : this.editingId(),
     });
     if (!this.sftp.connected()) {
       return;
     }
 
     if (this.remember()) {
-      const id = `${user}@${host}:${port}`;
+      const id =
+        protocol === 'sftp' ? `${user}@${host}:${port}` : `${protocol}://${user}@${host}:${port}`;
       const editingId = this.editingId();
 
-      // Édition avec identifiant changé et passphrase laissée vide : le backend
+      // Édition avec identifiant changé et secret laissé vide : le backend
       // migre lui-même le secret du trousseau (il ne transite pas par la WebView).
-      const migrateFrom = !passphrase && editingId && editingId !== id ? editingId : null;
+      const migrateFrom = !secret && editingId && editingId !== id ? editingId : null;
 
       await this.profiles.save(
         {
@@ -98,9 +124,10 @@ export class ConnectPage {
           port,
           user,
           keyPath,
-          hasSecret: passphrase !== '',
+          hasSecret: secret !== '',
+          protocol,
         },
-        passphrase || null,
+        secret || null,
         migrateFrom,
       );
 
@@ -111,13 +138,27 @@ export class ConnectPage {
     this.editingId.set(null);
   }
 
+  /** Change de protocole en ajustant le port s'il était celui par défaut. */
+  protected setProtocol(next: RemoteProtocol): void {
+    const previous = this.protocol();
+    if (next === previous) {
+      return;
+    }
+    if (this.port() === String(DEFAULT_PORTS[previous]) || this.port() === '') {
+      this.port.set(String(DEFAULT_PORTS[next]));
+    }
+    this.protocol.set(next);
+  }
+
   /** Précharge un profil dans le formulaire pour le modifier. */
   protected editProfile(profile: ServerProfile): void {
+    this.protocol.set(profile.protocol ?? 'sftp');
     this.host.set(profile.host);
     this.port.set(String(profile.port));
     this.user.set(profile.user);
     this.profileName.set(profile.name);
     this.passphrase.set('');
+    this.password.set('');
     this.keyPath.set(profile.keyPath ?? '');
     this.remember.set(true);
     this.editingId.set(profile.id);
@@ -129,6 +170,7 @@ export class ConnectPage {
       return;
     }
     await this.connectWithTrust({
+      protocol: profile.protocol ?? 'sftp',
       host: profile.host,
       port: profile.port,
       user: profile.user,

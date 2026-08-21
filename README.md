@@ -24,6 +24,7 @@ npm run tauri build   # binaire de production
 ┌──────────────────────────────┴────────────────────────────────────────┐
 │  Backend Rust                                                          │
 │  ├── sftp.rs      SSH/SFTP (russh), pool de connexions, TOFU          │
+│  ├── ftp.rs       FTP/FTPS (suppaftp), pool séparé, mêmes garanties   │
 │  ├── fs.rs        disque local (dossiers de l'utilisateur)            │
 │  └── profiles.rs  profils (store JSON) + secrets (Keychain macOS)     │
 └────────────────────────────────────────────────────────────────────────┘
@@ -62,6 +63,12 @@ aucune application ne peut s'en protéger.
 - **Clé changée = refus** : si la clé d'un hôte connu ne correspond plus à
   `known_hosts`, la connexion est refusée avec un message explicite —
   l'utilisateur doit vérifier le serveur avant d'aller plus loin.
+- **FTP/FTPS** : FTPS explicite (AUTH TLS) avec validation des certificats
+  par le magasin système ; le FTP en clair reste disponible pour les
+  serveurs legacy mais l'interface affiche un avertissement permanent
+  (« identifiants et fichiers en clair »). Mêmes garanties de transfert
+  (streaming, annulation, nettoyage des partiels) et mêmes gardes
+  anti-traversée que SFTP.
 - **Keepalive** (30 s, 3 tentatives) : une connexion morte est détectée et
   fermée plutôt que de rester en zombie dans le pool.
 - **Fermeture d'inactivité** : une session inutilisée est fermée par une
@@ -126,10 +133,10 @@ aucune application ne peut s'en protéger.
   sécurité, dont plusieurs exploitables côté *client* par un serveur
   malveillant (panique pré-auth, allocations non bornées). Règle : ne jamais
   laisser la bibliothèque SSH prendre du retard sur ses correctifs.
-- **Dépendances inutilisées supprimées** : `suppaftp` (FTP) a été retirée
-  tant que la fonctionnalité n'est pas développée — elle sera réintroduite
-  avec le même passage en revue. Les features de `tokio` sont réduites au
-  nécessaire.
+- **Pas de dépendance dormante** : `suppaftp` (FTP) avait été retirée tant
+  que la fonctionnalité n'existait pas ; elle a été réintroduite avec le
+  support FTP, re-scan OSV à l'appui. Les features de `tokio` sont réduites
+  au nécessaire.
 - **Risques connus et assumés** (état août 2026) :
   - `rsa` (via russh) : RUSTSEC-2023-0071, canal auxiliaire temporel
     (« Marvin ») sans correctif publié dans l'écosystème. Exploitabilité très
@@ -138,6 +145,9 @@ aucune application ne peut s'en protéger.
   - Notices « unmaintained » sur `unic-*` / `proc-macro-error` (tirées par
     l'outillage Tauri) et avis GTK — ces derniers ne concernent que les
     builds Linux, absents du graphe de dépendances macOS.
+  - `async-std` (runtime de suppaftp) : notice « discontinued »
+    (RUSTSEC-2025-0052), pas une vulnérabilité — migration de suppaftp
+    suivie.
 
 ### Limites connues (feuille de route sécurité)
 
@@ -180,7 +190,6 @@ ci-dessus.
 
 ## Feuille de route
 
-1. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
-2. Updater signé (`tauri-plugin-updater`, distribution privée)
-3. File de transferts persistante + reprise des transferts interrompus
-4. Panneau inférieur multi-features (transferts, logs…)
+1. Updater signé (`tauri-plugin-updater`, distribution privée)
+2. File de transferts persistante + reprise des transferts interrompus
+3. Panneau inférieur multi-features (transferts, logs…)

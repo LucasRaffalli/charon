@@ -1,5 +1,10 @@
-/** Paramètres d'ouverture d'une connexion SFTP. */
+/** Protocoles de connexion supportés. */
+export type RemoteProtocol = 'sftp' | 'ftps' | 'ftp';
+
+/** Paramètres d'ouverture d'une connexion distante. */
 export interface ConnectionParams {
+  /** Défaut : 'sftp'. */
+  protocol?: RemoteProtocol;
   host: string;
   port: number;
   user: string;

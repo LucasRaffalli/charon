@@ -29,7 +29,7 @@ export class TransfersService {
   /** Télécharge un fichier distant. Résout à true si le transfert a abouti. */
   download(remotePath: string, localPath: string, name: string): Promise<boolean> {
     return this.track('download', name, (id) =>
-      invoke<number>('sftp_download', {
+      invoke<number>(this.sftp.commandFor('download'), {
         connectionId: this.requireConnection(),
         remotePath,
         localPath,
@@ -41,7 +41,7 @@ export class TransfersService {
   /** Envoie un fichier local. Résout à true si le transfert a abouti. */
   upload(localPath: string, remotePath: string, name: string): Promise<boolean> {
     return this.track('upload', name, (id) =>
-      invoke<number>('sftp_upload', {
+      invoke<number>(this.sftp.commandFor('upload'), {
         connectionId: this.requireConnection(),
         localPath,
         remotePath,

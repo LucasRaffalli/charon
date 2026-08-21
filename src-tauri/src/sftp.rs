@@ -38,6 +38,14 @@ impl ActiveConnection {
     fn idle_for(&self) -> std::time::Duration {
         self.last_used.lock().unwrap().elapsed()
     }
+
+    /// Ouvre un canal supplémentaire sur la session SSH (terminal intégré).
+    pub(crate) async fn open_channel(
+        &self,
+    ) -> Result<russh::Channel<client::Msg>, russh::Error> {
+        self.touch();
+        self._handle.channel_open_session().await
+    }
 }
 
 /// L'état global de l'app : toutes les connexions ouvertes, par identifiant.
@@ -131,7 +139,7 @@ pub fn ensure_no_parent_dir(path: &str) -> Result<(), String> {
 
 /// Récupère une connexion du pool sans garder le verrou : un transfert long
 /// ne bloque ni les listages ni les autres transferts.
-async fn get_connection(
+pub(crate) async fn get_connection(
     pool: &State<'_, ConnectionPool>,
     connection_id: &str,
 ) -> Result<Arc<ActiveConnection>, String> {

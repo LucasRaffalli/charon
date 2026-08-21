@@ -15,6 +15,16 @@
 .bottom__content {
   height: 190px;
   overflow-y: auto;
+
+  // Les contenus inactifs restent montés mais masqués (session du
+  // terminal préservée) ; :host { display } écraserait le [hidden] natif.
+  > [hidden] {
+    display: none !important;
+  }
+
+  app-terminal-pane {
+    height: 100%;
+  }
 }
 
 // Chevron de repli, à droite de la barre d'onglets.

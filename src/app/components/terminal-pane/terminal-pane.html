@@ -1,0 +1,11 @@
+@if (sftp.protocol() !== 'sftp') {
+  <p class="notice">Le terminal n'est disponible qu'en SFTP (session SSH).</p>
+} @else {
+  @if (error(); as message) {
+    <p class="notice notice--error">{{ message }}</p>
+  }
+  @if (closed()) {
+    <p class="notice">Session du terminal terminée.</p>
+  }
+  <div class="term" #term></div>
+}

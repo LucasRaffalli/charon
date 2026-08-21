@@ -6,13 +6,10 @@
     (activeChange)="selectTab($event)"
   >
     <div class="bottom__content">
-      @switch (activeTab()) {
-        @case ('transfers') {
-          <app-transfer-panel />
-        }
-        @case ('journal') {
-          <app-activity-log />
-        }
+      <app-transfer-panel [hidden]="activeTab() !== 'transfers'" />
+      <app-activity-log [hidden]="activeTab() !== 'journal'" />
+      @if (terminalStarted()) {
+        <app-terminal-pane [hidden]="activeTab() !== 'terminal'" />
       }
     </div>
   </app-tabs>

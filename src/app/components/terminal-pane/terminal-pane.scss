@@ -1,0 +1,21 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.notice {
+  padding: var(--space-xs);
+  font-size: 12px;
+  color: var(--text-faint);
+
+  &--error {
+    color: var(--danger);
+  }
+}
+
+.term {
+  height: 100%;
+  // xterm gère son propre fond ; on arrondit pour suivre le panneau.
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}

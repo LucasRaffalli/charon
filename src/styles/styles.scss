@@ -2,3 +2,6 @@
 @use 'tokens';
 @use 'base';
 @use 'themes';
+
+// Styles du terminal intégré (xterm.js)
+@import "@xterm/xterm/css/xterm.css";

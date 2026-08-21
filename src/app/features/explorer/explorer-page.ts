@@ -23,6 +23,7 @@ import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.
 import { DialogService } from '@app/services/dialog.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 import { LocalFsService } from '@app/services/local-fs.service';
+import { LogTailService } from '@app/services/log-tail.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { TransfersService } from '@app/services/transfers.service';
@@ -56,6 +57,7 @@ export class ExplorerPage {
   protected readonly settings = inject(SettingsService);
   protected readonly contextMenu = inject(ContextMenuService);
   protected readonly transfers = inject(TransfersService);
+  private readonly logTail = inject(LogTailService);
   private readonly dialog = inject(DialogService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -166,7 +168,21 @@ export class ExplorerPage {
     const first: ContextMenuItem = entry.isDir
       ? { label: 'Ouvrir', icon: 'folder', action: () => void this.sftp.openDir(entry.name) }
       : { label: 'Télécharger', icon: 'download', action: () => void this.download(entry) };
-    this.contextMenu.open(event, [first, ...this.entryActions(this.sftp, entry)]);
+    const items: ContextMenuItem[] = [first];
+    if (!entry.isDir && this.sftp.protocol() === 'sftp') {
+      items.push({
+        label: 'Suivre en direct',
+        icon: 'logs',
+        action: () => void this.followLog(entry),
+      });
+    }
+    this.contextMenu.open(event, [...items, ...this.entryActions(this.sftp, entry)]);
+  }
+
+  /** Ouvre le suivi de log dans l'onglet Logs du panneau inférieur. */
+  private async followLog(entry: FileEntry): Promise<void> {
+    this.settings.update({ bottomPanelTab: 'logs', bottomPanelOpen: true });
+    await this.logTail.open(this.sftp.pathTo(entry.name));
   }
 
   protected openServerAreaMenu(event: MouseEvent): void {

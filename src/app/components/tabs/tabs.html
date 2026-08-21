@@ -4,6 +4,7 @@
     aria-hidden="true"
     #indicator
     [class.tabs__indicator--animated]="indicatorReady()"
+    [class.tabs__indicator--hidden]="collapsed()"
     [class.tabs__indicator--flush-left]="activeIsFirst()"
     [class.tabs__indicator--flush-right]="stretch() && activeIsLast()"
   ></span>
@@ -14,9 +15,9 @@
       class="tabs__tab"
       role="tab"
       #tabBtn
-      [class.tabs__tab--active]="active() === tab.id"
+      [class.tabs__tab--active]="active() === tab.id && !collapsed()"
       [attr.aria-selected]="active() === tab.id"
-      (click)="active.set(tab.id)"
+      (click)="select(tab.id)"
     >
       @if (tab.icon; as icon) {
         <app-icon [name]="icon" [size]="14" />

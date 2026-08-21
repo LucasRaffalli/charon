@@ -1,0 +1,48 @@
+@if (tail.path(); as path) {
+  <div class="bar">
+    <span class="bar__dot" [class.bar__dot--live]="tail.running()"></span>
+    <span class="bar__path" [title]="path">{{ path }}</span>
+    <input
+      class="bar__filter"
+      type="text"
+      placeholder="Filtrer…"
+      spellcheck="false"
+      #filterInput
+      [value]="filter()"
+      (input)="filter.set(filterInput.value)"
+    />
+    @if (tail.running()) {
+      <button type="button" class="bar__action" title="Arrêter le suivi" (click)="tail.close()">
+        <app-icon name="close" [size]="13" />
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="bar__action"
+        title="Reprendre le suivi"
+        (click)="tail.open(path)"
+      >
+        <app-icon name="refresh" [size]="13" />
+      </button>
+    }
+  </div>
+
+  @if (tail.error(); as error) {
+    <p class="notice notice--error">{{ error }}</p>
+  }
+
+  <div class="scroll" #scroller (scroll)="onScroll()">
+    @for (line of visibleLines(); track $index) {
+      <div class="line">{{ line }}</div>
+    } @empty {
+      <p class="notice">
+        {{ filter() ? 'Aucune ligne ne correspond au filtre.' : 'En attente de contenu…' }}
+      </p>
+    }
+  </div>
+} @else {
+  <p class="notice">
+    Clic droit sur un fichier du serveur → « Suivre en direct » pour voir son contenu
+    défiler ici (session SSH requise).
+  </p>
+}

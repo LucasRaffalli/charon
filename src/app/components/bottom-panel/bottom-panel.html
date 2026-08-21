@@ -3,11 +3,12 @@
     [tabs]="tabs()"
     [active]="activeTab()"
     [collapsed]="!settings.bottomPanelOpen()"
-    (activeChange)="selectTab($event)"
+    (tabClick)="selectTab($event)"
   >
     <div class="bottom__content">
       <app-transfer-panel [hidden]="activeTab() !== 'transfers'" />
       <app-activity-log [hidden]="activeTab() !== 'journal'" />
+      <app-log-pane [hidden]="activeTab() !== 'logs'" />
       @if (terminalStarted()) {
         <app-terminal-pane [hidden]="activeTab() !== 'terminal'" />
       }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { ActivityLog } from '@app/components/activity-log/activity-log';
+import { LogPane } from '@app/components/log-pane/log-pane';
 import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TerminalPane } from '@app/components/terminal-pane/terminal-pane';
@@ -16,7 +17,7 @@ import { TransfersService } from '@app/services/transfers.service';
  */
 @Component({
   selector: 'app-bottom-panel',
-  imports: [ActivityLog, Icon, Tabs, TerminalPane, TransferPanel],
+  imports: [ActivityLog, Icon, LogPane, Tabs, TerminalPane, TransferPanel],
   templateUrl: './bottom-panel.html',
   styleUrl: './bottom-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,6 +35,7 @@ export class BottomPanel {
         icon: 'arrow-down-up',
       },
       { id: 'journal', label: 'Journal', icon: 'info' },
+      { id: 'logs', label: 'Logs', icon: 'logs' },
       { id: 'terminal', label: 'Terminal', icon: 'terminal' },
     ];
   });

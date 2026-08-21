@@ -6,7 +6,7 @@ mod shell;
 
 use ftp::FtpPool;
 use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
-use shell::ShellRegistry;
+use shell::{ShellRegistry, TailRegistry};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,6 +43,7 @@ pub fn run() {
         .manage(TransferRegistry::default())
         .manage(IdleConfig::default())
         .manage(ShellRegistry::default())
+        .manage(TailRegistry::default())
         .invoke_handler(tauri::generate_handler![
             sftp::sftp_connect,
             sftp::sftp_list_dir,
@@ -69,6 +70,8 @@ pub fn run() {
             shell::shell_write,
             shell::shell_resize,
             shell::shell_close,
+            shell::tail_open,
+            shell::tail_close,
             fs::local_home_dir,
             fs::local_list_dir,
             fs::local_mkdir,

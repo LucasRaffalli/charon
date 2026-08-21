@@ -22,7 +22,8 @@
     display: none !important;
   }
 
-  app-terminal-pane {
+  app-terminal-pane,
+  app-log-pane {
     height: 100%;
   }
 }

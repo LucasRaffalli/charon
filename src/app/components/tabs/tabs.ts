@@ -8,6 +8,7 @@ import {
   effect,
   input,
   model,
+  output,
   signal,
   viewChild,
   viewChildren,
@@ -48,6 +49,8 @@ export class Tabs {
   readonly stretch = input(false, { transform: booleanAttribute });
   /** Replie le panneau : seule la barre d'onglets reste visible. */
   readonly collapsed = input(false, { transform: booleanAttribute });
+  /** Émis à CHAQUE clic d'onglet, même déjà actif (utile pour déplier). */
+  readonly tabClick = output<string>();
 
   protected readonly activeIsFirst = computed(() => this.tabs()[0]?.id === this.active());
   protected readonly activeIsLast = computed(
@@ -63,6 +66,11 @@ export class Tabs {
   private readonly buttons = viewChildren<ElementRef<HTMLButtonElement>>('tabBtn');
 
   private previousIndex: number | null = null;
+
+  protected select(id: string): void {
+    this.active.set(id);
+    this.tabClick.emit(id);
+  }
   private lastContentHeight: number | null = null;
 
   constructor() {

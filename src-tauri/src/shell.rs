@@ -24,6 +24,20 @@ pub struct ShellHandle {
 #[derive(Default)]
 pub struct ShellRegistry(pub StdMutex<HashMap<String, Arc<ShellHandle>>>);
 
+/// Suivis de logs (`tail -F`) ouverts, par identifiant de tail.
+#[derive(Default)]
+pub struct TailRegistry(pub StdMutex<HashMap<String, ChannelWriteHalf<client::Msg>>>);
+
+/// Compteur d'identifiants de tails.
+static TAIL_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Échappement shell strict : le chemin est enfermé dans des quotes simples,
+/// les quotes simples internes deviennent la séquence `'\''`. Aucun autre
+/// caractère (backticks, $, ;…) ne peut s'échapper d'une quote simple POSIX.
+fn shell_quote(path: &str) -> String {
+    format!("'{}'", path.replace('\'', r"'\''"))
+}
+
 /// Payload des events `term:data` (sortie du shell, base64) et `term:closed`.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,6 +148,94 @@ pub async fn shell_open(
     });
 
     Ok(connection_id)
+}
+
+/// Suit un fichier distant en direct (`tail -n N -F`) via un canal exec sur
+/// la session SSH existante. SFTP uniquement. Les lignes arrivent au front
+/// par l'event `tail:data` (base64), la fin par `tail:closed`.
+#[tauri::command]
+pub async fn tail_open(
+    app: AppHandle,
+    pool: State<'_, ConnectionPool>,
+    tails: State<'_, TailRegistry>,
+    connection_id: String,
+    path: String,
+    lines: u32,
+) -> Result<String, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+
+    let channel = conn
+        .open_channel()
+        .await
+        .map_err(|e| format!("Ouverture du canal impossible : {e}"))?;
+    let command = format!(
+        "tail -n {} -F -- {} 2>&1",
+        lines.min(1000),
+        shell_quote(&path)
+    );
+    channel
+        .exec(true, command)
+        .await
+        .map_err(|e| format!("Lancement du suivi impossible : {e}"))?;
+
+    let tail_id = format!(
+        "tail-{}",
+        TAIL_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
+    let (mut read, write) = channel.split();
+    tails
+        .inner()
+        .0
+        .lock()
+        .unwrap()
+        .insert(tail_id.clone(), write);
+
+    let handle = app.clone();
+    let id = tail_id.clone();
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match read.wait().await {
+                Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
+                    let encoded = BASE64.encode(&data[..]);
+                    let _ = handle.emit(
+                        "tail:data",
+                        TermEvent {
+                            id: &id,
+                            data: &encoded,
+                        },
+                    );
+                }
+                Some(ChannelMsg::Close) | None => {
+                    handle
+                        .state::<TailRegistry>()
+                        .inner()
+                        .0
+                        .lock()
+                        .unwrap()
+                        .remove(&id);
+                    let _ = handle.emit("tail:closed", TermEvent { id: &id, data: "" });
+                    break;
+                }
+                Some(_) => {}
+            }
+        }
+    });
+
+    Ok(tail_id)
+}
+
+/// Arrête un suivi de log.
+#[tauri::command]
+pub async fn tail_close(tails: State<'_, TailRegistry>, tail_id: String) -> Result<(), String> {
+    let write = {
+        let mut map = tails.inner().0.lock().unwrap();
+        map.remove(&tail_id)
+    };
+    if let Some(write) = write {
+        let _ = write.eof().await;
+        let _ = write.close().await;
+    }
+    Ok(())
 }
 
 /// Envoie la frappe clavier au shell.

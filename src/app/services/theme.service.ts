@@ -1,8 +1,23 @@
 import { DOCUMENT, Injectable, effect, inject, signal } from '@angular/core';
 
+import { IconName } from '@app/components/icon/icon';
 import { Theme, isTheme } from '@app/interfaces';
 
 const STORAGE_KEY = 'charon:theme';
+
+export interface ThemeOption {
+  value: Theme;
+  icon: IconName;
+  label: string;
+}
+
+/** Liste unique des thèmes proposés (grille du panneau de réglages). */
+export const THEME_OPTIONS: readonly ThemeOption[] = [
+  { value: 'light', icon: 'sun', label: 'Clair' },
+  { value: 'dark', icon: 'moon', label: 'Sombre' },
+  { value: 'contrast', icon: 'contrast', label: 'Contraste' },
+  { value: 'unicorn', icon: 'sparkles', label: 'Unicorn' },
+];
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {

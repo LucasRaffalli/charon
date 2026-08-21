@@ -6,7 +6,6 @@ import { Drawer } from '@app/components/drawer/drawer';
 import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
-import { ThemeSwitcher } from '@app/components/theme-switcher/theme-switcher';
 import { Toggle } from '@app/components/toggle/toggle';
 import { ConnectionParams, ServerProfile } from '@app/interfaces';
 import { ContextMenuService } from '@app/services/context-menu.service';
@@ -19,7 +18,7 @@ const DEFAULT_SSH_PORT = 22;
 
 @Component({
   selector: 'app-connect-page',
-  imports: [Alert, Button, Drawer, Icon, Tabs, TextField, ThemeSwitcher, Toggle],
+  imports: [Alert, Button, Drawer, Icon, Tabs, TextField, Toggle],
   templateUrl: './connect-page.html',
   styleUrl: './connect-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

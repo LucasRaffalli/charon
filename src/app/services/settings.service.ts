@@ -1,4 +1,5 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
+import { invoke } from '@tauri-apps/api/core';
 
 import { Settings } from '@app/interfaces';
 
@@ -9,6 +10,7 @@ const DEFAULT_SETTINGS: Settings = {
   showHidden: false,
   sidebarWidth: 280,
   localPaneHeight: 300,
+  idleMinutes: 15,
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -24,10 +26,17 @@ export class SettingsService {
   readonly showHidden = computed(() => this._settings().showHidden);
   readonly sidebarWidth = computed(() => this._settings().sidebarWidth);
   readonly localPaneHeight = computed(() => this._settings().localPaneHeight);
+  readonly idleMinutes = computed(() => this._settings().idleMinutes);
 
   constructor() {
     effect(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this._settings()));
+    });
+
+    // Le backend applique le délai d'inactivité courant (au démarrage
+    // et à chaque changement).
+    effect(() => {
+      void invoke('set_idle_timeout', { minutes: this.idleMinutes() }).catch(() => undefined);
     });
   }
 

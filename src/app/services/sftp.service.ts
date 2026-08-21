@@ -1,5 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 import { ConnectionParams, FileEntryDto } from '@app/interfaces';
 import { FileBrowserState } from '@app/services/file-browser-state';
@@ -18,6 +19,21 @@ export class SftpService extends FileBrowserState {
 
   /** Empreinte de la clé d'un serveur inconnu, en attente de confirmation utilisateur. */
   readonly pendingKey = this._pendingKey.asReadonly();
+
+  constructor() {
+    super();
+    // Le backend ferme les connexions inactives : retour à l'écran de
+    // connexion avec un message clair.
+    void listen<string>('connection:idle-closed', (event) => {
+      if (event.payload !== this._connectionId()) {
+        return;
+      }
+      this._connectionId.set(null);
+      this._currentPath.set('/');
+      this._entries.set([]);
+      this._error.set('Session fermée pour inactivité.');
+    });
+  }
 
   protected fetchEntries(path: string): Promise<FileEntryDto[]> {
     return this.withConnection((id) =>

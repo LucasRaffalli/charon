@@ -7,4 +7,6 @@ export interface Settings {
   showHidden: boolean;
   sidebarWidth: number;
   localPaneHeight: number;
+  /** Minutes d'inactivité avant fermeture d'une connexion (0 = jamais). */
+  idleMinutes: number;
 }

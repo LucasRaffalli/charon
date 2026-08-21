@@ -71,6 +71,16 @@
               (checkedChange)="settings.update({ showHidden: $event })"
             />
           }
+          @case ('connection') {
+            <app-text-field
+              label="Fermeture après inactivité (minutes)"
+              name="idle-minutes"
+              type="number"
+              hint="Une session inutilisée est fermée passé ce délai. 0 = ne jamais fermer."
+              [value]="'' + settings.idleMinutes()"
+              (valueChange)="setIdleMinutes($event)"
+            />
+          }
         }
       </div>
     </section>

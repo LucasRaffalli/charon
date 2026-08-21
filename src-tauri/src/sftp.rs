@@ -4,7 +4,7 @@ use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHas
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use tauri::{AppHandle, Emitter, State};
@@ -26,6 +26,18 @@ const PROGRESS_STEP: u64 = 512 * 1024;
 pub struct ActiveConnection {
     _handle: client::Handle<ClientHandler>,
     sftp: SftpSession,
+    /// Dernier usage : sert à la fermeture d'inactivité.
+    last_used: StdMutex<std::time::Instant>,
+}
+
+impl ActiveConnection {
+    fn touch(&self) {
+        *self.last_used.lock().unwrap() = std::time::Instant::now();
+    }
+
+    fn idle_for(&self) -> std::time::Duration {
+        self.last_used.lock().unwrap().elapsed()
+    }
 }
 
 /// L'état global de l'app : toutes les connexions ouvertes, par identifiant.
@@ -125,13 +137,61 @@ async fn get_connection(
 ) -> Result<Arc<ActiveConnection>, String> {
     // `.inner()` explicite : rust-analyzer bute sur le deref de State à
     // travers son champ tuple privé (rustc, lui, l'accepte).
-    pool.inner()
+    let conn = pool
+        .inner()
         .0
         .lock()
         .await
         .get(connection_id)
         .cloned()
-        .ok_or_else(|| format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))
+        .ok_or_else(|| format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))?;
+    conn.touch();
+    Ok(conn)
+}
+
+/// Délai d'inactivité (en secondes) avant fermeture d'une connexion,
+/// réglable depuis les paramètres de l'app. 0 = jamais.
+pub struct IdleConfig(pub AtomicU64);
+
+impl Default for IdleConfig {
+    fn default() -> Self {
+        Self(AtomicU64::new(15 * 60))
+    }
+}
+
+/// Applique le délai d'inactivité choisi dans les réglages (0 = jamais).
+#[tauri::command]
+pub fn set_idle_timeout(config: State<'_, IdleConfig>, minutes: u64) -> Result<(), String> {
+    config
+        .inner()
+        .0
+        .store(minutes.saturating_mul(60), Ordering::Relaxed);
+    Ok(())
+}
+
+/// Ferme les connexions inutilisées depuis plus que le délai configuré et
+/// prévient le front (`connection:idle-closed`). Appelé périodiquement
+/// par la tâche de fond de `lib.rs`.
+pub async fn reap_idle_connections(app: &AppHandle) {
+    use tauri::Manager;
+    let idle_secs = app.state::<IdleConfig>().inner().0.load(Ordering::Relaxed);
+    if idle_secs == 0 {
+        return;
+    }
+    let timeout = std::time::Duration::from_secs(idle_secs);
+
+    let pool = app.state::<ConnectionPool>();
+    let mut map = pool.inner().0.lock().await;
+    let expired: Vec<String> = map
+        .iter()
+        .filter(|(_, conn)| conn.idle_for() > timeout)
+        .map(|(id, _)| id.clone())
+        .collect();
+    for id in expired {
+        map.remove(&id);
+        eprintln!("[charon] connexion fermée pour inactivité : {id}");
+        let _ = app.emit("connection:idle-closed", &id);
+    }
 }
 
 fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) -> Arc<AtomicBool> {
@@ -295,6 +355,7 @@ pub async fn sftp_connect(
         Arc::new(ActiveConnection {
             _handle: session,
             sftp,
+            last_used: StdMutex::new(std::time::Instant::now()),
         }),
     );
 
@@ -550,6 +611,7 @@ async fn stream_download(
         transferred += read as u64;
         if transferred - last_emitted >= PROGRESS_STEP {
             last_emitted = transferred;
+            conn.touch(); // un transfert en cours n'est pas une connexion inactive
             emit_progress(app, transfer_id, transferred, total);
         }
     }
@@ -644,6 +706,7 @@ async fn stream_upload(
         transferred += read as u64;
         if transferred - last_emitted >= PROGRESS_STEP {
             last_emitted = transferred;
+            conn.touch(); // un transfert en cours n'est pas une connexion inactive
             emit_progress(app, transfer_id, transferred, total);
         }
     }

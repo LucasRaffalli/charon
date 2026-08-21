@@ -15,7 +15,6 @@ import { Button } from '@app/components/button/button';
 import { FilePane } from '@app/components/file-pane/file-pane';
 import { Icon } from '@app/components/icon/icon';
 import { ResizeHandle } from '@app/components/resize-handle/resize-handle';
-import { ThemeSwitcher } from '@app/components/theme-switcher/theme-switcher';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { ServerTree } from '@app/components/server-tree/server-tree';
@@ -44,7 +43,6 @@ const isValidEntryName = (name: string): boolean =>
     Icon,
     ResizeHandle,
     ServerTree,
-    ThemeSwitcher,
     TransferPanel,
     FileSizePipe,
   ],

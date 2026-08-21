@@ -64,6 +64,10 @@ aucune application ne peut s'en protéger.
   l'utilisateur doit vérifier le serveur avant d'aller plus loin.
 - **Keepalive** (30 s, 3 tentatives) : une connexion morte est détectée et
   fermée plutôt que de rester en zombie dans le pool.
+- **Fermeture d'inactivité** : une session inutilisée est fermée par une
+  tâche de fond après un délai réglable dans les paramètres (15 minutes par
+  défaut, 0 = jamais ; un transfert en cours compte comme de l'activité) ;
+  l'interface revient à l'écran de connexion avec un message.
 
 ### Secrets
 
@@ -137,10 +141,7 @@ aucune application ne peut s'en protéger.
 
 ### Limites connues (feuille de route sécurité)
 
-1. **Pas de déconnexion d'inactivité** : le keepalive détecte les connexions
-   mortes mais une session inutilisée reste ouverte. Prévu : fermeture après
-   inactivité (horodatage du dernier usage + tâche périodique).
-2. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
+1. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
    application privée. Le futur updater (`tauri-plugin-updater`) vérifiera
    les signatures avec sa propre paire de clés — non négociable.
 

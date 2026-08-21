@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
 import { Icon, IconName } from '@app/components/icon/icon';
-import { THEME_OPTIONS } from '@app/components/theme-switcher/theme-switcher';
+import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
 import { LayoutMode } from '@app/interfaces';
 import { SettingsService } from '@app/services/settings.service';
-import { ThemeService } from '@app/services/theme.service';
+import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
 
-type SettingsTab = 'appearance' | 'files';
+type SettingsTab = 'appearance' | 'files' | 'connection';
 
 interface TabOption {
   id: SettingsTab;
@@ -23,7 +23,7 @@ interface LayoutOption {
 
 @Component({
   selector: 'app-settings-panel',
-  imports: [Icon, Toggle],
+  imports: [Icon, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -40,6 +40,7 @@ export class SettingsPanel {
   protected readonly tabs: readonly TabOption[] = [
     { id: 'appearance', icon: 'palette', label: 'Apparence' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
+    { id: 'connection', icon: 'server', label: 'Connexion' },
   ];
 
   protected readonly themeOptions = THEME_OPTIONS;
@@ -48,6 +49,12 @@ export class SettingsPanel {
     { value: 'bento', icon: 'layout-grid', label: 'Bento' },
     { value: 'classic', icon: 'rows', label: 'Classique' },
   ];
+
+  /** Minutes d'inactivité avant fermeture, bornées à [0 ; 240] (0 = jamais). */
+  protected setIdleMinutes(raw: string): void {
+    const minutes = Math.max(0, Math.min(240, Math.round(Number(raw)) || 0));
+    this.settings.update({ idleMinutes: minutes });
+  }
 
   protected close(): void {
     this.settings.closePanel();

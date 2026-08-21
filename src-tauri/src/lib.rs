@@ -2,7 +2,7 @@ mod fs;
 mod profiles;
 mod sftp;
 
-use sftp::{ConnectionPool, TransferRegistry};
+use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,11 +19,21 @@ pub fn run() {
                     window.open_devtools();
                 }
             }
-            let _ = app;
+
+            // Fermeture des connexions inactives (vérification chaque minute).
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    sftp::reap_idle_connections(&handle).await;
+                }
+            });
+
             Ok(())
         })
         .manage(ConnectionPool::default())
         .manage(TransferRegistry::default())
+        .manage(IdleConfig::default())
         .invoke_handler(tauri::generate_handler![
             sftp::sftp_connect,
             sftp::sftp_list_dir,
@@ -32,6 +42,7 @@ pub fn run() {
             sftp::sftp_download,
             sftp::sftp_upload,
             sftp::sftp_transfer_cancel,
+            sftp::set_idle_timeout,
             sftp::sftp_mkdir,
             sftp::sftp_remove,
             sftp::sftp_remove_all,

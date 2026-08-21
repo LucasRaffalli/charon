@@ -19,6 +19,12 @@
             >
               <span class="profile__icon"><app-icon name="server" [size]="16" /></span>
               <span class="profile__name">{{ profile.name }}</span>
+              @if (profile.environment; as env) {
+                <span
+                  class="profile__env profile__env--{{ env }}"
+                  [title]="'Environnement : ' + env"
+                ></span>
+              }
               <app-icon class="profile__go" name="chevron-right" [size]="15" />
             </button>
             <button
@@ -92,6 +98,32 @@
               placeholder="styx.exemple.net"
               [(value)]="host"
             />
+
+            <div
+              class="connect__protocols connect__environments"
+              role="radiogroup"
+              aria-label="Environnement"
+              style="--seg-count: 4"
+            >
+              <span
+                class="connect__protocols-pill"
+                aria-hidden="true"
+                [style.transform]="'translateX(' + environmentIndex() * 100 + '%)'"
+              ></span>
+              @for (option of environments; track option.label) {
+                <button
+                  type="button"
+                  class="connect__protocol"
+                  [class.connect__protocol--prod]="option.value === 'prod'"
+                  role="radio"
+                  [class.connect__protocol--active]="environment() === option.value"
+                  [attr.aria-checked]="environment() === option.value"
+                  (click)="environment.set(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              }
+            </div>
 
             <div class="connect__row">
               <app-text-field

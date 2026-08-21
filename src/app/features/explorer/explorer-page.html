@@ -34,6 +34,19 @@
       }
     </nav>
 
+    @if (sftp.environment(); as env) {
+      @if (env !== 'dev') {
+        <span
+          class="explorer__env"
+          [class.explorer__env--prod]="env === 'prod'"
+          [class.explorer__env--staging]="env === 'staging'"
+          [title]="env === 'prod' ? 'Attention : serveur de PRODUCTION' : 'Serveur de staging'"
+        >
+          {{ env === 'prod' ? 'PROD' : 'STAGING' }}
+        </span>
+      }
+    }
+
     <span class="explorer__connection" [title]="'Connecté à ' + sftp.connectionId()">
       {{ sftp.connectionId() }}
     </span>

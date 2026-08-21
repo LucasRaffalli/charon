@@ -252,7 +252,7 @@
   top: 3px;
   bottom: 3px;
   left: 3px;
-  width: calc((100% - 6px) / 3); // 3 protocoles à parts égales
+  width: calc((100% - 6px) / var(--seg-count, 3)); // segments à parts égales
   background: var(--surface);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
@@ -293,4 +293,35 @@
   color: var(--danger);
   background: var(--danger-bg);
   border-radius: var(--radius-sm);
+}
+
+// Sélecteur d'environnement : le segment Prod s'affiche en rouge.
+.connect__protocol--prod {
+  color: var(--danger);
+
+  &:hover,
+  &.connect__protocol--active {
+    color: var(--danger);
+  }
+}
+
+// Pastille d'environnement dans la liste des serveurs.
+.profile__env {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+
+  &--dev {
+    background: #3a9d5d;
+  }
+
+  &--staging {
+    background: #d99706;
+  }
+
+  &--prod {
+    background: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+  }
 }

@@ -28,6 +28,9 @@ pub struct Profile {
     /// « sftp » (défaut), « ftps » ou « ftp ».
     #[serde(default)]
     pub protocol: Option<String>,
+    /// « dev », « staging » ou « prod » — pilote le badge côté UI.
+    #[serde(default)]
+    pub environment: Option<String>,
 }
 
 // ---------- Helpers ----------

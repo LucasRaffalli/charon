@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-import { ConnectionParams, FileEntryDto, RemoteProtocol } from '@app/interfaces';
+import { ConnectionParams, FileEntryDto, RemoteProtocol, ServerEnvironment } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 
@@ -16,10 +16,13 @@ export class SftpService extends FileBrowserState {
   private readonly _connectionId = signal<string | null>(null);
   private readonly _pendingKey = signal<string | null>(null);
   private readonly _protocol = signal<RemoteProtocol>('sftp');
+  private readonly _environment = signal<ServerEnvironment | null>(null);
 
   readonly connectionId = this._connectionId.asReadonly();
   readonly connected = computed(() => this._connectionId() !== null);
   readonly protocol = this._protocol.asReadonly();
+  /** Environnement du serveur connecté (badge PROD permanent si « prod »). */
+  readonly environment = this._environment.asReadonly();
 
   /** Nom de la commande backend selon le protocole actif (sftp_* ou ftp_*). */
   commandFor(base: string): string {
@@ -128,6 +131,7 @@ export class SftpService extends FileBrowserState {
     }
 
     this._protocol.set(protocol);
+    this._environment.set(params.environment ?? null);
     this._connectionId.set(id);
     this.activity.log('connect', 'remote', id);
 
@@ -163,6 +167,7 @@ export class SftpService extends FileBrowserState {
     this.activity.log('disconnect', 'remote', id);
     this._connectionId.set(null);
     this._protocol.set('sftp');
+    this._environment.set(null);
     this._currentPath.set('/');
     this._entries.set([]);
     this._error.set(null);

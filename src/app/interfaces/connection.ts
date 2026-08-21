@@ -1,8 +1,12 @@
 /** Protocoles de connexion supportés. */
 export type RemoteProtocol = 'sftp' | 'ftps' | 'ftp';
 
+import { ServerEnvironment } from './profile';
+
 /** Paramètres d'ouverture d'une connexion distante. */
 export interface ConnectionParams {
+  /** Environnement du serveur (badge PROD pendant la session). */
+  environment?: ServerEnvironment | null;
   /** Défaut : 'sftp'. */
   protocol?: RemoteProtocol;
   host: string;

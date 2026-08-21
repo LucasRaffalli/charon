@@ -62,6 +62,40 @@
   color: var(--text-faint);
 }
 
+// Badge d'environnement : impossible à rater quand on est sur la prod.
+.explorer__env {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+
+  &--prod {
+    color: #fff;
+    background: var(--danger);
+    animation: env-pulse 2.4s ease-in-out infinite;
+  }
+
+  &--staging {
+    color: #8a5800;
+    background: rgba(217, 151, 6, 0.18);
+    border: 1px solid rgba(217, 151, 6, 0.45);
+  }
+}
+
+@keyframes env-pulse {
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--danger) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__env--prod {
+    animation: none;
+  }
+}
+
 .explorer__connection {
   padding: 4px 10px;
   border: 1px solid var(--border);

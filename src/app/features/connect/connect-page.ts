@@ -7,7 +7,7 @@ import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
-import { ConnectionParams, RemoteProtocol, ServerProfile } from '@app/interfaces';
+import { ConnectionParams, RemoteProtocol, ServerEnvironment, ServerProfile } from '@app/interfaces';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
@@ -18,6 +18,11 @@ const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp:
 
 interface ProtocolOption {
   value: RemoteProtocol;
+  label: string;
+}
+
+interface EnvironmentOption {
+  value: ServerEnvironment | null;
   label: string;
 }
 
@@ -49,6 +54,22 @@ export class ConnectPage {
     { value: 'ftps', label: 'FTPS' },
     { value: 'ftp', label: 'FTP' },
   ];
+
+  protected readonly environment = signal<ServerEnvironment | null>(null);
+  protected readonly environments: readonly EnvironmentOption[] = [
+    { value: null, label: 'Aucun' },
+    { value: 'dev', label: 'Dev' },
+    { value: 'staging', label: 'Staging' },
+    { value: 'prod', label: 'Prod' },
+  ];
+
+  /** Position de la pastille du sélecteur d'environnement. */
+  protected readonly environmentIndex = computed(() =>
+    Math.max(
+      0,
+      this.environments.findIndex((option) => option.value === this.environment()),
+    ),
+  );
 
   /** Position de la pastille glissante du sélecteur de protocole. */
   protected readonly protocolIndex = computed(() =>
@@ -94,6 +115,7 @@ export class ConnectPage {
     // Édition avec secret laissé vide : le backend relit celui de
     // l'ancien profil dans le trousseau via profileId.
     await this.connectWithTrust({
+      environment: this.environment(),
       protocol,
       host,
       port,
@@ -126,6 +148,7 @@ export class ConnectPage {
           keyPath,
           hasSecret: secret !== '',
           protocol,
+          environment: this.environment(),
         },
         secret || null,
         migrateFrom,
@@ -153,6 +176,7 @@ export class ConnectPage {
   /** Précharge un profil dans le formulaire pour le modifier. */
   protected editProfile(profile: ServerProfile): void {
     this.protocol.set(profile.protocol ?? 'sftp');
+    this.environment.set(profile.environment ?? null);
     this.host.set(profile.host);
     this.port.set(String(profile.port));
     this.user.set(profile.user);
@@ -170,6 +194,7 @@ export class ConnectPage {
       return;
     }
     await this.connectWithTrust({
+      environment: profile.environment ?? null,
       protocol: profile.protocol ?? 'sftp',
       host: profile.host,
       port: profile.port,

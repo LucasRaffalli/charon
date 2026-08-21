@@ -1,0 +1,31 @@
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  text-align: left;
+
+  app-icon {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  &--error {
+    background: var(--danger-bg);
+    border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+    color: var(--danger);
+  }
+
+  &--info {
+    background: var(--surface-hover);
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+}
+
+.alert__content {
+  overflow-wrap: anywhere;
+}

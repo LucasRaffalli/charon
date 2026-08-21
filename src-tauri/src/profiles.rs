@@ -1,0 +1,120 @@
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use tauri::AppHandle;
+use tauri_plugin_store::StoreExt;
+
+// ---------- Profils de serveurs ----------
+//
+// Les profils (hôte, port, utilisateur, chemin de clé) vivent dans le store
+// tauri-plugin-store. Les secrets (passphrase/mot de passe) vont dans le
+// trousseau macOS via `keyring` — jamais en clair dans le store.
+
+const STORE_FILE: &str = "profiles.json";
+const STORE_KEY: &str = "profiles";
+const KEYCHAIN_SERVICE: &str = "app.charon";
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    #[serde(default)]
+    pub key_path: Option<String>,
+    #[serde(default)]
+    pub has_secret: bool,
+}
+
+// ---------- Helpers ----------
+
+fn read_profiles(app: &AppHandle) -> Result<Vec<Profile>, String> {
+    let store = app
+        .store(STORE_FILE)
+        .map_err(|e| format!("Ouverture du store impossible : {e}"))?;
+    match store.get(STORE_KEY) {
+        Some(value) => {
+            serde_json::from_value(value).map_err(|e| format!("Profils illisibles : {e}"))
+        }
+        None => Ok(Vec::new()),
+    }
+}
+
+fn write_profiles(app: &AppHandle, profiles: &[Profile]) -> Result<(), String> {
+    let store = app
+        .store(STORE_FILE)
+        .map_err(|e| format!("Ouverture du store impossible : {e}"))?;
+    store.set(STORE_KEY, json!(profiles));
+    store
+        .save()
+        .map_err(|e| format!("Écriture du store impossible : {e}"))
+}
+
+fn keychain_entry(profile_id: &str) -> Result<keyring::Entry, String> {
+    keyring::Entry::new(KEYCHAIN_SERVICE, profile_id)
+        .map_err(|e| format!("Accès au trousseau impossible : {e}"))
+}
+
+// ---------- Commands ----------
+
+#[tauri::command]
+pub fn profiles_list(app: AppHandle) -> Result<Vec<Profile>, String> {
+    read_profiles(&app)
+}
+
+/// Crée ou met à jour un profil. `secret` : Some("...") l'enregistre dans le
+/// trousseau, Some("") l'efface, None laisse l'existant tel quel.
+#[tauri::command]
+pub fn profile_save(
+    app: AppHandle,
+    mut profile: Profile,
+    secret: Option<String>,
+) -> Result<Vec<Profile>, String> {
+    match secret.as_deref() {
+        Some(s) if !s.is_empty() => {
+            keychain_entry(&profile.id)?
+                .set_password(s)
+                .map_err(|e| format!("Écriture dans le trousseau impossible : {e}"))?;
+            profile.has_secret = true;
+        }
+        Some(_) => {
+            let _ = keychain_entry(&profile.id)?.delete_credential();
+            profile.has_secret = false;
+        }
+        None => {
+            profile.has_secret = read_profiles(&app)?
+                .iter()
+                .find(|p| p.id == profile.id)
+                .is_some_and(|p| p.has_secret);
+        }
+    }
+
+    let mut profiles = read_profiles(&app)?;
+    profiles.retain(|p| p.id != profile.id);
+    profiles.push(profile);
+    profiles.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    write_profiles(&app, &profiles)?;
+    Ok(profiles)
+}
+
+#[tauri::command]
+pub fn profile_delete(app: AppHandle, id: String) -> Result<Vec<Profile>, String> {
+    if let Ok(entry) = keychain_entry(&id) {
+        let _ = entry.delete_credential();
+    }
+    let mut profiles = read_profiles(&app)?;
+    profiles.retain(|p| p.id != id);
+    write_profiles(&app, &profiles)?;
+    Ok(profiles)
+}
+
+/// Secret d'un profil depuis le trousseau (None si absent).
+#[tauri::command]
+pub fn profile_secret(id: String) -> Result<Option<String>, String> {
+    match keychain_entry(&id)?.get_password() {
+        Ok(secret) => Ok(Some(secret)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("Lecture du trousseau impossible : {e}")),
+    }
+}

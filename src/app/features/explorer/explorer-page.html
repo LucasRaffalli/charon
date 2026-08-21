@@ -1,0 +1,149 @@
+<div class="explorer" [class.explorer--bento]="bento()">
+  <header class="explorer__toolbar">
+    <app-button
+      variant="ghost"
+      iconOnly
+      title="Dossier parent"
+      [disabled]="sftp.atRoot() || sftp.loading()"
+      (click)="sftp.navigateUp()"
+    >
+      <app-icon name="arrow-up" [size]="15" />
+    </app-button>
+
+    <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
+      <button
+        type="button"
+        class="crumb"
+        [class.crumb--current]="sftp.atRoot()"
+        [disabled]="sftp.atRoot()"
+        (click)="sftp.listDir('/')"
+      >
+        /
+      </button>
+      @for (segment of sftp.breadcrumb(); track segment.path) {
+        <app-icon class="crumb__sep" name="chevron-right" [size]="13" />
+        <button
+          type="button"
+          class="crumb"
+          [class.crumb--current]="$last"
+          [disabled]="$last"
+          (click)="sftp.listDir(segment.path)"
+        >
+          {{ segment.name }}
+        </button>
+      }
+    </nav>
+
+    <span class="explorer__connection" [title]="'Connecté à ' + sftp.connectionId()">
+      {{ sftp.connectionId() }}
+    </span>
+
+    <app-theme-switcher />
+
+    <app-button variant="ghost" iconOnly title="Réglages" (click)="settings.openPanel()">
+      <app-icon name="settings" [size]="15" />
+    </app-button>
+
+    <app-button variant="danger" title="Fermer la connexion" (click)="sftp.disconnect()">
+      <app-icon name="log-out" [size]="15" />
+      Débarquer
+    </app-button>
+  </header>
+
+  <div
+    class="explorer__progress"
+    [class.explorer__progress--active]="sftp.loading()"
+    aria-hidden="true"
+  ></div>
+
+  <div class="explorer__body">
+    <aside class="explorer__sidebar" [style.width.px]="settings.sidebarWidth()">
+      <app-file-pane
+        class="explorer__pane explorer__pane--local"
+        title="Cet ordinateur"
+        icon="monitor"
+        actionIcon="upload"
+        actionLabel="Envoyer vers le serveur"
+        [style.height.px]="settings.localPaneHeight()"
+        [path]="localFs.currentPath()"
+        [entries]="localEntries()"
+        [loading]="localFs.loading()"
+        [atRoot]="localFs.atRoot()"
+        [error]="localFs.error()"
+        (openDir)="openLocalDir($event)"
+        (navigateUp)="localFs.navigateUp()"
+        (fileAction)="upload($event)"
+        (entryMenu)="openLocalEntryMenu($event.event, $event.entry)"
+        (areaMenu)="openLocalAreaMenu($event)"
+      />
+
+      <app-resize-handle
+        axis="y"
+        (dragStarted)="beginPaneResize()"
+        (dragged)="resizePane($event)"
+      />
+
+      <app-file-pane
+        class="explorer__pane explorer__pane--server"
+        title="Serveur"
+        icon="server"
+        dirsOnly
+        [path]="sftp.currentPath()"
+        [entries]="serverEntries()"
+        [loading]="sftp.loading()"
+        [atRoot]="sftp.atRoot()"
+        [error]="null"
+        (openDir)="openServerDir($event)"
+        (navigateUp)="sftp.navigateUp()"
+        (entryMenu)="openServerEntryMenu($event.event, $event.entry)"
+        (areaMenu)="openServerAreaMenu($event)"
+      />
+    </aside>
+
+    <app-resize-handle
+      axis="x"
+      (dragStarted)="beginSidebarResize()"
+      (dragged)="resizeSidebar($event)"
+    />
+
+    <section class="explorer__main">
+      @if (sftp.error(); as error) {
+        <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
+      }
+
+      <ul class="explorer__list" (contextmenu)="openServerAreaMenu($event)">
+        @for (entry of serverEntries(); track entry.name) {
+          <li class="explorer__row" (contextmenu)="openServerEntryMenu($event, entry)">
+            <button
+              type="button"
+              class="entry"
+              [class.entry--dir]="entry.isDir"
+              (dblclick)="open(entry)"
+              (keyup.enter)="open(entry)"
+            >
+              <app-icon class="entry__icon" [name]="entry.isDir ? 'folder' : 'file'" [size]="17" />
+              <span class="entry__name">{{ entry.name }}</span>
+              <span class="entry__size">{{ entry.isDir ? '—' : (entry.size | fileSize) }}</span>
+            </button>
+            @if (!entry.isDir) {
+              <button
+                type="button"
+                class="entry__action"
+                title="Télécharger dans le dossier local courant"
+                [attr.aria-label]="'Télécharger : ' + entry.name"
+                (click)="download(entry)"
+              >
+                <app-icon name="download" [size]="15" />
+              </button>
+            }
+          </li>
+        } @empty {
+          <li class="explorer__empty">
+            <app-icon name="folder" [size]="30" />
+            <p>Dossier vide</p>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+</div>

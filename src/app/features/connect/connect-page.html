@@ -1,0 +1,109 @@
+<div class="connect">
+  <app-drawer label="Serveurs enregistrés" [(open)]="drawerOpen">
+    <header class="connect__saved-header">
+      <app-icon class="connect__saved-icon" name="server" [size]="15" />
+      <h2 class="connect__saved-title">Serveurs enregistrés</h2>
+      <span class="connect__saved-count">{{ profiles.profiles().length }}</span>
+    </header>
+
+    @if (profiles.profiles().length > 0) {
+      <ul class="connect__profiles">
+        @for (profile of profiles.profiles(); track profile.id) {
+          <li class="connect__profile-row" (contextmenu)="openProfileMenu($event, profile)">
+            <button
+              type="button"
+              class="profile"
+              [title]="profile.name"
+              [disabled]="sftp.loading()"
+              (click)="connectProfile(profile)"
+            >
+              <span class="profile__icon"><app-icon name="server" [size]="16" /></span>
+              <span class="profile__name">{{ profile.name }}</span>
+              <app-icon class="profile__go" name="chevron-right" [size]="15" />
+            </button>
+            <button
+              type="button"
+              class="profile__edit"
+              title="Modifier ce profil"
+              [attr.aria-label]="'Modifier le profil ' + profile.name"
+              (click)="editProfile(profile)"
+            >
+              <app-icon name="edit" [size]="14" />
+            </button>
+            <button
+              type="button"
+              class="profile__delete"
+              title="Supprimer ce profil"
+              [attr.aria-label]="'Supprimer le profil ' + profile.name"
+              (click)="removeProfile(profile)"
+            >
+              <app-icon name="trash" [size]="14" />
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="connect__saved-empty">
+        Aucun serveur enregistré. Active « Se souvenir de ce serveur » lors d'une connexion.
+      </p>
+    }
+  </app-drawer>
+
+  <div class="connect__corner">
+    <app-theme-switcher />
+    <app-button variant="ghost" iconOnly title="Réglages" (click)="settings.openPanel()">
+      <app-icon name="settings" [size]="15" />
+    </app-button>
+  </div>
+
+  <section class="connect__card">
+    <div class="connect__logo">
+      <app-icon name="anchor" [size]="26" />
+    </div>
+    <h1 class="connect__title">Charon</h1>
+    <p class="connect__tagline">Le passeur de fichiers</p>
+
+    <form class="connect__form" (submit)="onSubmit($event)">
+      <app-text-field label="Hôte" name="host" placeholder="styx.exemple.net" [(value)]="host" />
+
+      <div class="connect__row">
+        <app-text-field label="Utilisateur" name="user" placeholder="nocher" [(value)]="user" />
+        <app-text-field label="Port" name="port" type="number" placeholder="22" [(value)]="port" />
+      </div>
+
+      <app-text-field
+        label="Passphrase de la clé"
+        name="passphrase"
+        type="password"
+        placeholder="••••••••"
+        hint="Laisser vide si la clé n'est pas chiffrée"
+        [(value)]="passphrase"
+      />
+
+      <app-toggle label="Se souvenir de ce serveur" [(checked)]="remember" />
+
+      @if (remember()) {
+        <app-text-field
+          label="Nom du profil"
+          name="profile-name"
+          placeholder="Mon VPS"
+          hint="Seul ce nom sera affiché dans la liste (l'hôte reste masqué)"
+          [(value)]="profileName"
+        />
+      }
+
+      <app-button
+        class="connect__submit"
+        type="submit"
+        [disabled]="!canSubmit()"
+        [loading]="sftp.loading()"
+      >
+        {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
+      </app-button>
+    </form>
+
+    @if (sftp.error() ?? profiles.error(); as error) {
+      <app-alert class="connect__error" variant="error">{{ error }}</app-alert>
+    }
+  </section>
+</div>

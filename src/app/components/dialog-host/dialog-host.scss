@@ -1,0 +1,57 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  animation: dialog-overlay-in 120ms ease;
+}
+
+.dialog {
+  width: min(360px, 100%);
+  padding: var(--space-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: dialog-in 160ms ease;
+}
+
+.dialog__title {
+  font-size: 15px;
+}
+
+.dialog__message {
+  margin-top: var(--space-2xs);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+}
+
+@keyframes dialog-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}

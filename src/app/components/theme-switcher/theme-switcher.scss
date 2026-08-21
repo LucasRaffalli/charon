@@ -1,0 +1,33 @@
+.switcher {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.switcher__option {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  &--active {
+    background: var(--surface-active);
+    color: var(--accent);
+  }
+}

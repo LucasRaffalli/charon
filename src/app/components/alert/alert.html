@@ -1,0 +1,6 @@
+<div class="alert alert--{{ variant() }}" role="alert">
+  <app-icon [name]="variant() === 'error' ? 'alert-circle' : 'info'" [size]="17" />
+  <div class="alert__content">
+    <ng-content />
+  </div>
+</div>

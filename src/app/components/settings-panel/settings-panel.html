@@ -1,0 +1,78 @@
+@if (settings.panelOpen()) {
+  <div class="overlay" (click)="close()">
+    <section
+      class="panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Réglages"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="panel__header">
+        <app-icon class="panel__header-icon" name="settings" [size]="16" />
+        <h2 class="panel__title">Réglages</h2>
+        <button type="button" class="panel__close" aria-label="Fermer" (click)="close()">
+          <app-icon name="close" [size]="16" />
+        </button>
+      </header>
+
+      <nav class="panel__tabs" role="tablist">
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            class="panel__tab"
+            [class.panel__tab--active]="activeTab() === tab.id"
+            [attr.aria-selected]="activeTab() === tab.id"
+            (click)="activeTab.set(tab.id)"
+          >
+            <app-icon [name]="tab.icon" [size]="14" />
+            {{ tab.label }}
+          </button>
+        }
+      </nav>
+
+      <div class="panel__body" role="tabpanel">
+        @switch (activeTab()) {
+          @case ('appearance') {
+            <h3 class="panel__group-title">Thème</h3>
+            <div class="panel__themes">
+              @for (option of themeOptions; track option.value) {
+                <button
+                  type="button"
+                  class="panel__theme"
+                  [class.panel__theme--active]="themeService.theme() === option.value"
+                  (click)="themeService.select(option.value)"
+                >
+                  <app-icon [name]="option.icon" [size]="18" />
+                  <span>{{ option.label }}</span>
+                </button>
+              }
+            </div>
+
+            <h3 class="panel__group-title">Disposition</h3>
+            <div class="panel__segmented">
+              @for (layout of layouts; track layout.value) {
+                <button
+                  type="button"
+                  class="panel__segment"
+                  [class.panel__segment--active]="settings.layout() === layout.value"
+                  (click)="settings.update({ layout: layout.value })"
+                >
+                  <app-icon [name]="layout.icon" [size]="14" />
+                  {{ layout.label }}
+                </button>
+              }
+            </div>
+          }
+          @case ('files') {
+            <app-toggle
+              label="Afficher les fichiers cachés"
+              [checked]="settings.showHidden()"
+              (checkedChange)="settings.update({ showHidden: $event })"
+            />
+          }
+        }
+      </div>
+    </section>
+  </div>
+}

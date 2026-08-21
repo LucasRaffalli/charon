@@ -31,18 +31,31 @@ pub struct FileEntry {
     pub size: u64,
 }
 
-struct ClientHandler;
+struct ClientHandler {
+    host: String,
+    port: u16,
+}
 
 #[async_trait]
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
 
+    /// TOFU : au premier contact la clé est mémorisée dans ~/.ssh/known_hosts ;
+    /// ensuite toute clé différente est refusée.
     async fn check_server_key(
         &mut self,
-        _server_public_key: &russh_keys::key::PublicKey,
+        server_public_key: &russh_keys::key::PublicKey,
     ) -> Result<bool, Self::Error> {
-        // TODO: TOFU
-        Ok(true)
+        match russh_keys::check_known_hosts(&self.host, self.port, server_public_key) {
+            Ok(true) => Ok(true),
+            Ok(false) => {
+                russh_keys::learn_known_hosts(&self.host, self.port, server_public_key)
+                    .map_err(|_| russh::Error::UnknownKey)?;
+                Ok(true)
+            }
+            Err(russh_keys::Error::KeyChanged { line }) => Err(russh::Error::KeyChanged { line }),
+            Err(_) => Err(russh::Error::UnknownKey),
+        }
     }
 }
 
@@ -90,9 +103,19 @@ pub async fn sftp_connect(
     key_passphrase: Option<String>,
 ) -> Result<String, String> {
     let config = Arc::new(client::Config::default());
-    let mut session = client::connect(config, (host.as_str(), port), ClientHandler)
+    let handler = ClientHandler {
+        host: host.clone(),
+        port,
+    };
+    let mut session = client::connect(config, (host.as_str(), port), handler)
         .await
-        .map_err(|e| format!("Connexion impossible : {e}"))?;
+        .map_err(|e| match e {
+            russh::Error::KeyChanged { line } => format!(
+                "La clé du serveur a changé (ligne {line} de ~/.ssh/known_hosts). \
+                 Risque d'usurpation : vérifie le serveur avant de supprimer cette ligne."
+            ),
+            e => format!("Connexion impossible : {e}"),
+        })?;
 
     // Auth : clé d'abord, mot de passe en fallback
     let mut authenticated = false;
@@ -195,6 +218,66 @@ pub async fn sftp_active_connections(
     pool: State<'_, ConnectionPool>,
 ) -> Result<Vec<String>, String> {
     Ok(pool.0.lock().await.keys().cloned().collect())
+}
+
+/// Crée un dossier distant.
+#[tauri::command]
+pub async fn sftp_mkdir(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+) -> Result<(), String> {
+    let pool = pool.0.lock().await;
+    let conn = pool
+        .get(&connection_id)
+        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    conn.sftp
+        .create_dir(&path)
+        .await
+        .map_err(|e| format!("Création de {path} impossible : {e}"))
+}
+
+/// Supprime un fichier, ou un dossier vide.
+#[tauri::command]
+pub async fn sftp_remove(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let pool = pool.0.lock().await;
+    let conn = pool
+        .get(&connection_id)
+        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    if is_dir {
+        conn.sftp
+            .remove_dir(&path)
+            .await
+            .map_err(|e| format!("Suppression de {path} impossible (dossier non vide ?) : {e}"))
+    } else {
+        conn.sftp
+            .remove_file(&path)
+            .await
+            .map_err(|e| format!("Suppression de {path} impossible : {e}"))
+    }
+}
+
+/// Renomme (ou déplace) une entrée distante.
+#[tauri::command]
+pub async fn sftp_rename(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    let pool = pool.0.lock().await;
+    let conn = pool
+        .get(&connection_id)
+        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    conn.sftp
+        .rename(&from, &to)
+        .await
+        .map_err(|e| format!("Renommage de {from} impossible : {e}"))
 }
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

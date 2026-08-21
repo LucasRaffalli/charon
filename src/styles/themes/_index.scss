@@ -1,0 +1,32 @@
+@use 'light';
+@use 'dark';
+@use 'contrast';
+@use 'unicorn';
+
+// Défaut : sombre. Le ThemeService pose `data-theme` dès le démarrage ;
+// le fallback système ne sert qu'avant la première frame.
+:root {
+  @include dark.theme;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    @include light.theme;
+  }
+}
+
+:root[data-theme='light'] {
+  @include light.theme;
+}
+
+:root[data-theme='dark'] {
+  @include dark.theme;
+}
+
+:root[data-theme='contrast'] {
+  @include contrast.theme;
+}
+
+:root[data-theme='unicorn'] {
+  @include unicorn.theme;
+}

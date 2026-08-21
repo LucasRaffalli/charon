@@ -1,0 +1,29 @@
+// Thème clair.
+@mixin theme {
+  color-scheme: light;
+
+  --bg: #f2f4f7;
+  --surface: #ffffff;
+  --surface-hover: #f0f3f6;
+  --surface-active: #e6ebf0;
+
+  --border: #dfe4ea;
+  --border-strong: #c5cdd7;
+
+  --text: #1b222b;
+  --text-muted: #59636f;
+  --text-faint: #8b95a2;
+
+  --accent: #44688f;
+  --accent-solid: #5b7fa6;
+  --accent-solid-hover: #4d7099;
+  --on-accent: #ffffff;
+
+  --danger: #b3362c;
+  --danger-bg: rgba(179, 54, 44, 0.08);
+
+  --focus-ring: #44688f;
+
+  --shadow-sm: 0 1px 2px rgba(23, 26, 32, 0.06);
+  --shadow-md: 0 10px 32px rgba(23, 26, 32, 0.1);
+}

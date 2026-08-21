@@ -1,0 +1,15 @@
+<label class="field">
+  <span class="field__label">{{ label() }}</span>
+  <input
+    class="field__input"
+    [type]="type()"
+    [name]="name()"
+    [placeholder]="placeholder()"
+    [autocomplete]="autocomplete()"
+    [value]="value()"
+    (input)="onInput($event)"
+  />
+  @if (hint()) {
+    <span class="field__hint">{{ hint() }}</span>
+  }
+</label>

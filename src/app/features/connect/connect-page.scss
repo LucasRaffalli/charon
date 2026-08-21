@@ -1,0 +1,231 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.connect {
+  position: relative;
+  display: grid;
+  height: 100%;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  background: radial-gradient(
+    ellipse at 50% -20%,
+    color-mix(in srgb, var(--accent-solid) 7%, transparent),
+    transparent 60%
+  );
+}
+
+.connect__corner {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+// --- Serveurs enregistrés (contenu du tiroir) ---
+
+.connect__saved-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: var(--space-sm);
+  border-bottom: 1px solid var(--border);
+}
+
+.connect__saved-icon {
+  color: var(--accent);
+}
+
+.connect__saved-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.connect__saved-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-active);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.connect__saved-empty {
+  padding: var(--space-md);
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.connect__profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-xs);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.connect__profile-row {
+  position: relative;
+
+  &:hover .profile__edit,
+  &:hover .profile__delete,
+  .profile__edit:focus-visible,
+  .profile__delete:focus-visible {
+    opacity: 1;
+  }
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+
+  &:hover:not(:disabled) {
+    border-color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.profile__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-solid) 12%, transparent);
+  color: var(--accent);
+}
+
+.profile__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile__go {
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.profile__edit,
+.profile__delete {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-active);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.profile__edit {
+  right: 60px;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent-solid) 15%, transparent);
+    color: var(--accent);
+  }
+}
+
+.profile__delete {
+  right: 32px;
+
+  &:hover {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+}
+
+// --- Carte de connexion ---
+
+.connect__card {
+  width: min(400px, 100%);
+  margin: auto;
+  padding: var(--space-xl) var(--space-lg) var(--space-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.connect__logo {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto var(--space-sm);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent-solid) 14%, transparent);
+  color: var(--accent);
+}
+
+.connect__title {
+  font-size: 24px;
+  letter-spacing: 0.02em;
+}
+
+.connect__tagline {
+  margin-bottom: var(--space-lg);
+  color: var(--text-muted);
+}
+
+.connect__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  text-align: left;
+}
+
+.connect__row {
+  display: grid;
+  grid-template-columns: 1fr 104px;
+  gap: var(--space-sm);
+}
+
+.connect__submit {
+  display: flex;
+  margin-top: var(--space-2xs);
+}
+
+.connect__error {
+  display: block;
+  margin-top: var(--space-md);
+}

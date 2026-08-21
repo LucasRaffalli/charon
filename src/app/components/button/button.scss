@@ -1,0 +1,84 @@
+:host {
+  display: inline-flex;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: 9px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--primary {
+    background: var(--accent-solid);
+    color: var(--on-accent);
+
+    &:hover:not(:disabled) {
+      background: var(--accent-solid-hover);
+    }
+  }
+
+  &--ghost {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-muted);
+
+    &:hover:not(:disabled) {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+  }
+
+  &--danger {
+    background: transparent;
+    color: var(--danger);
+
+    &:hover:not(:disabled) {
+      background: var(--danger-bg);
+    }
+  }
+
+  &--danger-solid {
+    background: var(--danger);
+    color: #ffffff;
+
+    &:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--danger) 85%, black);
+    }
+  }
+
+  &--icon {
+    padding: 7px;
+  }
+}
+
+.button__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.7s linear infinite;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

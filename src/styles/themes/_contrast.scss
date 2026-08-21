@@ -1,0 +1,29 @@
+// Thème contraste élevé (accessibilité).
+@mixin theme {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --surface: #000000;
+  --surface-hover: #1a1a1a;
+  --surface-active: #262626;
+
+  --border: #6f6f6f;
+  --border-strong: #ffffff;
+
+  --text: #ffffff;
+  --text-muted: #d6d6d6;
+  --text-faint: #ababab;
+
+  --accent: #9ecbff;
+  --accent-solid: #9ecbff;
+  --accent-solid-hover: #c2ddff;
+  --on-accent: #000000;
+
+  --danger: #ff7066;
+  --danger-bg: rgba(255, 112, 102, 0.18);
+
+  --focus-ring: #9ecbff;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+}

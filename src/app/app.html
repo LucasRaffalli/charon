@@ -1,0 +1,9 @@
+@if (sftp.connected()) {
+  <app-explorer-page />
+} @else {
+  <app-connect-page />
+}
+
+<app-settings-panel />
+<app-dialog-host />
+<app-context-menu />

@@ -1,0 +1,61 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+.menu {
+  position: fixed;
+  min-width: 190px;
+  max-width: 210px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: menu-in 100ms ease;
+}
+
+.menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+
+  app-icon {
+    color: var(--text-muted);
+  }
+
+  &:hover {
+    background: var(--surface-hover);
+  }
+
+  &--danger {
+    color: var(--danger);
+
+    app-icon {
+      color: var(--danger);
+    }
+
+    &:hover {
+      background: var(--danger-bg);
+    }
+  }
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}

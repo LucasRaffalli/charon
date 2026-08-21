@@ -1,0 +1,54 @@
+<header class="pane__header">
+  <app-icon class="pane__header-icon" [name]="icon()" [size]="15" />
+  <span class="pane__title">{{ title() }}</span>
+  <button
+    type="button"
+    class="pane__up"
+    title="Dossier parent"
+    [disabled]="atRoot() || loading()"
+    (click)="navigateUp.emit()"
+  >
+    <app-icon name="arrow-up" [size]="14" />
+  </button>
+</header>
+
+<p class="pane__path" [title]="path()">{{ path() }}</p>
+
+@if (error(); as message) {
+  <p class="pane__error" role="alert">{{ message }}</p>
+}
+
+<ul
+  class="pane__list"
+  [class.pane__list--loading]="loading()"
+  (contextmenu)="areaMenu.emit($event)"
+>
+  @for (entry of visibleEntries(); track entry.name) {
+    <li (contextmenu)="entryMenu.emit({ event: $event, entry })">
+      @if (entry.isDir) {
+        <button type="button" class="pane__entry pane__entry--dir" (click)="openDir.emit(entry)">
+          <app-icon class="pane__entry-icon" name="folder" [size]="15" />
+          <span class="pane__name">{{ entry.name }}</span>
+        </button>
+      } @else {
+        <div class="pane__entry">
+          <app-icon class="pane__entry-icon" name="file" [size]="15" />
+          <span class="pane__name">{{ entry.name }}</span>
+          @if (actionIcon(); as action) {
+            <button
+              type="button"
+              class="pane__action"
+              [title]="actionLabel()"
+              [attr.aria-label]="actionLabel() + ' : ' + entry.name"
+              (click)="fileAction.emit(entry)"
+            >
+              <app-icon [name]="action" [size]="14" />
+            </button>
+          }
+        </div>
+      }
+    </li>
+  } @empty {
+    <li class="pane__empty">Dossier vide</li>
+  }
+</ul>

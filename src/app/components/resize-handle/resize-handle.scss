@@ -1,0 +1,46 @@
+:host {
+  position: relative;
+  z-index: 2;
+  display: block;
+  flex-shrink: 0;
+  touch-action: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    border-radius: 2px;
+    background: transparent;
+    transition: background var(--transition-fast);
+  }
+}
+
+:host(.handle--x) {
+  width: 5px;
+  cursor: col-resize;
+
+  &::after {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    transform: translateX(-50%);
+  }
+}
+
+:host(.handle--y) {
+  height: 5px;
+  cursor: row-resize;
+
+  &::after {
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 3px;
+    transform: translateY(-50%);
+  }
+}
+
+:host(:hover)::after,
+:host(.handle--active)::after {
+  background: color-mix(in srgb, var(--accent-solid) 55%, transparent);
+}

@@ -531,11 +531,16 @@ pub async fn sftp_rename(
         .map_err(|e| format!("Renommage de {from} impossible : {e}"))
 }
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+
+/// Suffixe des fichiers en cours de transfert : renommés à la fin,
+/// conservés en cas d'erreur pour permettre la reprise.
+pub(crate) const PART_SUFFIX: &str = ".charonpart";
 
 /// Télécharge un fichier distant vers un chemin local, en streaming par
-/// chunks : mémoire bornée quel que soit la taille du fichier, progression
-/// via l'event `transfer:progress`, annulation via `sftp_transfer_cancel`.
+/// chunks : mémoire bornée, progression via `transfer:progress`, annulation
+/// via `sftp_transfer_cancel`. Écrit vers `<local>.charonpart` puis renomme ;
+/// `resume` reprend à la taille du partiel existant.
 #[tauri::command]
 pub async fn sftp_download(
     app: AppHandle,
@@ -545,19 +550,23 @@ pub async fn sftp_download(
     remote_path: String,
     local_path: String,
     transfer_id: String,
+    resume: bool,
 ) -> Result<u64, String> {
-    eprintln!("[charon] download {remote_path} -> {local_path} (début)");
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result = stream_download(&app, &conn, &remote_path, &local, &transfer_id, &cancel).await;
+    let result =
+        stream_download(&app, &conn, &remote_path, &local, &transfer_id, &cancel, resume).await;
     unregister_transfer(&registry, &transfer_id);
 
-    // Annulation ou erreur : pas de fichier partiel laissé derrière.
-    if result.is_err() {
-        let _ = tokio::fs::remove_file(&local).await;
+    // Annulation explicite : le partiel part à la corbeille.
+    // Autre erreur : on le garde pour une reprise ultérieure.
+    if let Err(e) = &result {
+        if e == CANCELLED_TAG {
+            let _ = tokio::fs::remove_file(format!("{local}{PART_SUFFIX}")).await;
+        }
     }
     eprintln!("[charon] download {remote_path} : {result:?}");
     result
@@ -570,7 +579,15 @@ async fn stream_download(
     local: &str,
     transfer_id: &str,
     cancel: &AtomicBool,
+    resume: bool,
 ) -> Result<u64, String> {
+    let part = format!("{local}{PART_SUFFIX}");
+    let offset: u64 = if resume {
+        tokio::fs::metadata(&part).await.map(|m| m.len()).unwrap_or(0)
+    } else {
+        0
+    };
+
     let total = conn
         .sftp
         .metadata(remote_path)
@@ -584,15 +601,27 @@ async fn stream_download(
         .open(remote_path)
         .await
         .map_err(|e| format!("Ouverture de {remote_path} impossible : {e}"))?;
-    let mut local_file = tokio::fs::File::create(local)
-        .await
-        .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+    let mut local_file = if offset > 0 {
+        remote_file
+            .seek(std::io::SeekFrom::Start(offset))
+            .await
+            .map_err(|e| format!("Reprise de {remote_path} impossible : {e}"))?;
+        tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&part)
+            .await
+            .map_err(|e| format!("Reprise de {part} impossible : {e}"))?
+    } else {
+        tokio::fs::File::create(&part)
+            .await
+            .map_err(|e| format!("Écriture de {part} impossible : {e}"))?
+    };
 
-    emit_progress(app, transfer_id, 0, total);
+    let mut transferred: u64 = offset;
+    let mut last_emitted: u64 = offset;
+    emit_progress(app, transfer_id, transferred, total.max(transferred));
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
-    let mut transferred: u64 = 0;
-    let mut last_emitted: u64 = 0;
     loop {
         if cancel.load(Ordering::Relaxed) {
             return Err(CANCELLED_TAG.into());
@@ -607,7 +636,7 @@ async fn stream_download(
         local_file
             .write_all(&buffer[..read])
             .await
-            .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+            .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
         if transferred - last_emitted >= PROGRESS_STEP {
             last_emitted = transferred;
@@ -619,13 +648,16 @@ async fn stream_download(
     local_file
         .flush()
         .await
-        .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+        .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
+    tokio::fs::rename(&part, local)
+        .await
+        .map_err(|e| format!("Finalisation de {local} impossible : {e}"))?;
     emit_progress(app, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
 }
 
 /// Envoie un fichier local vers un chemin distant, en streaming par chunks
-/// (mêmes garanties que `sftp_download`).
+/// (mêmes garanties et même flux `.charonpart` que `sftp_download`).
 #[tauri::command]
 pub async fn sftp_upload(
     app: AppHandle,
@@ -635,19 +667,26 @@ pub async fn sftp_upload(
     local_path: String,
     remote_path: String,
     transfer_id: String,
+    resume: bool,
 ) -> Result<u64, String> {
-    eprintln!("[charon] upload {local_path} -> {remote_path} (début)");
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result = stream_upload(&app, &conn, &local, &remote_path, &transfer_id, &cancel).await;
+    let result =
+        stream_upload(&app, &conn, &local, &remote_path, &transfer_id, &cancel, resume).await;
     unregister_transfer(&registry, &transfer_id);
 
-    // Annulation ou erreur : on retire le fichier distant partiel.
-    if result.is_err() {
-        let _ = conn.sftp.remove_file(&remote_path).await;
+    // Annulation explicite : le partiel distant est retiré.
+    // Autre erreur : on le garde pour une reprise ultérieure.
+    if let Err(e) = &result {
+        if e == CANCELLED_TAG {
+            let _ = conn
+                .sftp
+                .remove_file(format!("{remote_path}{PART_SUFFIX}"))
+                .await;
+        }
     }
     eprintln!("[charon] upload {remote_path} : {result:?}");
     result
@@ -660,7 +699,10 @@ async fn stream_upload(
     remote_path: &str,
     transfer_id: &str,
     cancel: &AtomicBool,
+    resume: bool,
 ) -> Result<u64, String> {
+    use russh_sftp::protocol::OpenFlags;
+
     let meta = tokio::fs::metadata(local)
         .await
         .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
@@ -671,23 +713,49 @@ async fn stream_upload(
     }
     let total = meta.len();
 
+    let part = format!("{remote_path}{PART_SUFFIX}");
+    let offset: u64 = if resume {
+        conn.sftp
+            .metadata(&part)
+            .await
+            .ok()
+            .and_then(|m| m.size)
+            .unwrap_or(0)
+            .min(total)
+    } else {
+        0
+    };
+
     let mut local_file = tokio::fs::File::open(local)
         .await
         .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
 
-    eprintln!("[charon]   création distante de {remote_path}…");
-    let mut remote_file = conn
-        .sftp
-        .create(remote_path)
-        .await
-        .map_err(|e| format!("Création de {remote_path} impossible : {e}"))?;
-    eprintln!("[charon]   créé, envoi de {total} octets…");
+    let mut remote_file = if offset > 0 {
+        local_file
+            .seek(std::io::SeekFrom::Start(offset))
+            .await
+            .map_err(|e| format!("Reprise de {local} impossible : {e}"))?;
+        let mut file = conn
+            .sftp
+            .open_with_flags(&part, OpenFlags::WRITE | OpenFlags::CREATE)
+            .await
+            .map_err(|e| format!("Reprise de {part} impossible : {e}"))?;
+        file.seek(std::io::SeekFrom::Start(offset))
+            .await
+            .map_err(|e| format!("Reprise de {part} impossible : {e}"))?;
+        file
+    } else {
+        conn.sftp
+            .create(&part)
+            .await
+            .map_err(|e| format!("Création de {part} impossible : {e}"))?
+    };
 
-    emit_progress(app, transfer_id, 0, total);
+    let mut transferred: u64 = offset;
+    let mut last_emitted: u64 = offset;
+    emit_progress(app, transfer_id, transferred, total);
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
-    let mut transferred: u64 = 0;
-    let mut last_emitted: u64 = 0;
     loop {
         if cancel.load(Ordering::Relaxed) {
             return Err(CANCELLED_TAG.into());
@@ -702,7 +770,7 @@ async fn stream_upload(
         remote_file
             .write_all(&buffer[..read])
             .await
-            .map_err(|e| format!("Écriture de {remote_path} impossible : {e}"))?;
+            .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
         if transferred - last_emitted >= PROGRESS_STEP {
             last_emitted = transferred;
@@ -713,6 +781,14 @@ async fn stream_upload(
 
     remote_file
         .sync_all()
+        .await
+        .map_err(|e| format!("Finalisation de {part} impossible : {e}"))?;
+    drop(remote_file);
+    // Renommage final : certains serveurs refusent d'écraser la cible,
+    // on la retire d'abord (sans erreur si absente).
+    let _ = conn.sftp.remove_file(remote_path).await;
+    conn.sftp
+        .rename(&part, remote_path)
         .await
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
     emit_progress(app, transfer_id, transferred, total.max(transferred));

@@ -34,6 +34,8 @@ export class TransferPanel {
         return 'Échec';
       case 'cancelled':
         return 'Annulé';
+      case 'interrupted':
+        return this.transfers.canResume(transfer) ? 'Interrompu' : 'Interrompu — reconnecte-toi';
       default:
         return '';
     }

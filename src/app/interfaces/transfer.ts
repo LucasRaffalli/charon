@@ -7,9 +7,9 @@ export interface TransferProgressEvent {
 
 export type TransferDirection = 'download' | 'upload';
 
-export type TransferStatus = 'active' | 'done' | 'error' | 'cancelled';
+export type TransferStatus = 'active' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
-/** Un transfert suivi par la file (streaming côté Rust). */
+/** Un transfert suivi par la file (streaming côté Rust, persisté pour la reprise). */
 export interface Transfer {
   id: string;
   name: string;
@@ -19,4 +19,8 @@ export interface Transfer {
   total: number;
   status: TransferStatus;
   error: string | null;
+  /** Connexion d'origine : la reprise exige d'y être reconnecté. */
+  connectionId: string;
+  remotePath: string;
+  localPath: string;
 }

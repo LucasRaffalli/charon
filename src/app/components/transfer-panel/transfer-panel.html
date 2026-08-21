@@ -67,6 +67,16 @@
             >
               <app-icon name="close" [size]="13" />
             </button>
+          } @else if (transfers.canResume(transfer)) {
+            <button
+              type="button"
+              class="row__resume"
+              title="Reprendre ce transfert"
+              [attr.aria-label]="'Reprendre le transfert de ' + transfer.name"
+              (click)="transfers.resume(transfer)"
+            >
+              <app-icon name="refresh" [size]="13" />
+            </button>
           } @else if (transfer.status === 'done') {
             <app-icon class="row__done" name="check" [size]="14" />
           }

@@ -120,8 +120,10 @@ aucune application ne peut s'en protéger.
 - **Transferts en streaming, mémoire bornée** : download et upload avancent
   par chunks de 1 Mio — un fichier de 10 Go ne consomme pas 10 Go de RAM
   (déni de service local éliminé). Progression par events Tauri, annulation
-  possible ; un transfert interrompu ou annulé ne laisse de fichier partiel
-  ni en local ni sur le serveur.
+  possible. Chaque transfert écrit vers un fichier `*.charonpart` renommé à
+  la fin : une annulation supprime le partiel, une coupure le conserve et le
+  transfert **reprend là où il s'était arrêté** (seek SFTP, REST FTP), une
+  fois reconnecté au même serveur. La file survit au redémarrage de l'app.
 
 ### Chaîne d'approvisionnement
 
@@ -211,6 +213,4 @@ ci-dessus.
 
 ## Feuille de route
 
-1. Updater signé (`tauri-plugin-updater`, distribution privée)
-2. File de transferts persistante + reprise des transferts interrompus
-3. Panneau inférieur multi-features (transferts, logs…)
+1. Panneau inférieur multi-features (transferts, logs…)

@@ -94,24 +94,6 @@ export class SftpService extends FileBrowserState {
     this._error.set(null);
   }
 
-  /** Télécharge un fichier distant. Renvoie la taille écrite, ou undefined en cas d'erreur. */
-  download(remotePath: string, localPath: string): Promise<number | undefined> {
-    return this.run(() =>
-      this.withConnection((id) =>
-        invoke<number>('sftp_download', { connectionId: id, remotePath, localPath }),
-      ),
-    );
-  }
-
-  /** Envoie un fichier local. Renvoie la taille écrite, ou undefined en cas d'erreur. */
-  upload(localPath: string, remotePath: string): Promise<number | undefined> {
-    return this.run(() =>
-      this.withConnection((id) =>
-        invoke<number>('sftp_upload', { connectionId: id, localPath, remotePath }),
-      ),
-    );
-  }
-
   private withConnection<T>(operation: (id: string) => Promise<T>): Promise<T> {
     const id = this._connectionId();
     return id ? operation(id) : Promise.reject('Aucune connexion active');

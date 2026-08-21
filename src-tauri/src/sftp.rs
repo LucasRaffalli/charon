@@ -4,13 +4,20 @@ use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHas
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
 
 /// Préfixe d'erreur balisée pour le front : hôte inconnu, empreinte à confirmer.
 const UNKNOWN_KEY_TAG: &str = "CHARON_UNKNOWN_KEY:";
+/// Erreur balisée pour le front : transfert annulé par l'utilisateur.
+const CANCELLED_TAG: &str = "CHARON_CANCELLED";
+/// Taille des chunks de streaming (download et upload).
+const CHUNK_SIZE: usize = 1024 * 1024;
+/// Émettre un event de progression au plus tous les N octets transférés.
+const PROGRESS_STEP: u64 = 512 * 1024;
 
 // ---------- État partagé ----------
 
@@ -22,9 +29,16 @@ pub struct ActiveConnection {
 }
 
 /// L'état global de l'app : toutes les connexions ouvertes, par identifiant.
-/// Mutex de tokio (pas std) car on lock dans du code async.
+/// Mutex de tokio (pas std) car on lock dans du code async. Les connexions
+/// sont dans des `Arc` : on clone la référence puis on relâche le verrou,
+/// pour qu'un transfert long ne bloque jamais les autres opérations.
 #[derive(Default)]
-pub struct ConnectionPool(pub Mutex<HashMap<String, ActiveConnection>>);
+pub struct ConnectionPool(pub Mutex<HashMap<String, Arc<ActiveConnection>>>);
+
+/// Transferts en cours, par identifiant : le drapeau passe à `true`
+/// quand l'utilisateur demande l'annulation.
+#[derive(Default)]
+pub struct TransferRegistry(pub StdMutex<HashMap<String, Arc<AtomicBool>>>);
 
 // ---------- Types ----------
 
@@ -33,6 +47,15 @@ pub struct FileEntry {
     pub name: String,
     pub is_dir: bool,
     pub size: u64,
+}
+
+/// Payload de l'event `transfer:progress`.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TransferProgress<'a> {
+    id: &'a str,
+    transferred: u64,
+    total: u64,
 }
 
 struct ClientHandler {
@@ -92,6 +115,49 @@ pub fn ensure_no_parent_dir(path: &str) -> Result<(), String> {
         return Err(format!("Chemin refusé (composant « .. ») : {path}"));
     }
     Ok(())
+}
+
+/// Récupère une connexion du pool sans garder le verrou : un transfert long
+/// ne bloque ni les listages ni les autres transferts.
+async fn get_connection(
+    pool: &State<'_, ConnectionPool>,
+    connection_id: &str,
+) -> Result<Arc<ActiveConnection>, String> {
+    // `.inner()` explicite : rust-analyzer bute sur le deref de State à
+    // travers son champ tuple privé (rustc, lui, l'accepte).
+    pool.inner()
+        .0
+        .lock()
+        .await
+        .get(connection_id)
+        .cloned()
+        .ok_or_else(|| format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))
+}
+
+fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) -> Arc<AtomicBool> {
+    let flag = Arc::new(AtomicBool::new(false));
+    registry
+        .inner()
+        .0
+        .lock()
+        .unwrap()
+        .insert(transfer_id.to_string(), Arc::clone(&flag));
+    flag
+}
+
+fn unregister_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) {
+    registry.inner().0.lock().unwrap().remove(transfer_id);
+}
+
+fn emit_progress(app: &AppHandle, id: &str, transferred: u64, total: u64) {
+    let _ = app.emit(
+        "transfer:progress",
+        TransferProgress {
+            id,
+            transferred,
+            total,
+        },
+    );
 }
 
 fn resolve_key_path(explicit: Option<String>) -> Result<std::path::PathBuf, String> {
@@ -224,12 +290,12 @@ pub async fn sftp_connect(
 
     // Stockage dans le pool
     let connection_id = format!("{user}@{host}:{port}");
-    pool.0.lock().await.insert(
+    pool.inner().0.lock().await.insert(
         connection_id.clone(),
-        ActiveConnection {
+        Arc::new(ActiveConnection {
             _handle: session,
             sftp,
-        },
+        }),
     );
 
     Ok(connection_id)
@@ -242,10 +308,7 @@ pub async fn sftp_list_dir(
     connection_id: String,
     path: String,
 ) -> Result<Vec<FileEntry>, String> {
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))?;
+    let conn = get_connection(&pool, &connection_id).await?;
 
     let entries = conn
         .sftp
@@ -275,7 +338,7 @@ pub async fn sftp_disconnect(
     pool: State<'_, ConnectionPool>,
     connection_id: String,
 ) -> Result<(), String> {
-    pool.0.lock().await.remove(&connection_id);
+    pool.inner().0.lock().await.remove(&connection_id);
     // Le drop du handle ferme proprement la connexion SSH
     Ok(())
 }
@@ -285,7 +348,7 @@ pub async fn sftp_disconnect(
 pub async fn sftp_active_connections(
     pool: State<'_, ConnectionPool>,
 ) -> Result<Vec<String>, String> {
-    Ok(pool.0.lock().await.keys().cloned().collect())
+    Ok(pool.inner().0.lock().await.keys().cloned().collect())
 }
 
 /// Crée un dossier distant.
@@ -295,10 +358,7 @@ pub async fn sftp_mkdir(
     connection_id: String,
     path: String,
 ) -> Result<(), String> {
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    let conn = get_connection(&pool, &connection_id).await?;
     conn.sftp
         .create_dir(&path)
         .await
@@ -313,10 +373,7 @@ pub async fn sftp_remove(
     path: String,
     is_dir: bool,
 ) -> Result<(), String> {
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    let conn = get_connection(&pool, &connection_id).await?;
     if is_dir {
         conn.sftp
             .remove_dir(&path)
@@ -338,10 +395,7 @@ pub async fn sftp_rename(
     from: String,
     to: String,
 ) -> Result<(), String> {
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    let conn = get_connection(&pool, &connection_id).await?;
     conn.sftp
         .rename(&from, &to)
         .await
@@ -350,75 +404,198 @@ pub async fn sftp_rename(
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-/// Télécharge un fichier distant vers un chemin local.
+/// Télécharge un fichier distant vers un chemin local, en streaming par
+/// chunks : mémoire bornée quel que soit la taille du fichier, progression
+/// via l'event `transfer:progress`, annulation via `sftp_transfer_cancel`.
 #[tauri::command]
 pub async fn sftp_download(
+    app: AppHandle,
     pool: State<'_, ConnectionPool>,
+    registry: State<'_, TransferRegistry>,
     connection_id: String,
     remote_path: String,
     local_path: String,
+    transfer_id: String,
 ) -> Result<u64, String> {
+    eprintln!("[charon] download {remote_path} -> {local_path} (début)");
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
+    let conn = get_connection(&pool, &connection_id).await?;
 
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
+    let cancel = register_transfer(&registry, &transfer_id);
+    let result = stream_download(&app, &conn, &remote_path, &local, &transfer_id, &cancel).await;
+    unregister_transfer(&registry, &transfer_id);
+
+    // Annulation ou erreur : pas de fichier partiel laissé derrière.
+    if result.is_err() {
+        let _ = tokio::fs::remove_file(&local).await;
+    }
+    eprintln!("[charon] download {remote_path} : {result:?}");
+    result
+}
+
+async fn stream_download(
+    app: &AppHandle,
+    conn: &ActiveConnection,
+    remote_path: &str,
+    local: &str,
+    transfer_id: &str,
+    cancel: &AtomicBool,
+) -> Result<u64, String> {
+    let total = conn
+        .sftp
+        .metadata(remote_path)
+        .await
+        .ok()
+        .and_then(|m| m.size)
+        .unwrap_or(0);
 
     let mut remote_file = conn
         .sftp
-        .open(&remote_path)
+        .open(remote_path)
         .await
         .map_err(|e| format!("Ouverture de {remote_path} impossible : {e}"))?;
-
-    let mut buffer = Vec::new();
-    remote_file
-        .read_to_end(&mut buffer)
-        .await
-        .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
-
-    tokio::fs::write(&local, &buffer)
+    let mut local_file = tokio::fs::File::create(local)
         .await
         .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
 
-    Ok(buffer.len() as u64)
+    emit_progress(app, transfer_id, 0, total);
+
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut transferred: u64 = 0;
+    let mut last_emitted: u64 = 0;
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(CANCELLED_TAG.into());
+        }
+        let read = remote_file
+            .read(&mut buffer)
+            .await
+            .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
+        if read == 0 {
+            break;
+        }
+        local_file
+            .write_all(&buffer[..read])
+            .await
+            .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+        transferred += read as u64;
+        if transferred - last_emitted >= PROGRESS_STEP {
+            last_emitted = transferred;
+            emit_progress(app, transfer_id, transferred, total);
+        }
+    }
+
+    local_file
+        .flush()
+        .await
+        .map_err(|e| format!("Écriture de {local} impossible : {e}"))?;
+    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    Ok(transferred)
 }
 
-/// Envoie un fichier local vers un chemin distant.
+/// Envoie un fichier local vers un chemin distant, en streaming par chunks
+/// (mêmes garanties que `sftp_download`).
 #[tauri::command]
 pub async fn sftp_upload(
+    app: AppHandle,
     pool: State<'_, ConnectionPool>,
+    registry: State<'_, TransferRegistry>,
     connection_id: String,
     local_path: String,
     remote_path: String,
+    transfer_id: String,
 ) -> Result<u64, String> {
+    eprintln!("[charon] upload {local_path} -> {remote_path} (début)");
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
-    let buffer = tokio::fs::read(&local)
+    let conn = get_connection(&pool, &connection_id).await?;
+
+    let cancel = register_transfer(&registry, &transfer_id);
+    let result = stream_upload(&app, &conn, &local, &remote_path, &transfer_id, &cancel).await;
+    unregister_transfer(&registry, &transfer_id);
+
+    // Annulation ou erreur : on retire le fichier distant partiel.
+    if result.is_err() {
+        let _ = conn.sftp.remove_file(&remote_path).await;
+    }
+    eprintln!("[charon] upload {remote_path} : {result:?}");
+    result
+}
+
+async fn stream_upload(
+    app: &AppHandle,
+    conn: &ActiveConnection,
+    local: &str,
+    remote_path: &str,
+    transfer_id: &str,
+    cancel: &AtomicBool,
+) -> Result<u64, String> {
+    let meta = tokio::fs::metadata(local)
+        .await
+        .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
+    if meta.is_dir() {
+        return Err(format!(
+            "« {local} » est un dossier — l'envoi de dossiers n'est pas encore géré."
+        ));
+    }
+    let total = meta.len();
+
+    let mut local_file = tokio::fs::File::open(local)
         .await
         .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
 
-    let pool = pool.0.lock().await;
-    let conn = pool
-        .get(&connection_id)
-        .ok_or(format!("Connexion inconnue : {connection_id}"))?;
-
+    eprintln!("[charon]   création distante de {remote_path}…");
     let mut remote_file = conn
         .sftp
-        .create(&remote_path)
+        .create(remote_path)
         .await
         .map_err(|e| format!("Création de {remote_path} impossible : {e}"))?;
+    eprintln!("[charon]   créé, envoi de {total} octets…");
 
-    remote_file
-        .write_all(&buffer)
-        .await
-        .map_err(|e| format!("Écriture de {remote_path} impossible : {e}"))?;
+    emit_progress(app, transfer_id, 0, total);
+
+    let mut buffer = vec![0u8; CHUNK_SIZE];
+    let mut transferred: u64 = 0;
+    let mut last_emitted: u64 = 0;
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(CANCELLED_TAG.into());
+        }
+        let read = local_file
+            .read(&mut buffer)
+            .await
+            .map_err(|e| format!("Lecture de {local} impossible : {e}"))?;
+        if read == 0 {
+            break;
+        }
+        remote_file
+            .write_all(&buffer[..read])
+            .await
+            .map_err(|e| format!("Écriture de {remote_path} impossible : {e}"))?;
+        transferred += read as u64;
+        if transferred - last_emitted >= PROGRESS_STEP {
+            last_emitted = transferred;
+            emit_progress(app, transfer_id, transferred, total);
+        }
+    }
 
     remote_file
         .sync_all()
         .await
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
+    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    Ok(transferred)
+}
 
-    Ok(buffer.len() as u64)
+/// Demande l'annulation d'un transfert en cours (sans effet s'il est terminé).
+#[tauri::command]
+pub fn sftp_transfer_cancel(
+    registry: State<'_, TransferRegistry>,
+    transfer_id: String,
+) -> Result<(), String> {
+    if let Some(flag) = registry.inner().0.lock().unwrap().get(&transfer_id) {
+        flag.store(true, Ordering::Relaxed);
+    }
+    Ok(())
 }

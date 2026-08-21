@@ -1,0 +1,36 @@
+<div
+  class="node"
+  [class.node--active]="sftp.currentPath() === node().path"
+  [style.padding-left.px]="6 + depth() * 14"
+>
+  <button
+    type="button"
+    class="node__chevron"
+    [class.node__chevron--expanded]="node().expanded"
+    [class.node__chevron--loading]="node().loading"
+    [attr.aria-label]="(node().expanded ? 'Replier ' : 'Déplier ') + node().name"
+    (click)="tree.toggle(node())"
+  >
+    <app-icon name="chevron-right" [size]="12" />
+  </button>
+
+  <button
+    type="button"
+    class="node__label"
+    [title]="node().path"
+    (click)="open()"
+  >
+    <app-icon class="node__folder" name="folder" [size]="14" />
+    <span class="node__name">{{ node().name }}</span>
+  </button>
+</div>
+
+@if (node().expanded) {
+  @for (child of visibleChildren(); track child.path) {
+    <app-server-tree-node [node]="child" [depth]="depth() + 1" />
+  } @empty {
+    @if (!node().loading) {
+      <p class="node__empty" [style.padding-left.px]="26 + depth() * 14">aucun sous-dossier</p>
+    }
+  }
+}

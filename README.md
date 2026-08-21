@@ -104,6 +104,11 @@ aucune application ne peut s'en protéger.
 - **Suppression non récursive uniquement** : un dossier non vide ne peut pas
   être supprimé (la suppression récursive viendra avec une confirmation
   renforcée).
+- **Transferts en streaming, mémoire bornée** : download et upload avancent
+  par chunks de 1 Mio — un fichier de 10 Go ne consomme pas 10 Go de RAM
+  (déni de service local éliminé). Progression par events Tauri, annulation
+  possible ; un transfert interrompu ou annulé ne laisse de fichier partiel
+  ni en local ni sur le serveur.
 
 ### Chaîne d'approvisionnement
 
@@ -130,13 +135,10 @@ aucune application ne peut s'en protéger.
 
 ### Limites connues (feuille de route sécurité)
 
-1. **Transferts en mémoire** : un fichier téléchargé est bufferisé entièrement
-   avant écriture. Prévu : streaming par chunks + progression (limite aussi le
-   déni de service local sur les gros fichiers).
-2. **Pas de déconnexion d'inactivité** : le keepalive détecte les connexions
+1. **Pas de déconnexion d'inactivité** : le keepalive détecte les connexions
    mortes mais une session inutilisée reste ouverte. Prévu : fermeture après
    inactivité (horodatage du dernier usage + tâche périodique).
-3. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
+2. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
    application privée. Le futur updater (`tauri-plugin-updater`) vérifiera
    les signatures avec sa propre paire de clés — non négociable.
 
@@ -175,9 +177,8 @@ ci-dessus.
 
 ## Feuille de route
 
-1. Upload par glisser-déposer (`onDragDropEvent`)
-2. Suppression récursive avec confirmation renforcée
-3. Transferts en streaming + progression (events Tauri)
-4. Édition de profil étendue (keyPath)
-5. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
-6. Updater signé (`tauri-plugin-updater`, distribution privée)
+1. Suppression récursive avec confirmation renforcée
+2. Édition de profil étendue (keyPath)
+3. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
+4. Updater signé (`tauri-plugin-updater`, distribution privée)
+5. File de transferts persistante + reprise des transferts interrompus

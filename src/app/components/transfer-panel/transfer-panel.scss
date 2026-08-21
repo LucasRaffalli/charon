@@ -1,0 +1,144 @@
+.panel {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: 90; // sous les dialogues (110) et le menu contextuel
+  width: min(340px, calc(100vw - 2 * var(--space-lg)));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel__title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.panel__count {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--surface-active);
+  border-radius: 9px;
+}
+
+.panel__list {
+  max-height: 240px;
+  margin: 0;
+  padding: var(--space-2xs);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-md);
+
+  &--muted {
+    opacity: 0.6;
+  }
+}
+
+.row__direction {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.row__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__status {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.row__bar {
+  height: 3px;
+  margin-top: 3px;
+  background: var(--surface-active);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.row__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 150ms ease;
+}
+
+.row--error {
+  .row__name,
+  .row__status {
+    color: var(--danger);
+  }
+
+  .row__fill {
+    background: var(--danger);
+  }
+}
+
+.row__cancel {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--danger);
+    background: var(--surface-hover);
+  }
+}
+
+.row__done {
+  color: var(--accent);
+  flex-shrink: 0;
+}

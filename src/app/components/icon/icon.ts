@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import {
   Anchor,
+  ArrowDownUp,
   ArrowUp,
+  Check,
   ChevronRight,
   CircleAlert,
   Contrast,
@@ -37,6 +39,8 @@ const ICONS = {
   folder: Folder,
   file: File,
   'arrow-up': ArrowUp,
+  'arrow-down-up': ArrowDownUp,
+  check: Check,
   'chevron-right': ChevronRight,
   'log-out': LogOut,
   sun: Sun,

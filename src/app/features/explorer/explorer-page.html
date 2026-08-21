@@ -83,21 +83,7 @@
         (dragged)="resizePane($event)"
       />
 
-      <app-file-pane
-        class="explorer__pane explorer__pane--server"
-        title="Serveur"
-        icon="server"
-        dirsOnly
-        [path]="sftp.currentPath()"
-        [entries]="serverEntries()"
-        [loading]="sftp.loading()"
-        [atRoot]="sftp.atRoot()"
-        [error]="null"
-        (openDir)="openServerDir($event)"
-        (navigateUp)="sftp.navigateUp()"
-        (entryMenu)="openServerEntryMenu($event.event, $event.entry)"
-        (areaMenu)="openServerAreaMenu($event)"
-      />
+      <app-server-tree class="explorer__pane explorer__pane--server" />
     </aside>
 
     <app-resize-handle
@@ -106,7 +92,7 @@
       (dragged)="resizeSidebar($event)"
     />
 
-    <section class="explorer__main">
+    <section class="explorer__main" #serverZone>
       @if (sftp.error(); as error) {
         <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
       }
@@ -144,6 +130,19 @@
           </li>
         }
       </ul>
+
+      @if (dropActive()) {
+        <div class="explorer__dropzone" aria-hidden="true">
+          <div class="explorer__dropzone-card">
+            <app-icon name="upload" [size]="28" />
+            <p>
+              Déposer pour envoyer vers <strong>{{ sftp.currentPath() }}</strong>
+            </p>
+          </div>
+        </div>
+      }
     </section>
   </div>
+
+  <app-transfer-panel />
 </div>

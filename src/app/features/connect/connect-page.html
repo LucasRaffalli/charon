@@ -99,30 +99,61 @@
               [(value)]="host"
             />
 
-            <div
-              class="connect__protocols connect__environments"
-              role="radiogroup"
-              aria-label="Environnement"
-              style="--seg-count: 4"
-            >
-              <span
-                class="connect__protocols-pill"
-                aria-hidden="true"
-                [style.transform]="'translateX(' + environmentIndex() * 100 + '%)'"
-              ></span>
-              @for (option of environments; track option.label) {
-                <button
-                  type="button"
-                  class="connect__protocol"
-                  [class.connect__protocol--prod]="option.value === 'prod'"
-                  role="radio"
-                  [class.connect__protocol--active]="environment() === option.value"
-                  [attr.aria-checked]="environment() === option.value"
-                  (click)="environment.set(option.value)"
-                >
-                  {{ option.label }}
-                </button>
-              }
+            <div class="connect__seg">
+              <span class="connect__seg-label">Environnement</span>
+              <div
+                class="connect__protocols"
+                role="radiogroup"
+                aria-label="Environnement"
+                style="--seg-count: 4"
+              >
+                <span
+                  class="connect__protocols-pill"
+                  aria-hidden="true"
+                  [style.transform]="'translateX(' + environmentIndex() * 100 + '%)'"
+                ></span>
+                @for (option of environments; track option.label) {
+                  <button
+                    type="button"
+                    class="connect__protocol"
+                    [class.connect__protocol--prod]="option.value === 'prod'"
+                    role="radio"
+                    [class.connect__protocol--active]="environment() === option.value"
+                    [attr.aria-checked]="environment() === option.value"
+                    (click)="environment.set(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="connect__seg">
+              <span class="connect__seg-label">Garde-fou</span>
+              <div
+                class="connect__protocols"
+                role="radiogroup"
+                aria-label="Garde-fou"
+                style="--seg-count: 3"
+              >
+                <span
+                  class="connect__protocols-pill"
+                  aria-hidden="true"
+                  [style.transform]="'translateX(' + protectionIndex() * 100 + '%)'"
+                ></span>
+                @for (option of protections; track option.label) {
+                  <button
+                    type="button"
+                    class="connect__protocol"
+                    role="radio"
+                    [class.connect__protocol--active]="protection() === option.value"
+                    [attr.aria-checked]="protection() === option.value"
+                    (click)="protection.set(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
             </div>
 
             <div class="connect__row">

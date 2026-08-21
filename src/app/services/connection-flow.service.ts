@@ -48,6 +48,7 @@ export class ConnectionFlowService {
   connectProfile(profile: ServerProfile): Promise<void> {
     return this.connectWithTrust({
       environment: profile.environment ?? null,
+      protection: profile.protection ?? null,
       protocol: profile.protocol ?? 'sftp',
       host: profile.host,
       port: profile.port,

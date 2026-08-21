@@ -113,6 +113,10 @@ export class ExplorerPage {
     if (!this.sftp.connected() || paths.length === 0) {
       return;
     }
+    if (this.sftp.protection() === 'readonly') {
+      this.sftp.reportError('Serveur en lecture seule — dépôt refusé.');
+      return;
+    }
     const results = await Promise.all(
       paths.map((path) => {
         const name = path.split('/').pop() ?? path;
@@ -201,6 +205,10 @@ export class ExplorerPage {
   }
 
   private entryActions(browser: FileBrowserState, entry: FileEntry): ContextMenuItem[] {
+    // Lecture seule : aucune action d'écriture côté serveur.
+    if (browser === this.sftp && this.sftp.protection() === 'readonly') {
+      return [];
+    }
     return [
       { label: 'Renommer…', icon: 'pencil', action: () => void this.renameEntry(browser, entry) },
       {
@@ -213,13 +221,21 @@ export class ExplorerPage {
   }
 
   private areaActions(browser: FileBrowserState, createTitle: string): ContextMenuItem[] {
+    const refresh: ContextMenuItem = {
+      label: 'Actualiser',
+      icon: 'refresh',
+      action: () => void browser.refresh(),
+    };
+    if (browser === this.sftp && this.sftp.protection() === 'readonly') {
+      return [refresh];
+    }
     return [
       {
         label: 'Nouveau dossier…',
         icon: 'folder-plus',
         action: () => void this.createDirIn(browser, createTitle),
       },
-      { label: 'Actualiser', icon: 'refresh', action: () => void browser.refresh() },
+      refresh,
     ];
   }
 
@@ -237,6 +253,26 @@ export class ExplorerPage {
   }
 
   private async deleteEntry(browser: FileBrowserState, entry: FileEntry): Promise<void> {
+    // Serveur protégé « confirmation » : toute suppression exige de
+    // retaper le NOM D'HÔTE (façon GitHub), fichier comme dossier.
+    if (browser === this.sftp && this.sftp.protection() === 'confirm') {
+      const host = this.sftp.host();
+      const typed = await this.dialog.prompt({
+        title: `Serveur protégé — supprimer « ${entry.name} » ?`,
+        message:
+          (entry.isDir
+            ? 'Le dossier et tout son contenu seront supprimés définitivement. '
+            : 'Cette action est définitive. ') + `Tape « ${host} » pour confirmer.`,
+        placeholder: host,
+        confirmLabel: 'Supprimer',
+        danger: true,
+      });
+      if (typed?.trim() === host) {
+        await browser.remove(entry);
+      }
+      return;
+    }
+
     if (!entry.isDir) {
       const confirmed = await this.dialog.confirm({
         title: `Supprimer « ${entry.name} » ?`,

@@ -83,7 +83,9 @@ export class CommandPaletteService {
           keywords: 'remonter parent',
           run: () => void this.sftp.navigateUp(),
         },
-        {
+      );
+      if (this.sftp.protection() !== 'readonly') {
+        list.push({
           id: 'mkdir',
           label: 'Nouveau dossier sur le serveur…',
           icon: 'folder-plus',
@@ -101,7 +103,9 @@ export class CommandPaletteService {
               await this.sftp.mkdir(name);
             }
           },
-        },
+        });
+      }
+      list.push(
         {
           id: 'panel:terminal',
           label: 'Ouvrir le terminal',

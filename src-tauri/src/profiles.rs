@@ -31,6 +31,9 @@ pub struct Profile {
     /// « dev », « staging » ou « prod » — pilote le badge côté UI.
     #[serde(default)]
     pub environment: Option<String>,
+    /// « confirm » ou « readonly » — garde-fou côté UI.
+    #[serde(default)]
+    pub protection: Option<String>,
 }
 
 // ---------- Helpers ----------

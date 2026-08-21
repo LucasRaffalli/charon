@@ -7,7 +7,13 @@ import { Icon } from '@app/components/icon/icon';
 import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
-import { ConnectionParams, RemoteProtocol, ServerEnvironment, ServerProfile } from '@app/interfaces';
+import {
+  ConnectionParams,
+  RemoteProtocol,
+  ServerEnvironment,
+  ServerProfile,
+  ServerProtection,
+} from '@app/interfaces';
 import { ConnectionFlowService } from '@app/services/connection-flow.service';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
@@ -24,6 +30,11 @@ interface ProtocolOption {
 
 interface EnvironmentOption {
   value: ServerEnvironment | null;
+  label: string;
+}
+
+interface ProtectionOption {
+  value: ServerProtection | null;
   label: string;
 }
 
@@ -64,6 +75,21 @@ export class ConnectPage {
     { value: 'staging', label: 'Staging' },
     { value: 'prod', label: 'Prod' },
   ];
+
+  protected readonly protection = signal<ServerProtection | null>(null);
+  protected readonly protections: readonly ProtectionOption[] = [
+    { value: null, label: 'Aucun' },
+    { value: 'confirm', label: 'Confirmation' },
+    { value: 'readonly', label: 'Lecture seule' },
+  ];
+
+  /** Position de la pastille du sélecteur de garde-fou. */
+  protected readonly protectionIndex = computed(() =>
+    Math.max(
+      0,
+      this.protections.findIndex((option) => option.value === this.protection()),
+    ),
+  );
 
   /** Position de la pastille du sélecteur d'environnement. */
   protected readonly environmentIndex = computed(() =>
@@ -118,6 +144,7 @@ export class ConnectPage {
     // l'ancien profil dans le trousseau via profileId.
     await this.connectWithTrust({
       environment: this.environment(),
+      protection: this.protection(),
       protocol,
       host,
       port,
@@ -151,6 +178,7 @@ export class ConnectPage {
           hasSecret: secret !== '',
           protocol,
           environment: this.environment(),
+          protection: this.protection(),
         },
         secret || null,
         migrateFrom,
@@ -179,6 +207,7 @@ export class ConnectPage {
   protected editProfile(profile: ServerProfile): void {
     this.protocol.set(profile.protocol ?? 'sftp');
     this.environment.set(profile.environment ?? null);
+    this.protection.set(profile.protection ?? null);
     this.host.set(profile.host);
     this.port.set(String(profile.port));
     this.user.set(profile.user);

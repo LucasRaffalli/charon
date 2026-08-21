@@ -2,7 +2,13 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
-import { ConnectionParams, FileEntryDto, RemoteProtocol, ServerEnvironment } from '@app/interfaces';
+import {
+  ConnectionParams,
+  FileEntryDto,
+  RemoteProtocol,
+  ServerEnvironment,
+  ServerProtection,
+} from '@app/interfaces';
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 
@@ -17,12 +23,27 @@ export class SftpService extends FileBrowserState {
   private readonly _pendingKey = signal<string | null>(null);
   private readonly _protocol = signal<RemoteProtocol>('sftp');
   private readonly _environment = signal<ServerEnvironment | null>(null);
+  private readonly _protection = signal<ServerProtection | null>(null);
+  private readonly _host = signal('');
 
   readonly connectionId = this._connectionId.asReadonly();
   readonly connected = computed(() => this._connectionId() !== null);
   readonly protocol = this._protocol.asReadonly();
   /** Environnement du serveur connecté (badge PROD permanent si « prod »). */
   readonly environment = this._environment.asReadonly();
+  /** Garde-fou de la session : 'confirm' (retaper l'hôte) ou 'readonly'. */
+  readonly protection = this._protection.asReadonly();
+  /** Hôte de la session (utilisé par la confirmation renforcée). */
+  readonly host = this._host.asReadonly();
+
+  /** Refus central en lecture seule : couvre menus, palette, drag & drop. */
+  private guardWritable(action: string, target: string): void {
+    if (this._protection() === 'readonly') {
+      const message = 'Serveur en lecture seule — action refusée.';
+      this.activity.log('error', 'remote', target, `${action} : lecture seule`, false);
+      throw message;
+    }
+  }
 
   /** Nom de la commande backend selon le protocole actif (sftp_* ou ftp_*). */
   commandFor(base: string): string {
@@ -55,6 +76,7 @@ export class SftpService extends FileBrowserState {
   }
 
   protected async createDir(path: string): Promise<void> {
+    this.guardWritable('mkdir', path);
     try {
       await this.withConnection((id) =>
         invoke(this.commandFor('mkdir'), { connectionId: id, path }),
@@ -69,6 +91,7 @@ export class SftpService extends FileBrowserState {
   /** Fichier : suppression simple. Dossier : suppression récursive
    *  (la confirmation renforcée est gérée par l'UI en amont). */
   protected async removeEntry(path: string, isDir: boolean): Promise<void> {
+    this.guardWritable('suppression', path);
     try {
       await this.withConnection((id) =>
         isDir
@@ -83,6 +106,7 @@ export class SftpService extends FileBrowserState {
   }
 
   protected async renameEntry(from: string, to: string): Promise<void> {
+    this.guardWritable('renommage', from);
     try {
       await this.withConnection((id) =>
         invoke(this.commandFor('rename'), { connectionId: id, from, to }),
@@ -132,6 +156,8 @@ export class SftpService extends FileBrowserState {
 
     this._protocol.set(protocol);
     this._environment.set(params.environment ?? null);
+    this._protection.set(params.protection ?? null);
+    this._host.set(params.host);
     this._connectionId.set(id);
     this.activity.log('connect', 'remote', id);
 
@@ -168,6 +194,8 @@ export class SftpService extends FileBrowserState {
     this._connectionId.set(null);
     this._protocol.set('sftp');
     this._environment.set(null);
+    this._protection.set(null);
+    this._host.set('');
     this._currentPath.set('/');
     this._entries.set([]);
     this._error.set(null);

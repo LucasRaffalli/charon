@@ -108,6 +108,11 @@ export class TransfersService {
     if (!connectionId) {
       return false;
     }
+    if (direction === 'upload' && this.sftp.protection() === 'readonly') {
+      this.sftp.reportError('Serveur en lecture seule — envoi refusé.');
+      this.activity.log('error', 'remote', remotePath, 'upload : lecture seule', false);
+      return false;
+    }
 
     const id = crypto.randomUUID();
     this._transfers.update((list) => [

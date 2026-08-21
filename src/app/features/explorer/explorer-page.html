@@ -34,6 +34,19 @@
       }
     </nav>
 
+    @if (sftp.protection(); as protection) {
+      <span
+        class="explorer__guard"
+        [title]="
+          protection === 'readonly'
+            ? 'Garde-fou : lecture seule — aucune écriture possible'
+            : 'Garde-fou : suppression confirmée par le nom d’hôte'
+        "
+      >
+        🔒 {{ protection === 'readonly' ? 'Lecture seule' : 'Protégé' }}
+      </span>
+    }
+
     @if (sftp.environment(); as env) {
       @if (env !== 'dev') {
         <span
@@ -73,7 +86,7 @@
         class="explorer__pane explorer__pane--local"
         title="Cet ordinateur"
         icon="monitor"
-        actionIcon="upload"
+        [actionIcon]="sftp.protection() === 'readonly' ? null : 'upload'"
         actionLabel="Envoyer vers le serveur"
         [style.height.px]="settings.localPaneHeight()"
         [path]="localFs.currentPath()"

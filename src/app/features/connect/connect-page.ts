@@ -7,7 +7,7 @@ import { Icon } from '@app/components/icon/icon';
 import { TextField } from '@app/components/text-field/text-field';
 import { ThemeSwitcher } from '@app/components/theme-switcher/theme-switcher';
 import { Toggle } from '@app/components/toggle/toggle';
-import { ServerProfile } from '@app/interfaces';
+import { ConnectionParams, ServerProfile } from '@app/interfaces';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
@@ -60,7 +60,15 @@ export class ConnectPage {
     const port = Number(this.port()) || DEFAULT_SSH_PORT;
     const passphrase = this.passphrase();
 
-    await this.sftp.connect({ host, port, user, keyPassphrase: passphrase || null });
+    // Édition avec passphrase laissée vide : le backend relit celle de
+    // l'ancien profil dans le trousseau via profileId.
+    await this.connectWithTrust({
+      host,
+      port,
+      user,
+      keyPassphrase: passphrase || null,
+      profileId: passphrase ? null : this.editingId(),
+    });
     if (!this.sftp.connected()) {
       return;
     }
@@ -69,12 +77,9 @@ export class ConnectPage {
       const id = `${user}@${host}:${port}`;
       const editingId = this.editingId();
 
-      // Édition avec identifiant changé et passphrase laissée vide :
-      // on migre le secret existant vers le nouveau profil.
-      let secret = passphrase || null;
-      if (!secret && editingId && editingId !== id) {
-        secret = await this.profiles.secret(editingId);
-      }
+      // Édition avec identifiant changé et passphrase laissée vide : le backend
+      // migre lui-même le secret du trousseau (il ne transite pas par la WebView).
+      const migrateFrom = !passphrase && editingId && editingId !== id ? editingId : null;
 
       await this.profiles.save(
         {
@@ -84,9 +89,10 @@ export class ConnectPage {
           port,
           user,
           keyPath: null,
-          hasSecret: secret !== null,
+          hasSecret: passphrase !== '',
         },
-        secret,
+        passphrase || null,
+        migrateFrom,
       );
 
       if (editingId && editingId !== id) {
@@ -112,14 +118,47 @@ export class ConnectPage {
     if (this.sftp.loading()) {
       return;
     }
-    const secret = await this.profiles.secret(profile.id);
-    await this.sftp.connect({
+    await this.connectWithTrust({
       host: profile.host,
       port: profile.port,
       user: profile.user,
       keyPath: profile.keyPath ?? null,
-      keyPassphrase: secret,
+      profileId: profile.id,
     });
+  }
+
+  /**
+   * Connexion avec TOFU explicite : si le serveur est inconnu, montre son
+   * empreinte et ne relance la connexion qu'après accord de l'utilisateur.
+   */
+  private async connectWithTrust(params: ConnectionParams): Promise<void> {
+    await this.sftp.connect(params);
+
+    const fingerprint = this.sftp.pendingKey();
+    if (!fingerprint) {
+      return;
+    }
+    this.sftp.clearPendingKey();
+
+    const trusted = await this.dialog.confirm({
+      title: 'Serveur inconnu',
+      message:
+        `Première connexion à ${params.host}. Empreinte de la clé du serveur :\n\n` +
+        `${fingerprint}\n\n` +
+        `Vérifie qu'elle correspond à celle attendue avant de continuer.`,
+      confirmLabel: 'Faire confiance',
+    });
+    if (trusted) {
+      await this.sftp.connect(params, fingerprint);
+      // Si l'empreinte a changé entre la confirmation et la relance,
+      // on abandonne : c'est le signe d'une usurpation en cours.
+      if (this.sftp.pendingKey()) {
+        this.sftp.clearPendingKey();
+        this.sftp.reportError(
+          'La clé du serveur a changé entre deux tentatives — connexion abandonnée par prudence.',
+        );
+      }
+    }
   }
 
   protected removeProfile(profile: ServerProfile): void {

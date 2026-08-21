@@ -17,12 +17,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["full"] }
-russh = "0.45"
-russh-keys = "0.45"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util", "time", "sync"] }
+# russh >= 0.62.5 requis : 13 advisories (dont 3 HIGH) corrigées depuis 0.45,
+# plusieurs côté client (DoS/panique face à un serveur malveillant).
+russh = "0.62.7"
 russh-sftp = "2"
-async-trait = "0.1"
-suppaftp = { version = "6", features = ["async-secure", "async-native-tls"] }
 keyring = { version = "3", features = ["apple-native"] }
 tauri-plugin-store = "2"
 thiserror = "2"

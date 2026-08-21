@@ -28,7 +28,6 @@ pub fn run() {
             profiles::profiles_list,
             profiles::profile_save,
             profiles::profile_delete,
-            profiles::profile_secret,
         ])
         .run(tauri::generate_context!())
         .expect("error while running charon");

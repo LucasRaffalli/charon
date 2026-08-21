@@ -18,6 +18,10 @@ import { SftpService } from '@app/services/sftp.service';
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+/** Nom d'entrée valide : pas de séparateur, pas de `.` / `..`. */
+const isValidEntryName = (name: string): boolean =>
+  !/[/\\]/.test(name) && name !== '.' && name !== '..';
+
 @Component({
   selector: 'app-explorer-page',
   imports: [Alert, Button, FilePane, Icon, ResizeHandle, ThemeSwitcher, FileSizePipe],
@@ -134,7 +138,7 @@ export class ExplorerPage {
         confirmLabel: 'Renommer',
       })
     )?.trim();
-    if (name && name !== entry.name && !name.includes('/')) {
+    if (name && name !== entry.name && isValidEntryName(name)) {
       await browser.rename(entry, name);
     }
   }
@@ -155,7 +159,7 @@ export class ExplorerPage {
     const name = (
       await this.dialog.prompt({ title, placeholder: 'nom-du-dossier', confirmLabel: 'Créer' })
     )?.trim();
-    if (name && !name.includes('/')) {
+    if (name && isValidEntryName(name)) {
       await browser.mkdir(name);
     }
   }

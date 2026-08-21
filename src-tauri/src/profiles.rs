@@ -56,6 +56,16 @@ fn keychain_entry(profile_id: &str) -> Result<keyring::Entry, String> {
         .map_err(|e| format!("Accès au trousseau impossible : {e}"))
 }
 
+/// Secret d'un profil depuis le trousseau (None si absent). Réservé au backend :
+/// les secrets ne sont jamais exposés à la WebView via IPC.
+pub fn keychain_secret(profile_id: &str) -> Result<Option<String>, String> {
+    match keychain_entry(profile_id)?.get_password() {
+        Ok(secret) => Ok(Some(secret)),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(format!("Lecture du trousseau impossible : {e}")),
+    }
+}
+
 // ---------- Commands ----------
 
 #[tauri::command]
@@ -65,11 +75,15 @@ pub fn profiles_list(app: AppHandle) -> Result<Vec<Profile>, String> {
 
 /// Crée ou met à jour un profil. `secret` : Some("...") l'enregistre dans le
 /// trousseau, Some("") l'efface, None laisse l'existant tel quel.
+/// `migrate_secret_from` : id d'un ancien profil dont le secret doit être
+/// recopié (édition avec changement d'identifiant) — la copie se fait
+/// entièrement côté Rust, sans jamais transiter par la WebView.
 #[tauri::command]
 pub fn profile_save(
     app: AppHandle,
     mut profile: Profile,
     secret: Option<String>,
+    migrate_secret_from: Option<String>,
 ) -> Result<Vec<Profile>, String> {
     match secret.as_deref() {
         Some(s) if !s.is_empty() => {
@@ -83,10 +97,20 @@ pub fn profile_save(
             profile.has_secret = false;
         }
         None => {
-            profile.has_secret = read_profiles(&app)?
-                .iter()
-                .find(|p| p.id == profile.id)
-                .is_some_and(|p| p.has_secret);
+            let migrated = migrate_secret_from
+                .filter(|old| *old != profile.id)
+                .and_then(|old| keychain_secret(&old).ok().flatten());
+            if let Some(s) = migrated {
+                keychain_entry(&profile.id)?
+                    .set_password(&s)
+                    .map_err(|e| format!("Écriture dans le trousseau impossible : {e}"))?;
+                profile.has_secret = true;
+            } else {
+                profile.has_secret = read_profiles(&app)?
+                    .iter()
+                    .find(|p| p.id == profile.id)
+                    .is_some_and(|p| p.has_secret);
+            }
         }
     }
 
@@ -107,14 +131,4 @@ pub fn profile_delete(app: AppHandle, id: String) -> Result<Vec<Profile>, String
     profiles.retain(|p| p.id != id);
     write_profiles(&app, &profiles)?;
     Ok(profiles)
-}
-
-/// Secret d'un profil depuis le trousseau (None si absent).
-#[tauri::command]
-pub fn profile_secret(id: String) -> Result<Option<String>, String> {
-    match keychain_entry(&id)?.get_password() {
-        Ok(secret) => Ok(Some(secret)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Lecture du trousseau impossible : {e}")),
-    }
 }

@@ -28,6 +28,9 @@
   margin-top: var(--space-2xs);
   font-size: 13px;
   color: var(--text-muted);
+  // Les messages peuvent contenir des sauts de ligne (empreinte de clé, etc.)
+  white-space: pre-line;
+  overflow-wrap: break-word;
 }
 
 .dialog__form {

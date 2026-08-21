@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev": "tauri dev --config src-tauri/tauri.dev.conf.json"
   },
   "private": true,
   "dependencies": {

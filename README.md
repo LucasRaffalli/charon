@@ -1,7 +1,183 @@
-# Tauri + Angular
+# Charon
 
-This template should help get you started developing with Tauri and Angular.
+Client SFTP privé pour macOS — Tauri v2 (backend Rust) + Angular 20 (WebView).
+Pensé pour un usage personnel puis professionnel : la sécurité est un objectif
+de conception, pas une couche ajoutée après coup.
 
-## Recommended IDE Setup
+## Démarrage
 
-[VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) + [Angular Language Service](https://marketplace.visualstudio.com/items?itemName=Angular.ng-template).
+```bash
+npm install
+npm run dev      # dev : console de debug activée (overlay tauri.dev.conf.json)
+npm run tauri build   # binaire de production
+```
+
+## Architecture
+
+```
+┌────────────────────────── WebView (Angular) ──────────────────────────┐
+│  UI uniquement : aucune connexion réseau, aucun accès disque,         │
+│  aucun secret. CSP stricte, pas d'API Tauri globale en production.    │
+└──────────────────────────────┬────────────────────────────────────────┘
+                               │ IPC Tauri : 16 commandes enregistrées,
+                               │ rien d'autre n'est invocable
+┌──────────────────────────────┴────────────────────────────────────────┐
+│  Backend Rust                                                          │
+│  ├── sftp.rs      SSH/SFTP (russh), pool de connexions, TOFU          │
+│  ├── fs.rs        disque local (dossiers de l'utilisateur)            │
+│  └── profiles.rs  profils (store JSON) + secrets (Keychain macOS)     │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+Tout ce qui touche le réseau, le disque ou les secrets vit côté Rust.
+La WebView ne manipule que de l'état d'affichage.
+
+## Sécurité
+
+### Modèle de menace
+
+Charon se défend contre :
+
+- **un serveur SFTP malveillant ou compromis** (noms de fichiers piégés,
+  réponses protocolaires hostiles) ;
+- **une usurpation de serveur** (MITM), y compris au premier contact ;
+- **une compromission de la WebView** (XSS / injection) : elle ne doit donner
+  accès ni aux secrets ni à des primitives dangereuses ;
+- **la chaîne d'approvisionnement** (dépendances vulnérables ou abandonnées).
+
+Hors périmètre : un poste macOS déjà compromis (keylogger, session ouverte) —
+aucune application ne peut s'en protéger.
+
+### Authentification et vérification du serveur
+
+- **Clés SSH d'abord** : auto-détection dans `~/.ssh` (ed25519 en priorité,
+  RSA et ECDSA en repli) ou chemin explicite ; passphrase supportée.
+  Le mot de passe n'est qu'un repli et n'est jamais enregistré en clair.
+- **TOFU explicite** : à la première connexion vers un hôte inconnu, la clé
+  n'est **jamais** acceptée silencieusement. Le backend renvoie l'empreinte
+  SHA256 ; l'UI l'affiche et demande une confirmation ; la clé n'est apprise
+  dans `~/.ssh/known_hosts` qu'après accord, et seulement si l'empreinte
+  confirmée correspond à celle revue à la reconnexion. Si l'empreinte change
+  entre la confirmation et la relance, la connexion est abandonnée.
+- **Clé changée = refus** : si la clé d'un hôte connu ne correspond plus à
+  `known_hosts`, la connexion est refusée avec un message explicite —
+  l'utilisateur doit vérifier le serveur avant d'aller plus loin.
+- **Keepalive** (30 s, 3 tentatives) : une connexion morte est détectée et
+  fermée plutôt que de rester en zombie dans le pool.
+
+### Secrets
+
+- Les passphrases vivent **exclusivement dans le trousseau macOS** (`keyring`,
+  service `app.charon`), jamais dans le store JSON, jamais sur le disque en
+  clair.
+- **Aucun secret ne traverse le pont IPC vers la WebView.** La connexion via
+  un profil passe `profileId` ; le backend relit lui-même la passphrase dans
+  le trousseau. La migration d'un secret lors de l'édition d'un profil se fait
+  aussi entièrement côté Rust (`migrate_secret_from`). Il n'existe aucune
+  commande IPC qui renvoie un secret.
+- La liste des serveurs affichée n'expose que le **nom du profil** (jamais
+  l'hôte), pour qu'un regard par-dessus l'épaule n'apprenne rien.
+
+### Durcissement de la WebView
+
+- **CSP stricte** en production (`default-src 'self'`, pas de script inline,
+  pas de ressource externe) ; variante dev avec le strict nécessaire au HMR
+  (`unsafe-eval`, websocket local). Aucune ressource distante n'est chargée.
+- **`withGlobalTauri: false` en production** : pas d'API Tauri globale offerte
+  à un éventuel code injecté. Le mode dev la réactive via un overlay de
+  configuration séparé (`tauri.dev.conf.json`).
+- **Pas d'`innerHTML`** : interpolation Angular partout — un nom de fichier
+  hostile s'affiche, il ne s'exécute pas.
+- **Surface IPC minimale** : seules les commandes enregistrées dans
+  `lib.rs` sont invocables ; pas de shell, pas d'`eval`, pas d'accès
+  arbitraire au système de fichiers exposé au front.
+
+### Système de fichiers
+
+- **Anti path-traversal, dans les deux sens** : les noms d'entrées renvoyés
+  par le serveur (et par le disque local) sont filtrés (`is_safe_entry_name` :
+  ni vide, ni `.`/`..`, ni séparateur). Un serveur qui annonce
+  `../../.zshenv` n'apparaît même pas dans la liste.
+- **Ceinture + bretelles** : toutes les commandes locales (liste, création,
+  suppression, renommage, download/upload) refusent tout chemin contenant un
+  composant `..`, indépendamment du filtrage amont.
+- **Suppression non récursive uniquement** : un dossier non vide ne peut pas
+  être supprimé (la suppression récursive viendra avec une confirmation
+  renforcée).
+
+### Chaîne d'approvisionnement
+
+- **Versions verrouillées** par `Cargo.lock` / `package-lock.json`.
+- **Audit** : `npm audit` (0 vulnérabilité) et scan OSV de l'intégralité du
+  `Cargo.lock` (602 crates) — même base que `cargo audit`. À rejouer
+  régulièrement, idéalement en CI.
+- **russh migré de 0.45 à 0.62.7** (août 2026) : la 0.45 cumulait 13 avis de
+  sécurité, dont plusieurs exploitables côté *client* par un serveur
+  malveillant (panique pré-auth, allocations non bornées). Règle : ne jamais
+  laisser la bibliothèque SSH prendre du retard sur ses correctifs.
+- **Dépendances inutilisées supprimées** : `suppaftp` (FTP) a été retirée
+  tant que la fonctionnalité n'est pas développée — elle sera réintroduite
+  avec le même passage en revue. Les features de `tokio` sont réduites au
+  nécessaire.
+- **Risques connus et assumés** (état août 2026) :
+  - `rsa` (via russh) : RUSTSEC-2023-0071, canal auxiliaire temporel
+    (« Marvin ») sans correctif publié dans l'écosystème. Exploitabilité très
+    faible dans un client interactif ; atténuation : Charon privilégie
+    ed25519 (détecté avant RSA). À suivre.
+  - Notices « unmaintained » sur `unic-*` / `proc-macro-error` (tirées par
+    l'outillage Tauri) et avis GTK — ces derniers ne concernent que les
+    builds Linux, absents du graphe de dépendances macOS.
+
+### Limites connues (feuille de route sécurité)
+
+1. **Transferts en mémoire** : un fichier téléchargé est bufferisé entièrement
+   avant écriture. Prévu : streaming par chunks + progression (limite aussi le
+   déni de service local sur les gros fichiers).
+2. **Pas de déconnexion d'inactivité** : le keepalive détecte les connexions
+   mortes mais une session inutilisée reste ouverte. Prévu : fermeture après
+   inactivité (horodatage du dernier usage + tâche périodique).
+3. **Signature ad-hoc, pas de notarisation Apple** : choix assumé pour une
+   application privée. Le futur updater (`tauri-plugin-updater`) vérifiera
+   les signatures avec sa propre paire de clés — non négociable.
+
+## Pourquoi ne pas écrire nos propres sockets / notre propre SSH ?
+
+La question s'est posée : pour être « sûr à 100 % », faut-il développer
+nous-mêmes la couche de connexion ?
+
+**Non — et c'est précisément un choix de sécurité.**
+
+- La couche TCP est déjà la nôtre au sens utile : russh travaille sur les
+  sockets asynchrones de tokio (donc ceux du système). Il n'y a pas de
+  « socket tiers » mystérieux à remplacer.
+- Ce qui se joue au-dessus — machine à états SSH, échange de clés, crypto en
+  temps constant, contre-mesures aux attaques de protocole (ex. Terrapin,
+  strict-kex) — représente des années de travail spécialisé et d'historique
+  de correctifs. Une réimplémentation maison aurait *plus* de failles, pas
+  moins, et personne d'autre ne les chercherait pour nous.
+- La liste d'avis corrigés par russh est un argument **pour** lui : ces bugs
+  ont été trouvés (fuzzing, chercheurs) puis corrigés en jours. Un protocole
+  maison n'aurait ni les chercheurs, ni les correctifs.
+
+Ce que nous possédons en propre, et qui est la vraie surface de décision :
+
+- la **politique de confiance** (TOFU avec empreinte, refus de clé changée) ;
+- la **politique de session** (keepalive, timeouts, pool) ;
+- la **gestion des secrets** (Keychain, jamais dans la WebView) ;
+- le **verrouillage et l'audit** des versions de la bibliothèque.
+
+Alternatives évaluées : déléguer au binaire OpenSSH du système (très éprouvé,
+mais UX passphrase/agent difficile et perte de contrôle sur le cycle de vie
+des sessions) ; bindings C `libssh2` (surface FFI et mémoire non sûre). russh
+(Rust memory-safe, maintenu activement, API async) reste le meilleur
+compromis — la contrepartie est l'obligation d'audit régulier décrite
+ci-dessus.
+
+## Feuille de route
+
+1. Upload par glisser-déposer (`onDragDropEvent`)
+2. Suppression récursive avec confirmation renforcée
+3. Transferts en streaming + progression (events Tauri)
+4. Édition de profil étendue (keyPath)
+5. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
+6. Updater signé (`tauri-plugin-updater`, distribution privée)

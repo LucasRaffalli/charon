@@ -18,10 +18,20 @@ export class ProfilesService {
     });
   }
 
-  /** `secret` : chaîne pour l'enregistrer, '' pour l'effacer, null pour ne rien changer. */
-  async save(profile: ServerProfile, secret: string | null): Promise<void> {
+  /**
+   * `secret` : chaîne pour l'enregistrer, '' pour l'effacer, null pour ne rien changer.
+   * `migrateSecretFrom` : id d'un ancien profil dont le secret doit être recopié
+   * (édition avec changement d'identifiant) — la copie se fait côté Rust.
+   */
+  async save(
+    profile: ServerProfile,
+    secret: string | null,
+    migrateSecretFrom: string | null = null,
+  ): Promise<void> {
     await this.run(async () => {
-      this._profiles.set(await invoke<ServerProfile[]>('profile_save', { profile, secret }));
+      this._profiles.set(
+        await invoke<ServerProfile[]>('profile_save', { profile, secret, migrateSecretFrom }),
+      );
     });
   }
 
@@ -29,11 +39,6 @@ export class ProfilesService {
     await this.run(async () => {
       this._profiles.set(await invoke<ServerProfile[]>('profile_delete', { id }));
     });
-  }
-
-  /** Secret du profil depuis le trousseau (null si absent). */
-  secret(id: string): Promise<string | null> {
-    return invoke<string | null>('profile_secret', { id }).catch(() => null);
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {

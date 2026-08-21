@@ -53,6 +53,14 @@ pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {
     }
 }
 
+/// Supprime récursivement un dossier local (les liens symboliques sont
+/// déliés, pas suivis — comportement de `remove_dir_all`).
+#[tauri::command]
+pub fn local_remove_all(path: String) -> Result<(), String> {
+    ensure_no_parent_dir(&path)?;
+    std::fs::remove_dir_all(&path).map_err(|e| format!("Suppression de {path} impossible : {e}"))
+}
+
 /// Renomme (ou déplace) une entrée locale.
 #[tauri::command]
 pub fn local_rename(from: String, to: String) -> Result<(), String> {

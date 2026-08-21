@@ -387,6 +387,74 @@ pub async fn sftp_remove(
     }
 }
 
+/// Garde-fou de la suppression récursive : au-delà, on refuse (arbre suspect
+/// ou boucle côté serveur).
+const MAX_RECURSIVE_ENTRIES: usize = 100_000;
+
+/// Supprime récursivement un dossier distant : walk complet d'abord
+/// (fichiers puis dossiers en ordre inverse), suppression ensuite.
+/// Les liens symboliques sont déliés sans être suivis (attrs lstat du
+/// READDIR : un lien vers un dossier n'est pas `is_dir`).
+#[tauri::command]
+pub async fn sftp_remove_all(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+) -> Result<u64, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+
+    let mut to_visit = vec![path];
+    let mut dirs: Vec<String> = Vec::new();
+    let mut files: Vec<String> = Vec::new();
+
+    while let Some(dir) = to_visit.pop() {
+        let entries = conn
+            .sftp
+            .read_dir(&dir)
+            .await
+            .map_err(|e| format!("Lecture de {dir} impossible : {e}"))?;
+        for entry in entries {
+            let name = entry.file_name();
+            if !is_safe_entry_name(&name) {
+                continue;
+            }
+            let child = if dir == "/" {
+                format!("/{name}")
+            } else {
+                format!("{dir}/{name}")
+            };
+            if entry.metadata().is_dir() {
+                to_visit.push(child);
+            } else {
+                files.push(child);
+            }
+        }
+        dirs.push(dir);
+        if dirs.len() + files.len() > MAX_RECURSIVE_ENTRIES {
+            return Err(format!(
+                "Plus de {MAX_RECURSIVE_ENTRIES} entrées — suppression refusée par prudence."
+            ));
+        }
+    }
+
+    let total = (dirs.len() + files.len()) as u64;
+    for file in &files {
+        conn.sftp
+            .remove_file(file)
+            .await
+            .map_err(|e| format!("Suppression de {file} impossible : {e}"))?;
+    }
+    // Les dossiers en ordre inverse : les enfants avant leurs parents.
+    for dir in dirs.iter().rev() {
+        conn.sftp
+            .remove_dir(dir)
+            .await
+            .map_err(|e| format!("Suppression de {dir} impossible : {e}"))?;
+    }
+
+    Ok(total)
+}
+
 /// Renomme (ou déplace) une entrée distante.
 #[tauri::command]
 pub async fn sftp_rename(

@@ -101,9 +101,11 @@ aucune application ne peut s'en protéger.
 - **Ceinture + bretelles** : toutes les commandes locales (liste, création,
   suppression, renommage, download/upload) refusent tout chemin contenant un
   composant `..`, indépendamment du filtrage amont.
-- **Suppression non récursive uniquement** : un dossier non vide ne peut pas
-  être supprimé (la suppression récursive viendra avec une confirmation
-  renforcée).
+- **Suppression récursive sous double garde** : supprimer un dossier exige de
+  retaper son nom exact (façon GitHub). Le parcours ne suit jamais les liens
+  symboliques (ils sont déliés, leur cible n'est pas traversée), les noms
+  d'entrées dangereux sont ignorés, et un garde-fou refuse les arbres de plus
+  de 100 000 entrées.
 - **Transferts en streaming, mémoire bornée** : download et upload avancent
   par chunks de 1 Mio — un fichier de 10 Go ne consomme pas 10 Go de RAM
   (déni de service local éliminé). Progression par events Tauri, annulation
@@ -177,8 +179,8 @@ ci-dessus.
 
 ## Feuille de route
 
-1. Suppression récursive avec confirmation renforcée
-2. Édition de profil étendue (keyPath)
-3. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
-4. Updater signé (`tauri-plugin-updater`, distribution privée)
-5. File de transferts persistante + reprise des transferts interrompus
+1. Édition de profil étendue (keyPath)
+2. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
+3. Updater signé (`tauri-plugin-updater`, distribution privée)
+4. File de transferts persistante + reprise des transferts interrompus
+5. Panneau inférieur multi-features (transferts, logs…)

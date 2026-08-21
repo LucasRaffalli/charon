@@ -21,6 +21,7 @@ export interface PromptOptions {
   title: string;
   message?: string;
   confirmLabel?: string;
+  danger?: boolean;
   value?: string;
   placeholder?: string;
 }
@@ -54,6 +55,7 @@ export class DialogService {
       title: options.title,
       message: options.message,
       confirmLabel: options.confirmLabel ?? 'Valider',
+      danger: options.danger,
       value: options.value,
       placeholder: options.placeholder,
     });

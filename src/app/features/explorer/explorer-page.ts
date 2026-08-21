@@ -223,13 +223,30 @@ export class ExplorerPage {
   }
 
   private async deleteEntry(browser: FileBrowserState, entry: FileEntry): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: `Supprimer « ${entry.name} » ?`,
-      message: entry.isDir ? 'Seul un dossier vide peut être supprimé.' : 'Cette action est définitive.',
-      confirmLabel: 'Supprimer',
+    if (!entry.isDir) {
+      const confirmed = await this.dialog.confirm({
+        title: `Supprimer « ${entry.name} » ?`,
+        message: 'Cette action est définitive.',
+        confirmLabel: 'Supprimer',
+        danger: true,
+      });
+      if (confirmed) {
+        await browser.remove(entry);
+      }
+      return;
+    }
+
+    // Suppression récursive : confirmation renforcée — taper le nom du dossier.
+    const typed = await this.dialog.prompt({
+      title: `Supprimer « ${entry.name} » et tout son contenu ?`,
+      message:
+        `Le dossier et tout ce qu'il contient seront supprimés définitivement. ` +
+        `Tape « ${entry.name} » pour confirmer.`,
+      placeholder: entry.name,
+      confirmLabel: 'Tout supprimer',
       danger: true,
     });
-    if (confirmed) {
+    if (typed?.trim() === entry.name) {
       await browser.remove(entry);
     }
   }

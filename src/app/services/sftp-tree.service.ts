@@ -1,7 +1,7 @@
 import { Injectable, effect, inject, signal, untracked } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
-import { FileEntryDto, TreeNode } from '@app/interfaces';
+import { FileEntry, FileEntryDto, TreeNode } from '@app/interfaces';
 import { SftpService } from '@app/services/sftp.service';
 
 const freshRoot = (): TreeNode => ({
@@ -26,6 +26,9 @@ const mapNode = (node: TreeNode, path: string, patch: (n: TreeNode) => TreeNode)
   }
   return { ...node, children: node.children.map((child) => mapNode(child, path, patch)) };
 };
+
+const childPath = (parent: string, name: string): string =>
+  parent === '/' ? `/${name}` : `${parent}/${name}`;
 
 const findNode = (node: TreeNode, path: string): TreeNode | null => {
   if (node.path === path) {
@@ -68,6 +71,41 @@ export class SftpTreeService {
       untracked(() => {
         this.revealQueue = this.revealQueue.then(() => this.reveal(path));
       });
+    });
+
+    // La liste principale fait foi pour le dossier courant : après un
+    // mkdir/suppression/renommage, l'arbre suit sans requête supplémentaire.
+    effect(() => {
+      if (!this.sftp.connected()) {
+        return;
+      }
+      const path = this.sftp.currentPath();
+      const entries = this.sftp.entries();
+      untracked(() => this.mergeChildren(path, entries));
+    });
+  }
+
+  /** Aligne les enfants d'un nœud déjà matérialisé sur la liste principale,
+   *  en préservant l'état de dépliage des sous-arbres existants. */
+  private mergeChildren(path: string, entries: FileEntry[]): void {
+    this.patch(path, (node) => {
+      if (node.children === null && !node.expanded) {
+        return node;
+      }
+      const existing = new Map((node.children ?? []).map((child) => [child.name, child]));
+      const children = entries
+        .filter((entry) => entry.isDir)
+        .map(
+          (entry) =>
+            existing.get(entry.name) ?? {
+              name: entry.name,
+              path: childPath(path, entry.name),
+              expanded: false,
+              loading: false,
+              children: null,
+            },
+        );
+      return { ...node, children };
     });
   }
 
@@ -123,7 +161,7 @@ export class SftpTreeService {
         .filter((entry) => entry.is_dir)
         .map((entry) => ({
           name: entry.name,
-          path: path === '/' ? `/${entry.name}` : `${path}/${entry.name}`,
+          path: childPath(path, entry.name),
           expanded: false,
           loading: false,
           children: null,

@@ -17,8 +17,10 @@ export class LocalFsService extends FileBrowserState {
     return invoke('local_mkdir', { path });
   }
 
+  /** Fichier : suppression simple. Dossier : suppression récursive
+   *  (la confirmation renforcée est gérée par l'UI en amont). */
   protected removeEntry(path: string, isDir: boolean): Promise<void> {
-    return invoke('local_remove', { path, isDir });
+    return isDir ? invoke('local_remove_all', { path }) : invoke('local_remove', { path, isDir });
   }
 
   protected renameEntry(from: string, to: string): Promise<void> {

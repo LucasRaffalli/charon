@@ -29,8 +29,14 @@ export class SftpService extends FileBrowserState {
     return this.withConnection((id) => invoke('sftp_mkdir', { connectionId: id, path }));
   }
 
+  /** Fichier : suppression simple. Dossier : suppression récursive
+   *  (la confirmation renforcée est gérée par l'UI en amont). */
   protected removeEntry(path: string, isDir: boolean): Promise<void> {
-    return this.withConnection((id) => invoke('sftp_remove', { connectionId: id, path, isDir }));
+    return this.withConnection((id) =>
+      isDir
+        ? invoke('sftp_remove_all', { connectionId: id, path })
+        : invoke('sftp_remove', { connectionId: id, path, isDir }),
+    );
   }
 
   protected renameEntry(from: string, to: string): Promise<void> {

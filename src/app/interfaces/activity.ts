@@ -9,6 +9,7 @@ export type ActivityKind =
   | 'upload'
   | 'resume'
   | 'cancel'
+  | 'edit'
   | 'error';
 
 /** Une opération horodatée du journal d'activité. */

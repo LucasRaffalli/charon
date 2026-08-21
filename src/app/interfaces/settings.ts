@@ -13,4 +13,6 @@ export interface Settings {
   bottomPanelOpen: boolean;
   /** Onglet actif du panneau inférieur. */
   bottomPanelTab: string;
+  /** App d'ouverture pour l'édition distante (vide = défaut système). */
+  editorApp: string;
 }

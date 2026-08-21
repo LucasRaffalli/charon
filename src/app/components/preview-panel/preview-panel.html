@@ -1,0 +1,61 @@
+<header class="head">
+  <app-icon class="head__icon" name="file" [size]="15" />
+  <span class="head__name" [title]="preview.name()">{{ preview.name() }}</span>
+  @if (preview.dirty() && !preview.readonly()) {
+    <span class="head__dirty" title="Modifications non enregistrées"></span>
+  }
+
+  @if (preview.kind() === 'text' && !preview.readonly()) {
+    <app-button
+      variant="primary"
+      [disabled]="!preview.canSave()"
+      [loading]="preview.saving()"
+      (click)="preview.save()"
+    >
+      Enregistrer
+    </app-button>
+  }
+
+  <button type="button" class="head__close" aria-label="Fermer l'aperçu" (click)="preview.close()">
+    <app-icon name="close" [size]="15" />
+  </button>
+</header>
+
+@if (preview.error(); as error) {
+  <p class="notice notice--error">{{ error }}</p>
+}
+
+@switch (preview.kind()) {
+  @case ('loading') {
+    <p class="notice">Chargement…</p>
+  }
+  @case ('text') {
+    @if (preview.truncated()) {
+      <p class="notice notice--warn">
+        Fichier volumineux — aperçu tronqué, édition désactivée pour ne pas
+        écraser le reste.
+      </p>
+    } @else if (preview.readonly()) {
+      <p class="notice">Serveur en lecture seule — édition désactivée.</p>
+    }
+    <textarea
+      class="editor"
+      spellcheck="false"
+      wrap="off"
+      [readonly]="preview.readonly()"
+      [value]="preview.content()"
+      (input)="preview.setContent($any($event.target).value)"
+    ></textarea>
+  }
+  @case ('image') {
+    <div class="image">
+      <img [src]="preview.imageSrc()" [alt]="preview.name()" />
+    </div>
+  }
+  @case ('binary') {
+    <p class="notice">
+      Fichier binaire — aperçu indisponible. Utilise « Télécharger » ou
+      « Éditer dans l'éditeur système ».
+    </p>
+  }
+}

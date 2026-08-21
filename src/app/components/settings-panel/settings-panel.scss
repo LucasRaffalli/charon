@@ -87,6 +87,12 @@
   padding: var(--space-md) var(--space-lg) var(--space-lg);
 }
 
+// Espace entre le toggle « fichiers cachés » et le champ éditeur.
+.panel__body app-toggle + app-text-field {
+  display: block;
+  margin-top: var(--space-md);
+}
+
 .panel__group-title {
   margin-bottom: var(--space-xs);
   font-size: 11px;

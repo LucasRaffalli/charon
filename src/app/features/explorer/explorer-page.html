@@ -43,7 +43,8 @@
             : 'Garde-fou : suppression confirmée par le nom d’hôte'
         "
       >
-        🔒 {{ protection === 'readonly' ? 'Lecture seule' : 'Protégé' }}
+        <app-icon name="lock" [size]="12" />
+        {{ protection === 'readonly' ? 'Lecture seule' : 'Protégé' }}
       </span>
     }
 
@@ -166,7 +167,13 @@
         </div>
       }
     </section>
+
+    @if (preview.open()) {
+      <app-preview-panel class="explorer__preview" />
+    }
   </div>
 
   <app-bottom-panel />
+
+  <app-remote-edit-bar />
 </div>

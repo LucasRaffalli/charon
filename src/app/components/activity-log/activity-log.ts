@@ -15,6 +15,7 @@ const KIND_ICONS: Record<ActivityKind, IconName> = {
   upload: 'upload',
   resume: 'refresh',
   cancel: 'close',
+  edit: 'edit',
   error: 'alert-circle',
 };
 

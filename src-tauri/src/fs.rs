@@ -1,4 +1,4 @@
-use crate::sftp::{ensure_no_parent_dir, is_safe_entry_name, FileEntry};
+use crate::sftp::{ensure_no_parent_dir, is_safe_entry_name, FileEntry, StatInfo};
 
 // ---------- Commands : système de fichiers local ----------
 
@@ -32,6 +32,56 @@ pub fn local_list_dir(path: String) -> Result<Vec<FileEntry>, String> {
 
     files.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.cmp(&b.name)));
     Ok(files)
+}
+
+/// Métadonnées d'un fichier local (`exists: false` s'il n'existe pas).
+#[tauri::command]
+pub fn local_stat(path: String) -> Result<StatInfo, String> {
+    ensure_no_parent_dir(&path)?;
+    match std::fs::metadata(&path) {
+        Ok(meta) => {
+            let mtime = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            Ok(StatInfo {
+                exists: true,
+                is_dir: meta.is_dir(),
+                size: meta.len(),
+                mtime,
+            })
+        }
+        Err(_) => Ok(StatInfo {
+            exists: false,
+            is_dir: false,
+            size: 0,
+            mtime: 0,
+        }),
+    }
+}
+
+/// Lit le début d'un fichier local en texte (borné), pour l'aperçu de diff.
+#[tauri::command]
+pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
+    ensure_no_parent_dir(&path)?;
+    use std::io::Read;
+    let mut file =
+        std::fs::File::open(&path).map_err(|e| format!("Ouverture de {path} impossible : {e}"))?;
+    let mut buffer = vec![0u8; max_bytes.min(4 * 1024 * 1024) as usize];
+    let mut filled = 0usize;
+    while filled < buffer.len() {
+        let read = file
+            .read(&mut buffer[filled..])
+            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        if read == 0 {
+            break;
+        }
+        filled += read;
+    }
+    buffer.truncate(filled);
+    Ok(String::from_utf8_lossy(&buffer).into_owned())
 }
 
 /// Crée un dossier local.

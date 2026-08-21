@@ -18,12 +18,18 @@ import { ResizeHandle } from '@app/components/resize-handle/resize-handle';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { BottomPanel } from '@app/components/bottom-panel/bottom-panel';
+import { RemoteEditBar } from '@app/components/remote-edit-bar/remote-edit-bar';
+import { PreviewPanel } from '@app/components/preview-panel/preview-panel';
 import { ServerTree } from '@app/components/server-tree/server-tree';
 import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
+import { lineDiff } from '@app/services/diff';
 import { LocalFsService } from '@app/services/local-fs.service';
 import { LogTailService } from '@app/services/log-tail.service';
+import { OverwriteService } from '@app/services/overwrite.service';
+import { PreviewService } from '@app/services/preview.service';
+import { RemoteEditService } from '@app/services/remote-edit.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { TransfersService } from '@app/services/transfers.service';
@@ -40,6 +46,8 @@ const isValidEntryName = (name: string): boolean =>
   imports: [
     Alert,
     BottomPanel,
+    RemoteEditBar,
+    PreviewPanel,
     Button,
     FilePane,
     Icon,
@@ -58,7 +66,13 @@ export class ExplorerPage {
   protected readonly contextMenu = inject(ContextMenuService);
   protected readonly transfers = inject(TransfersService);
   private readonly logTail = inject(LogTailService);
+  private readonly overwrite = inject(OverwriteService);
+  private readonly remoteEdit = inject(RemoteEditService);
+  protected readonly preview = inject(PreviewService);
   private readonly dialog = inject(DialogService);
+
+  /** Taille max lue de chaque côté pour l'aperçu de diff (256 Kio). */
+  private static readonly DIFF_MAX_BYTES = 256 * 1024;
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly bento = computed(() => this.settings.layout() === 'bento');
@@ -117,20 +131,72 @@ export class ExplorerPage {
       this.sftp.reportError('Serveur en lecture seule — dépôt refusé.');
       return;
     }
-    const results = await Promise.all(
-      paths.map((path) => {
-        const name = path.split('/').pop() ?? path;
-        return this.transfers.upload(path, this.sftp.pathTo(name), name);
-      }),
-    );
-    if (results.some(Boolean)) {
+    // Séquentiel : un seul dialogue « écraser ? » à la fois.
+    let anyDone = false;
+    for (const path of paths) {
+      const name = path.split('/').pop() ?? path;
+      if (await this.uploadWithGuard(path, this.sftp.pathTo(name), name)) {
+        anyDone = true;
+      }
+    }
+    if (anyDone) {
       await this.sftp.refresh();
     }
+  }
+
+  /**
+   * Upload avec garde d'écrasement : si la cible existe déjà (SFTP), propose
+   * un aperçu de diff et alerte si la version serveur est plus récente
+   * (détection de conflit). Renvoie true si le transfert a abouti.
+   */
+  private async uploadWithGuard(
+    localPath: string,
+    remotePath: string,
+    name: string,
+  ): Promise<boolean> {
+    if (this.sftp.protocol() === 'sftp' && this.sftp.protection() !== 'readonly') {
+      const remote = await this.sftp.stat(remotePath);
+      if (remote?.exists && !remote.isDir) {
+        const local = (await this.localFs.stat(localPath)) ?? {
+          exists: true,
+          isDir: false,
+          size: 0,
+          mtime: 0,
+        };
+        const remoteNewer =
+          remote.mtime > 0 && local.mtime > 0 && remote.mtime > local.mtime;
+        const decision = await this.overwrite.request({
+          name,
+          remoteNewer,
+          local,
+          remote,
+          loadDiff: async () => {
+            const [remoteText, localText] = await Promise.all([
+              this.sftp.readText(remotePath, ExplorerPage.DIFF_MAX_BYTES),
+              this.localFs.readText(localPath, ExplorerPage.DIFF_MAX_BYTES),
+            ]);
+            if (remoteText === undefined || localText === undefined) {
+              return null;
+            }
+            if (remoteText.includes('\u0000') || localText.includes('\u0000')) {
+              return null; // binaire
+            }
+            return lineDiff(remoteText, localText);
+          },
+        });
+        if (decision !== 'overwrite') {
+          return false;
+        }
+      }
+    }
+    return this.transfers.upload(localPath, remotePath, name);
   }
 
   protected open(entry: FileEntry): void {
     if (entry.isDir) {
       void this.sftp.openDir(entry.name);
+    } else {
+      void this.preview.openFile(this.sftp.pathTo(entry.name), entry.name);
     }
   }
 
@@ -144,7 +210,7 @@ export class ExplorerPage {
 
   /** Envoie un fichier local vers le dossier serveur courant. */
   protected async upload(entry: FileEntry): Promise<void> {
-    const done = await this.transfers.upload(
+    const done = await this.uploadWithGuard(
       this.localFs.pathTo(entry.name),
       this.sftp.pathTo(entry.name),
       entry.name,
@@ -174,6 +240,13 @@ export class ExplorerPage {
       : { label: 'Télécharger', icon: 'download', action: () => void this.download(entry) };
     const items: ContextMenuItem[] = [first];
     if (!entry.isDir && this.sftp.protocol() === 'sftp') {
+      if (this.sftp.protection() !== 'readonly') {
+        items.push({
+          label: 'Éditer (éditeur système)',
+          icon: 'edit',
+          action: () => void this.remoteEdit.start(this.sftp.pathTo(entry.name), entry.name),
+        });
+      }
       items.push({
         label: 'Suivre en direct',
         icon: 'logs',

@@ -14,6 +14,7 @@ import {
   KeyRound,
   LUCIDE_ICONS,
   LayoutGrid,
+  Lock,
   LogOut,
   FolderPlus,
   LucideAngularModule,
@@ -68,6 +69,7 @@ const ICONS = {
   palette: Palette,
   edit: SquarePen,
   'layout-grid': LayoutGrid,
+  lock: Lock,
   rows: Rows3,
 } as const;
 

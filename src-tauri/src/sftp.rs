@@ -46,6 +46,37 @@ impl ActiveConnection {
         self.touch();
         self._handle.channel_open_session().await
     }
+
+    /// Lit un fichier distant en entier (édition distante — fichiers texte).
+    pub(crate) async fn read_file(&self, path: &str) -> Result<Vec<u8>, String> {
+        self.touch();
+        let mut file = self
+            .sftp
+            .open(path)
+            .await
+            .map_err(|e| format!("Ouverture de {path} impossible : {e}"))?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)
+            .await
+            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        Ok(buffer)
+    }
+
+    /// Écrit (crée/remplace) un fichier distant depuis des octets bruts.
+    pub(crate) async fn write_file(&self, path: &str, bytes: &[u8]) -> Result<(), String> {
+        self.touch();
+        let mut file = self
+            .sftp
+            .create(path)
+            .await
+            .map_err(|e| format!("Création de {path} impossible : {e}"))?;
+        file.write_all(bytes)
+            .await
+            .map_err(|e| format!("Écriture de {path} impossible : {e}"))?;
+        file.sync_all()
+            .await
+            .map_err(|e| format!("Finalisation de {path} impossible : {e}"))
+    }
 }
 
 /// L'état global de l'app : toutes les connexions ouvertes, par identifiant.
@@ -67,6 +98,17 @@ pub struct FileEntry {
     pub name: String,
     pub is_dir: bool,
     pub size: u64,
+}
+
+/// Métadonnées d'une entrée (pour détecter conflits / écrasements).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatInfo {
+    pub exists: bool,
+    pub is_dir: bool,
+    pub size: u64,
+    /// Date de modification (epoch secondes) ; 0 si inconnue.
+    pub mtime: u64,
 }
 
 /// Payload de l'event `transfer:progress`.
@@ -399,6 +441,103 @@ pub async fn sftp_list_dir(
 
     files.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.cmp(&b.name)));
     Ok(files)
+}
+
+/// Métadonnées d'un fichier distant (`exists: false` s'il n'existe pas).
+#[tauri::command]
+pub async fn sftp_stat(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+) -> Result<StatInfo, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    match conn.sftp.metadata(&path).await {
+        Ok(meta) => Ok(StatInfo {
+            exists: true,
+            is_dir: meta.is_dir(),
+            size: meta.size.unwrap_or(0),
+            mtime: u64::from(meta.mtime.unwrap_or(0)),
+        }),
+        Err(_) => Ok(StatInfo {
+            exists: false,
+            is_dir: false,
+            size: 0,
+            mtime: 0,
+        }),
+    }
+}
+
+/// Lit le début d'un fichier distant en texte (borné), pour l'aperçu de diff.
+#[tauri::command]
+pub async fn sftp_read_text(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+    max_bytes: u64,
+) -> Result<String, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    let mut file = conn
+        .sftp
+        .open(&path)
+        .await
+        .map_err(|e| format!("Ouverture de {path} impossible : {e}"))?;
+    let mut buffer = vec![0u8; max_bytes.min(4 * 1024 * 1024) as usize];
+    let mut filled = 0usize;
+    while filled < buffer.len() {
+        let read = file
+            .read(&mut buffer[filled..])
+            .await
+            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        if read == 0 {
+            break;
+        }
+        filled += read;
+    }
+    buffer.truncate(filled);
+    Ok(String::from_utf8_lossy(&buffer).into_owned())
+}
+
+/// Lit le début d'un fichier distant encodé en base64 (aperçu d'image).
+#[tauri::command]
+pub async fn sftp_read_base64(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+    max_bytes: u64,
+) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let conn = get_connection(&pool, &connection_id).await?;
+    let mut file = conn
+        .sftp
+        .open(&path)
+        .await
+        .map_err(|e| format!("Ouverture de {path} impossible : {e}"))?;
+    let mut buffer = vec![0u8; max_bytes.min(8 * 1024 * 1024) as usize];
+    let mut filled = 0usize;
+    while filled < buffer.len() {
+        let read = file
+            .read(&mut buffer[filled..])
+            .await
+            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        if read == 0 {
+            break;
+        }
+        filled += read;
+    }
+    buffer.truncate(filled);
+    Ok(STANDARD.encode(&buffer))
+}
+
+/// Écrit du texte dans un fichier distant (édition intégrée).
+#[tauri::command]
+pub async fn sftp_write_text(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    conn.write_file(&path, content.as_bytes()).await
 }
 
 /// Ferme et retire une connexion du pool.

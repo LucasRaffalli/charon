@@ -64,6 +64,9 @@
 
 // Chip garde-fou (lecture seule / confirmation renforcée).
 .explorer__guard {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-shrink: 0;
   padding: 3px 10px;
   border-radius: 999px;
@@ -302,6 +305,14 @@
   color: var(--text-faint);
 }
 
+// Panneau d'aperçu / édition (colonne de droite).
+.explorer__preview {
+  flex: 0 0 clamp(320px, 42%, 640px);
+  min-width: 0;
+  // Gap uniquement entre la liste serveur et l'aperçu.
+  margin-left: var(--space-xs);
+}
+
 // --- Panneau inférieur ---
 
 app-bottom-panel {
@@ -352,6 +363,12 @@ app-bottom-panel {
 
   .explorer__main {
     background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .explorer__preview {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;

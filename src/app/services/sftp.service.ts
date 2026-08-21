@@ -8,6 +8,7 @@ import {
   RemoteProtocol,
   ServerEnvironment,
   ServerProtection,
+  StatInfo,
 } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
@@ -199,6 +200,20 @@ export class SftpService extends FileBrowserState {
     this._currentPath.set('/');
     this._entries.set([]);
     this._error.set(null);
+  }
+
+  /** Métadonnées d'un fichier distant (SFTP uniquement). */
+  stat(path: string): Promise<StatInfo | undefined> {
+    return this.withConnection((id) =>
+      invoke<StatInfo>('sftp_stat', { connectionId: id, path }),
+    ).catch(() => undefined);
+  }
+
+  /** Début d'un fichier distant en texte, borné (SFTP uniquement). */
+  readText(path: string, maxBytes: number): Promise<string | undefined> {
+    return this.withConnection((id) =>
+      invoke<string>('sftp_read_text', { connectionId: id, path, maxBytes }),
+    ).catch(() => undefined);
   }
 
   private withConnection<T>(operation: (id: string) => Promise<T>): Promise<T> {

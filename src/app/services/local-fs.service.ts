@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
-import { FileEntryDto } from '@app/interfaces';
+import { FileEntryDto, StatInfo } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 
@@ -45,6 +45,16 @@ export class LocalFsService extends FileBrowserState {
       this.activity.log('rename', 'local', from, String(error), false);
       throw error;
     }
+  }
+
+  /** Métadonnées d'un fichier local. */
+  stat(path: string): Promise<StatInfo | undefined> {
+    return invoke<StatInfo>('local_stat', { path }).catch(() => undefined);
+  }
+
+  /** Début d'un fichier local en texte, borné. */
+  readText(path: string, maxBytes: number): Promise<string | undefined> {
+    return invoke<string>('local_read_text', { path, maxBytes }).catch(() => undefined);
   }
 
   /** Ouvre le dossier personnel au premier affichage, la racine en dernier recours. */

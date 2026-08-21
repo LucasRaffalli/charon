@@ -1,0 +1,43 @@
+@if (visible().length > 0) {
+  <section class="bar" aria-label="Éditions en cours">
+    <header class="bar__head">
+      <app-icon name="edit" [size]="13" />
+      <span>Édition distante</span>
+    </header>
+
+    <ul class="bar__list">
+      @for (session of visible(); track session.id) {
+        <li class="row" [class.row--error]="session.status === 'error'">
+          <span
+            class="row__dot"
+            [class.row__dot--synced]="session.status === 'synced'"
+            [class.row__dot--error]="session.status === 'error'"
+          ></span>
+          <span class="row__name" [title]="session.remotePath">{{ session.name }}</span>
+          <span class="row__status">
+            @switch (session.status) {
+              @case ('editing') {
+                en attente de sauvegarde
+              }
+              @case ('synced') {
+                envoyé @if (session.lastSync) { à {{ session.lastSync | date: 'HH:mm:ss' }} }
+              }
+              @case ('error') {
+                {{ session.error }}
+              }
+            }
+          </span>
+          <button
+            type="button"
+            class="row__stop"
+            title="Arrêter l'édition"
+            [attr.aria-label]="'Arrêter l’édition de ' + session.name"
+            (click)="edit.stop(session.id)"
+          >
+            <app-icon name="close" [size]="13" />
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+}

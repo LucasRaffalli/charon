@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS: Settings = {
   idleMinutes: 15,
   bottomPanelOpen: true,
   bottomPanelTab: 'transfers',
+  editorApp: '',
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -31,6 +32,7 @@ export class SettingsService {
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly bottomPanelOpen = computed(() => this._settings().bottomPanelOpen);
   readonly bottomPanelTab = computed(() => this._settings().bottomPanelTab);
+  readonly editorApp = computed(() => this._settings().editorApp);
 
   constructor() {
     effect(() => {

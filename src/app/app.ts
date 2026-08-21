@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommandPalette } from '@app/components/command-palette/command-palette';
 import { ContextMenu } from '@app/components/context-menu/context-menu';
 import { DialogHost } from '@app/components/dialog-host/dialog-host';
+import { OverwriteDialog } from '@app/components/overwrite-dialog/overwrite-dialog';
 import { SettingsPanel } from '@app/components/settings-panel/settings-panel';
 import { ConnectPage } from '@app/features/connect/connect-page';
 import { ExplorerPage } from '@app/features/explorer/explorer-page';
@@ -11,7 +12,15 @@ import { ThemeService } from '@app/services/theme.service';
 
 @Component({
   selector: 'app-root',
-  imports: [CommandPalette, ConnectPage, ExplorerPage, SettingsPanel, DialogHost, ContextMenu],
+  imports: [
+    CommandPalette,
+    ConnectPage,
+    ExplorerPage,
+    SettingsPanel,
+    DialogHost,
+    OverwriteDialog,
+    ContextMenu,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

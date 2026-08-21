@@ -70,6 +70,15 @@
               [checked]="settings.showHidden()"
               (checkedChange)="settings.update({ showHidden: $event })"
             />
+
+            <app-text-field
+              label="Éditeur pour l'édition distante"
+              name="editor-app"
+              placeholder="Visual Studio Code"
+              hint="Nom de l'application (ex. Visual Studio Code, Sublime Text). Vide = éditeur par défaut du système."
+              [value]="settings.editorApp()"
+              (valueChange)="settings.update({ editorApp: $event })"
+            />
           }
           @case ('connection') {
             <app-text-field
@@ -91,7 +100,7 @@
                 <p class="panel__update-status">Vérification en cours…</p>
               }
               @case ('upToDate') {
-                <p class="panel__update-status">Charon est à jour. ✓</p>
+                <p class="panel__update-status">Charon est à jour.</p>
               }
               @case ('available') {
                 <p class="panel__update-status">

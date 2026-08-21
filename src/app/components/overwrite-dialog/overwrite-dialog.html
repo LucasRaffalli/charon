@@ -1,0 +1,128 @@
+@if (overwrite.state(); as request) {
+  <div class="overlay" (click)="cancel()">
+    <section
+      class="dialog"
+      role="alertdialog"
+      aria-modal="true"
+      [attr.aria-label]="'Écraser ' + request.name"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 class="dialog__title">Écraser « {{ request.name }} » ?</h2>
+
+      @if (request.remoteNewer) {
+        <p class="dialog__conflict">
+          <app-icon name="alert-circle" [size]="14" />
+          <span>
+            La version sur le serveur est <strong>plus récente</strong> que votre copie
+            locale — vous risquez d'écraser des changements faits ailleurs.
+          </span>
+        </p>
+      }
+
+      <p class="dialog__intro">
+        Ce fichier existe déjà sur le serveur. L'envoi va
+        <strong>remplacer la version du serveur par ta version locale</strong>.
+      </p>
+
+      <div class="dialog__meta">
+        <div class="meta meta--server">
+          <span class="meta__label"><app-icon name="server" [size]="12" /> Serveur — version actuelle (sera remplacée)</span>
+          <span class="meta__val">{{ request.remote.size | fileSize }}</span>
+          <span class="meta__val" [class.meta__val--warn]="request.remoteNewer">
+            @if (ms(request.remote.mtime); as t) {
+              modifié le {{ t | date: 'dd/MM/yy HH:mm' }}
+            } @else {
+              date inconnue
+            }
+          </span>
+        </div>
+        <div class="meta meta--local">
+          <span class="meta__label"><app-icon name="monitor" [size]="12" /> Local — ce que tu envoies</span>
+          <span class="meta__val">{{ request.local.size | fileSize }}</span>
+          <span class="meta__val">
+            @if (ms(request.local.mtime); as t) {
+              modifié le {{ t | date: 'dd/MM/yy HH:mm' }}
+            } @else {
+              date inconnue
+            }
+          </span>
+        </div>
+      </div>
+
+      @switch (diff().kind) {
+        @case ('idle') {
+          <button type="button" class="dialog__diff-btn" (click)="showDiff()">
+            Voir les différences
+          </button>
+        }
+        @case ('loading') {
+          <p class="dialog__diff-note">Calcul des différences…</p>
+        }
+        @case ('unavailable') {
+          <p class="dialog__diff-note">
+            Aperçu indisponible (fichier binaire ou trop volumineux).
+          </p>
+        }
+        @case ('ready') {
+          <div class="diff-head">
+            <span class="diff-stat diff-stat--del">−{{ stats().removed }} retirées</span>
+            <span class="diff-stat diff-stat--add">+{{ stats().added }} ajoutées</span>
+            <div class="diff-toggle" role="tablist">
+              <button
+                type="button"
+                [class.diff-toggle--active]="view() === 'split'"
+                (click)="view.set('split')"
+              >
+                Côte à côte
+              </button>
+              <button
+                type="button"
+                [class.diff-toggle--active]="view() === 'unified'"
+                (click)="view.set('unified')"
+              >
+                Unifié
+              </button>
+            </div>
+          </div>
+
+          @if (view() === 'split') {
+            <div class="split">
+              <div class="split__head split__head--server"><app-icon name="server" [size]="12" /> Serveur (actuel)</div>
+              <div class="split__head split__head--local"><app-icon name="monitor" [size]="12" /> Local (à envoyer)</div>
+              @for (row of splitRows(); track $index) {
+                <div class="split__num">{{ row.left?.num }}</div>
+                <div
+                  class="split__code"
+                  [class.split__code--del]="row.changed && row.left"
+                  [class.split__code--empty]="!row.left"
+                >{{ row.left?.text }}</div>
+                <div class="split__num">{{ row.right?.num }}</div>
+                <div
+                  class="split__code"
+                  [class.split__code--add]="row.changed && row.right"
+                  [class.split__code--empty]="!row.right"
+                >{{ row.right?.text }}</div>
+              }
+            </div>
+          } @else {
+            <div class="diff">
+              @for (line of unifiedLines(); track $index) {
+                <div class="diff__line diff__line--{{ line.type }}">
+                  <span class="diff__sign">{{
+                    line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' '
+                  }}</span>
+                  <span class="diff__text">{{ line.text }}</span>
+                </div>
+              }
+            </div>
+          }
+        }
+      }
+
+      <div class="dialog__actions">
+        <app-button variant="ghost" (click)="cancel()">Annuler</app-button>
+        <app-button variant="danger-solid" (click)="confirm()">Écraser</app-button>
+      </div>
+    </section>
+  </div>
+}

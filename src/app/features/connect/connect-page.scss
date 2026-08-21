@@ -229,3 +229,11 @@
   display: block;
   margin-top: var(--space-md);
 }
+
+// Contenu des onglets du formulaire de connexion.
+// (La hauteur est animée par le composant Tabs : pas de min-height figé.)
+.connect__tab-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}

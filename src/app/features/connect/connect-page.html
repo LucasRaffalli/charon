@@ -64,21 +64,51 @@
     <p class="connect__tagline">Le passeur de fichiers</p>
 
     <form class="connect__form" (submit)="onSubmit($event)">
-      <app-text-field label="Hôte" name="host" placeholder="styx.exemple.net" [(value)]="host" />
+      <app-tabs stretch [tabs]="connectTabs" [(active)]="activeTab">
+        <div class="connect__tab-fields">
+          @if (activeTab() === 'server') {
+            <app-text-field
+              label="Hôte"
+              name="host"
+              placeholder="styx.exemple.net"
+              [(value)]="host"
+            />
 
-      <div class="connect__row">
-        <app-text-field label="Utilisateur" name="user" placeholder="nocher" [(value)]="user" />
-        <app-text-field label="Port" name="port" type="number" placeholder="22" [(value)]="port" />
-      </div>
+            <div class="connect__row">
+              <app-text-field
+                label="Utilisateur"
+                name="user"
+                placeholder="nocher"
+                [(value)]="user"
+              />
+              <app-text-field
+                label="Port"
+                name="port"
+                type="number"
+                placeholder="22"
+                [(value)]="port"
+              />
+            </div>
+          } @else {
+            <app-text-field
+              label="Clé SSH"
+              name="key-path"
+              placeholder="~/.ssh/id_ed25519"
+              hint="Laisser vide pour la détection automatique (~/.ssh)"
+              [(value)]="keyPath"
+            />
 
-      <app-text-field
-        label="Passphrase de la clé"
-        name="passphrase"
-        type="password"
-        placeholder="••••••••"
-        hint="Laisser vide si la clé n'est pas chiffrée"
-        [(value)]="passphrase"
-      />
+            <app-text-field
+              label="Passphrase de la clé"
+              name="passphrase"
+              type="password"
+              placeholder="••••••••"
+              hint="Laisser vide si la clé n'est pas chiffrée"
+              [(value)]="passphrase"
+            />
+          }
+        </div>
+      </app-tabs>
 
       <app-toggle label="Se souvenir de ce serveur" [(checked)]="remember" />
 

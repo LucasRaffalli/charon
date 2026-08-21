@@ -179,8 +179,7 @@ ci-dessus.
 
 ## Feuille de route
 
-1. Édition de profil étendue (keyPath)
-2. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
-3. Updater signé (`tauri-plugin-updater`, distribution privée)
-4. File de transferts persistante + reprise des transferts interrompus
-5. Panneau inférieur multi-features (transferts, logs…)
+1. Support FTP (réintroduction de `suppaftp`, audit à l'appui)
+2. Updater signé (`tauri-plugin-updater`, distribution privée)
+3. File de transferts persistante + reprise des transferts interrompus
+4. Panneau inférieur multi-features (transferts, logs…)

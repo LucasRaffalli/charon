@@ -1,0 +1,124 @@
+:host {
+  // Fond commun de l'indicateur actif et du panneau — surchargeable par l'hôte.
+  --tabs-bg: var(--surface-hover);
+  --tabs-radius: var(--radius-md);
+
+  display: block;
+}
+
+.tabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+
+  &--stretch .tabs__tab {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+// L'indicateur : le « corps » de l'onglet actif, qui glisse d'un onglet
+// à l'autre en emportant ses coins inversés.
+.tabs__indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--tabs-bg);
+  border-radius: var(--tabs-radius) var(--tabs-radius) 0 0;
+
+  &--animated {
+    transition:
+      left 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  // Coins inversés : deux quarts de cercle concaves qui raccordent
+  // le pied de l'onglet actif au panneau.
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    width: var(--tabs-radius);
+    height: var(--tabs-radius);
+    pointer-events: none;
+  }
+
+  &::before {
+    left: calc(-1 * var(--tabs-radius));
+    background: radial-gradient(
+      circle at 0 0,
+      transparent var(--tabs-radius),
+      var(--tabs-bg) calc(var(--tabs-radius) + 0.5px)
+    );
+  }
+
+  &::after {
+    right: calc(-1 * var(--tabs-radius));
+    background: radial-gradient(
+      circle at 100% 0,
+      transparent var(--tabs-radius),
+      var(--tabs-bg) calc(var(--tabs-radius) + 0.5px)
+    );
+  }
+
+  // En limite du panneau : collé à 100 % au bord, pas de coin inversé
+  // côté bord (le coin du panneau devient carré, cf. --flush-*).
+  &--flush-left::before {
+    content: none;
+  }
+
+  &--flush-right::after {
+    content: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs__indicator--animated {
+    transition: none;
+  }
+}
+
+.tabs__tab {
+  position: relative; // au-dessus de l'indicateur
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 7px 14px;
+  border: none;
+  border-radius: var(--tabs-radius) var(--tabs-radius) 0 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover,
+  &--active {
+    color: var(--text);
+  }
+
+  &--active {
+    cursor: default;
+  }
+}
+
+.tabs__panel {
+  background: var(--tabs-bg);
+  border-radius: var(--tabs-radius);
+  padding: var(--space-md);
+  overflow: hidden; // clippe le glissement du contenu
+
+  &--flush-left {
+    border-top-left-radius: 0;
+  }
+
+  &--flush-right {
+    border-top-right-radius: 0;
+  }
+}
+
+.tabs__content {
+  overflow: hidden; // stabilise l'animation de hauteur
+}

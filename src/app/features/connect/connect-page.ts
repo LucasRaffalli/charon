@@ -4,6 +4,7 @@ import { Alert } from '@app/components/alert/alert';
 import { Button } from '@app/components/button/button';
 import { Drawer } from '@app/components/drawer/drawer';
 import { Icon } from '@app/components/icon/icon';
+import { TabItem, Tabs } from '@app/components/tabs/tabs';
 import { TextField } from '@app/components/text-field/text-field';
 import { ThemeSwitcher } from '@app/components/theme-switcher/theme-switcher';
 import { Toggle } from '@app/components/toggle/toggle';
@@ -18,7 +19,7 @@ const DEFAULT_SSH_PORT = 22;
 
 @Component({
   selector: 'app-connect-page',
-  imports: [Alert, Button, Drawer, Icon, TextField, ThemeSwitcher, Toggle],
+  imports: [Alert, Button, Drawer, Icon, Tabs, TextField, ThemeSwitcher, Toggle],
   templateUrl: './connect-page.html',
   styleUrl: './connect-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,9 +35,16 @@ export class ConnectPage {
   protected readonly port = signal(String(DEFAULT_SSH_PORT));
   protected readonly user = signal('');
   protected readonly passphrase = signal('');
+  protected readonly keyPath = signal('');
   protected readonly remember = signal(false);
   protected readonly profileName = signal('');
   protected readonly drawerOpen = signal(false);
+
+  protected readonly connectTabs: TabItem[] = [
+    { id: 'server', label: 'Serveur', icon: 'server' },
+    { id: 'auth', label: 'Authentification', icon: 'key' },
+  ];
+  protected readonly activeTab = signal('server');
 
   /** Profil en cours d'édition via le formulaire, null sinon. */
   private readonly editingId = signal<string | null>(null);
@@ -59,6 +67,7 @@ export class ConnectPage {
     const user = this.user().trim();
     const port = Number(this.port()) || DEFAULT_SSH_PORT;
     const passphrase = this.passphrase();
+    const keyPath = this.keyPath().trim() || null;
 
     // Édition avec passphrase laissée vide : le backend relit celle de
     // l'ancien profil dans le trousseau via profileId.
@@ -66,6 +75,7 @@ export class ConnectPage {
       host,
       port,
       user,
+      keyPath,
       keyPassphrase: passphrase || null,
       profileId: passphrase ? null : this.editingId(),
     });
@@ -88,7 +98,7 @@ export class ConnectPage {
           host,
           port,
           user,
-          keyPath: null,
+          keyPath,
           hasSecret: passphrase !== '',
         },
         passphrase || null,
@@ -109,6 +119,7 @@ export class ConnectPage {
     this.user.set(profile.user);
     this.profileName.set(profile.name);
     this.passphrase.set('');
+    this.keyPath.set(profile.keyPath ?? '');
     this.remember.set(true);
     this.editingId.set(profile.id);
     this.drawerOpen.set(false);

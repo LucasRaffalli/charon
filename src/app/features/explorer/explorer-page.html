@@ -145,6 +145,10 @@
       <app-activity-log />
     </div>
 
+    <div class="explorer__panel" data-dock-panel="modules" [hidden]="!dock.activePanels().has('modules')">
+      <app-module-panel />
+    </div>
+
     <div class="explorer__panel" data-dock-panel="logs" [hidden]="!dock.activePanels().has('logs')">
       <app-log-pane />
     </div>

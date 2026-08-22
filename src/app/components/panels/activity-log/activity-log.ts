@@ -7,6 +7,7 @@ import { ActivityLogService } from '@app/services/activity-log.service';
 
 const KIND_ICONS: Record<ActivityKind, IconName> = {
   connect: 'server',
+  module: 'layout-grid',
   disconnect: 'log-out',
   mkdir: 'folder-plus',
   rename: 'pencil',

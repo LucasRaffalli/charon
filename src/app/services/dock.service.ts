@@ -32,6 +32,7 @@ export const PANEL_META: Record<DockPanelId, { label: string; icon: IconName }> 
   journal: { label: 'Journal', icon: 'info' },
   logs: { label: 'Logs', icon: 'logs' },
   terminal: { label: 'Terminal', icon: 'terminal' },
+  modules: { label: 'Modules', icon: 'layout-grid' },
 };
 
 /** Bord de réouverture d'un panneau fermé, selon sa nature. */
@@ -44,6 +45,7 @@ const REOPEN_ZONES: Record<DockPanelId, DockZone> = {
   journal: 'bottom',
   logs: 'bottom',
   terminal: 'bottom',
+  modules: 'right',
 };
 
 const STORAGE_KEY = 'charon:dock';

@@ -1,0 +1,87 @@
+@if (host.panelViews().length === 0) {
+  <div class="modpanel__empty">
+    <app-icon name="layout-grid" [size]="26" />
+    <p>Aucun module n'a de vue à afficher pour l'instant.</p>
+    <span>Les modules qui rendent un tableau de bord apparaîtront ici.</span>
+  </div>
+} @else {
+  <div class="modpanel">
+    @for (pv of host.panelViews(); track pv.panelId) {
+      <section class="modpanel__view" [class.modpanel__view--collapsed]="isCollapsed(pv.panelId)">
+        <button
+          type="button"
+          class="modpanel__head"
+          [attr.aria-expanded]="!isCollapsed(pv.panelId)"
+          [title]="isCollapsed(pv.panelId) ? 'Déplier' : 'Replier'"
+          (click)="toggle(pv.panelId)"
+        >
+          <app-icon
+            class="modpanel__caret"
+            [class.modpanel__caret--open]="!isCollapsed(pv.panelId)"
+            name="chevron-right"
+            [size]="13"
+          />
+          <app-icon name="layout-grid" [size]="14" />
+          <h2 class="modpanel__title">{{ pv.title }}</h2>
+          <span class="modpanel__source">{{ pv.moduleName }}</span>
+        </button>
+
+        @if (!isCollapsed(pv.panelId)) {
+          <div class="modpanel__body">
+        @for (section of pv.view.sections; track $index) {
+          <div class="modpanel__section">
+            @if (section.title) {
+              <h3 class="modpanel__section-title">{{ section.title }}</h3>
+            }
+            @if (section.text) {
+              <p class="modpanel__text">{{ section.text }}</p>
+            }
+
+            @if (section.stats?.length) {
+              <div class="modpanel__stats">
+                @for (stat of section.stats; track $index) {
+                  <div class="modpanel__stat" [class.modpanel__stat--warn]="stat.warn">
+                    <div class="modpanel__stat-line">
+                      <span class="modpanel__stat-label">{{ stat.label }}</span>
+                      <span class="modpanel__stat-value data">{{ stat.value }}</span>
+                    </div>
+                    @if (stat.ratio != null) {
+                      <div class="modpanel__gauge" [attr.aria-hidden]="true">
+                        <div class="modpanel__gauge-fill" [style.width.%]="gauge(stat)"></div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (section.table; as table) {
+              <div class="modpanel__table-wrap">
+                <table class="modpanel__table">
+                  <thead>
+                    <tr>
+                      @for (h of table.headers; track $index) {
+                        <th>{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of table.rows; track $index) {
+                      <tr>
+                        @for (cell of row; track $index) {
+                          <td class="data">{{ cell }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        }
+          </div>
+        }
+      </section>
+    }
+  </div>
+}

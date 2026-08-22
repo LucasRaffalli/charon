@@ -28,9 +28,7 @@ struct RawManifest {
     description: Option<String>,
     #[serde(default)]
     author: Option<String>,
-    // Lu au chargement du module (front), pas dans le résumé des réglages.
     #[serde(default)]
-    #[allow(dead_code)]
     main: String,
     #[serde(default)]
     engine: String,
@@ -48,6 +46,8 @@ pub struct ModuleSummary {
     name: String,
     version: String,
     engine: String,
+    /// Point d'entrée JS (relatif au dossier) — nécessaire au chargement.
+    main: String,
     description: Option<String>,
     author: Option<String>,
     permissions: Vec<String>,
@@ -131,6 +131,7 @@ pub fn modules_list(app: AppHandle) -> Result<Vec<ModuleSummary>, String> {
                 name: if m.name.is_empty() { slug.clone() } else { m.name },
                 version: m.version,
                 engine: m.engine,
+                main: if m.main.is_empty() { "main.js".into() } else { m.main },
                 description: m.description,
                 author: m.author,
                 permissions: m.permissions,
@@ -144,6 +145,7 @@ pub fn modules_list(app: AppHandle) -> Result<Vec<ModuleSummary>, String> {
                 name: slug.clone(),
                 version: String::new(),
                 engine: String::new(),
+                main: String::new(),
                 description: None,
                 author: None,
                 permissions: Vec::new(),
@@ -192,4 +194,28 @@ pub fn module_delete(app: AppHandle, slug: String) -> Result<(), String> {
     let mut map = read_enabled(&app);
     map.remove(&slug);
     write_enabled(&app, &map)
+}
+
+/// Lit un fichier texte d'un module (borné), pour charger son code côté front.
+/// Refuse toute traversée hors du dossier du module.
+#[tauri::command]
+pub fn module_read_file(app: AppHandle, slug: String, file: String) -> Result<String, String> {
+    ensure_slug(&slug)?;
+    if file.contains("..") || file.starts_with('/') || file.starts_with('\\') {
+        return Err("Chemin de fichier refusé.".into());
+    }
+    let base = modules_dir(&app)?.join(&slug);
+    let path = base.join(&file);
+    // Le chemin résolu doit rester dans le dossier du module.
+    let canon_base = std::fs::canonicalize(&base).map_err(|e| format!("Module introuvable : {e}"))?;
+    let canon_path =
+        std::fs::canonicalize(&path).map_err(|e| format!("Fichier introuvable : {e}"))?;
+    if !canon_path.starts_with(&canon_base) {
+        return Err("Chemin de fichier refusé.".into());
+    }
+    let bytes = std::fs::read(&canon_path).map_err(|e| format!("Lecture impossible : {e}"))?;
+    if bytes.len() > 2 * 1024 * 1024 {
+        return Err("Fichier de module trop volumineux (max 2 Mio).".into());
+    }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }

@@ -1,7 +1,11 @@
 # Modules — système d'extensions de Charon
 
-> Statut : conception (chantier ①). Décidé le 23/08/2026 :
-> exécution **JS sandboxé**, nom **Modules**.
+> Statut : **implémenté** (chantiers ① + ②). Décidé le 23/08/2026 :
+> exécution **JS sandboxé** en **Web Worker**, nom **Modules**.
+>
+> Pour écrire un module, voir le guide pratique
+> [module-development.md](module-development.md). Ce document-ci décrit
+> l'architecture et le modèle de sécurité.
 
 ## Vision
 
@@ -16,35 +20,34 @@ régresser.** Un module, même malveillant, ne doit jamais pouvoir lire un secre
 appeler `sftp_sudo`, exécuter du shell arbitraire, atteindre l'IPC directement,
 ni exfiltrer des données. L'hôte est le seul point de médiation.
 
-## Principe d'exécution : iframe sandboxé + pont à permissions
+## Principe d'exécution : Web Worker sandboxé + pont à permissions
 
 ```
 ┌─ App Charon (Angular, WebView de confiance) ──────────────────────┐
 │                                                                   │
-│   ModulesService ── permission gate ── API hôte (surface sûre)    │
+│   ModuleHostService ── permission gate ── API hôte (surface sûre) │
 │        │  postMessage (requête/réponse + événements)              │
 │        ▼                                                          │
-│   ┌─ <iframe sandbox="allow-scripts"> (origine opaque) ───────┐   │
-│   │   SDK injecté  +  main.js du module                       │   │
-│   │   CSP : default-src 'none'  (aucun réseau, aucun asset     │   │
-│   │   externe) ; pas d'accès au DOM parent, pas de `invoke`    │   │
-│   └────────────────────────────────────────────────────────────┘  │
+│   ┌─ new Worker(blob:) ─────────────────────────────────────┐    │
+│   │   SDK injecté  +  main.js du module                      │    │
+│   │   Contexte Worker : pas de DOM, pas de `window`,         │    │
+│   │   pas de `invoke` ; CSP `worker-src blob:` ; pas de      │    │
+│   │   réseau (connect-src verrouillé)                        │    │
+│   └────────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-Pourquoi ce choix :
+Pourquoi un **Web Worker** plutôt qu'une iframe :
 
-- **`sandbox="allow-scripts"` sans `allow-same-origin`** → l'iframe a une
-  **origine opaque (null)** : impossible d'accéder à `window.parent`, au DOM de
-  l'app, au `localStorage`/cookies de l'hôte, ni d'appeler l'IPC Tauri. Le seul
-  canal est `postMessage`.
-- **CSP du module** : `default-src 'none'` + `script-src` pour le code injecté
-  uniquement. `connect-src 'none'` → **aucun réseau** (pas d'exfiltration).
-  Aucune ressource externe.
+- Un Worker n'a **ni DOM, ni `window`, ni `document`, ni `parent`** : il ne peut
+  pas toucher l'UI de l'app, ni le `localStorage`/les cookies de l'hôte, ni
+  appeler l'IPC Tauri (`invoke` n'existe pas dans son scope). Le seul canal est
+  `postMessage`.
+- Le code est chargé via un **Blob URL** (`worker-src blob:` dans la CSP) ; la
+  CSP de l'app interdit tout réseau sortant → **aucune exfiltration** possible.
+- Pas d'UI arbitraire : un module ne dessine **jamais** de HTML (voir Panneaux).
 - L'API hôte est une **sous-surface curée** : elle n'expose que des opérations
   sûres et médiées, jamais `invoke` brut ni les secrets.
-
-C'est le modèle des extensions VS Code (webview) et des plugins Figma — éprouvé.
 
 ## Manifeste (`manifest.json`)
 
@@ -60,36 +63,30 @@ C'est le modèle des extensions VS Code (webview) et des plugins Figma — épro
   "permissions": [                      // capabilities demandées (voir plus bas)
     "remote:read",
     "ui:command"
-  ],
-  "contributes": {                      // déclaratif : ce que l'hôte pré-enregistre
-    "commands": [
-      { "id": "compter", "title": "Compter les fichiers du dossier" }
-    ],
-    "panels": [
-      { "id": "stats", "title": "Statistiques", "icon": "info" }
-    ]
-  }
+  ]
 }
 ```
 
 - `permissions` est **la** liste montrée à l'utilisateur à l'activation. Rien
   hors de cette liste n'est accordé.
-- `contributes` permet à l'hôte d'afficher commandes/panneaux **avant** même de
-  charger le code (palette, dock) ; le code est activé à la demande.
+- Les commandes et les vues de panneau sont enregistrées **à l'exécution**
+  (`charon.commands.register`, `charon.ui.render`) — pas besoin de les déclarer
+  dans le manifeste.
 
 ## Permissions (capabilities)
 
 | Permission | Accorde | Garde-fous |
 |---|---|---|
-| `remote:read` | Lister/lire des fichiers du serveur via l'API hôte | Chemins médiés ; jamais le secret de connexion |
-| `remote:write` | mkdir/upload/rename/suppression côté serveur | Respecte le garde-fou « lecture seule » ; confirmations hôte conservées |
+| `remote:read` | Lister des fichiers du serveur via l'API hôte | Chemins médiés ; jamais le secret de connexion |
+| `remote:write` | mkdir / création / écriture / rename / suppression côté serveur | Passe par les **mêmes** garde-fous que l'utilisateur (lecture seule, confirmation par nom d'hôte) |
 | `local:read` | Lister/lire des fichiers locaux | Anti path-traversal hôte appliqué |
-| `local:write` | Créer/écrire/supprimer localement | idem |
+| `local:write` | Créer/écrire/supprimer localement | idem (réservé, non exposé en v1) |
+| `system:read` | Instantané système du serveur (df, mémoire, charge, top process) | Commandes shell **fixes read-only** ; SFTP uniquement ; aucune entrée du module dans la commande |
 | `ui:command` | Enregistrer des commandes (palette) | — |
-| `ui:panel` | Contribuer un panneau dockable (rendu dans l'iframe) | — |
-| `ui:menu` | Ajouter des entrées de menu contextuel | — |
+| `ui:panel` | Rendre un **panneau déclaratif** (tableau de bord) | Structure rendue nativement par l'hôte ; le module ne produit pas de HTML |
+| `ui:menu` | Ajouter des entrées de menu contextuel | Réservé, non exposé en v1 |
 | `events` | S'abonner aux événements app (connexion, transfert…) | Événements filtrés (pas de données sensibles) |
-| `storage` | Store clé-valeur **isolé par module** | Quota ; jamais le store de l'app |
+| `storage` | Store clé-valeur **isolé par module** | Namespacé par slug ; jamais le store de l'app |
 
 **Jamais accordable** (aucune permission ne les débloque) : secrets/trousseau,
 `sudo`, IPC arbitraire, shell/exec, réseau externe, système de fichiers hors API
@@ -99,46 +96,69 @@ médiée, données d'un **autre** module.
 
 ```ts
 // Promesses au-dessus de postMessage ; chaque appel est permission-gated côté hôte.
+charon.fs.remote.currentPath(): Promise<string>        // remote:read
+charon.fs.remote.currentEntries(): Promise<Entry[]>    // remote:read
 charon.fs.remote.list(path): Promise<Entry[]>          // remote:read
-charon.fs.remote.readText(path, maxBytes): Promise<string>
 charon.fs.remote.mkdir(path): Promise<void>            // remote:write
+charon.fs.remote.createFile(path): Promise<void>       // remote:write
+charon.fs.remote.writeText(path, content): Promise<void> // remote:write
+charon.fs.remote.rename(from, to): Promise<void>       // remote:write
+charon.fs.remote.remove(path, isDir): Promise<void>    // remote:write
 charon.fs.local.list(path): Promise<Entry[]>           // local:read
-// …
+charon.fs.local.readText(path, maxBytes): Promise<string> // local:read
 
-charon.commands.register(id, handler)                  // ui:command
-charon.ui.panel(id, render)                            // ui:panel (rend dans l'iframe)
-charon.contextMenu.register(target, item)              // ui:menu
+charon.sys.stats(): Promise<SystemStats>               // system:read
+charon.sys.diskUsage(path): Promise<string>            // system:read
+
+charon.commands.register(id, title, handler, opts?)    // ui:command
+charon.ui.render(view, title?)                         // ui:panel (panneau déclaratif)
 
 charon.events.on('connected' | 'disconnected'
   | 'path-changed' | 'transfer-done', cb)              // events
 
-charon.storage.get(key) / set(key, value)              // storage
-charon.notify(message, level)                          // toast hôte (toujours permis)
+charon.storage.get(key) / set(key, value) / keys()     // storage
+charon.notify(message, level?)                         // journal hôte (toujours permis)
 ```
 
 Tout appel non couvert par une permission déclarée est **rejeté par l'hôte**
 (erreur), jamais exécuté.
 
-## Panneaux de module
+## Panneaux de module (déclaratifs)
 
-Un panneau contribué est **rendu dans l'iframe du module** (isolation totale de
-son UI). L'hôte insère l'iframe dans un slot du dock quand le panneau est actif ;
-il devient un panneau dockable de première classe (drag, onglets, fermeture)
-comme les panneaux natifs, mais son contenu est cloisonné.
+Un module ne dessine **jamais de HTML** (pas d'iframe, pas d'injection possible).
+Il appelle `charon.ui.render(view)` avec une **structure** — titre, sections,
+statistiques (avec jauges), tableaux — que l'hôte rend **nativement** dans le
+panneau « Modules » du dock. Ce panneau est un panneau dockable de première
+classe (drag, onglets, fermeture) ; il s'ouvre automatiquement au premier
+`render`. Les chaînes sont interpolées, jamais évaluées → aucune surface XSS.
+
+Forme d'une vue (`ModuleView`) :
+
+```ts
+{
+  title?: string,
+  sections: Array<{
+    title?: string,
+    text?: string,
+    stats?: Array<{ label: string, value: string, ratio?: number, warn?: boolean }>,
+    table?: { headers: string[], rows: string[][] },
+  }>,
+}
+```
 
 ## Cycle de vie
 
 1. **Découverte** — l'hôte lit les manifestes du dossier des modules
    (`app_data_dir/modules/<id>/`), commande backend dédiée (lecture seule,
    pas d'exécution).
-2. **Activation** — l'utilisateur active un module → **écran de consentement**
-   listant les permissions → l'hôte crée l'iframe, injecte le SDK + `main.js`,
-   envoie `activate` avec les permissions accordées + contexte initial.
-3. **Contributions** — le module enregistre commandes/panneaux/handlers.
-4. **Exécution** — l'hôte route les contributions (palette, dock, menus) et
-   médie chaque appel d'API.
-5. **Désactivation** — l'hôte détruit l'iframe et retire toutes les
-   contributions (aucun résidu).
+2. **Activation** — l'utilisateur active un module dans Réglages → Modules →
+   l'hôte crée le **Worker** (Blob URL), injecte le SDK + `main.js`, envoie
+   `activate` avec les permissions accordées + contexte initial.
+3. **Contributions** — le module enregistre commandes / vues / handlers.
+4. **Exécution** — l'hôte route les contributions (palette, panneau Modules) et
+   médie chaque appel d'API contre les permissions.
+5. **Désactivation** — l'hôte `terminate()` le Worker et retire toutes les
+   contributions (commandes de palette + vues de panneau) : aucun résidu.
 
 ## Distribution & confiance
 
@@ -149,28 +169,35 @@ comme les panneaux natifs, mais son contenu est cloisonné.
 - Plus tard : **signature** des modules, **registre interne** d'entreprise,
   liste blanche.
 
-## Périmètre v1 (chantier ①)
+## Ce qui est livré (chantiers ① + ②)
 
-Livrer le socle, pas toute la surface :
-
-1. Types du contrat (manifeste, permissions, messages du pont).
-2. Backend : commandes de découverte/lecture des modules (aucune exécution).
-3. Hôte sandbox : iframe + pont postMessage + **permission gate**.
+1. Types du contrat (manifeste, permissions, messages du pont, vues de panneau).
+2. Backend : découverte/lecture des modules (aucune exécution) + instantané
+   système read-only (`sftp_system_stats`, `sftp_disk_usage`).
+3. Hôte sandbox : **Web Worker** + pont postMessage + **permission gate**.
 4. SDK injecté (promesses au-dessus du pont).
-5. Deux points de contribution pour démarrer : **commandes** + **événements**
-   (les plus simples), puis **panneaux**.
-6. Onglet Réglages → Modules (liste, activer/désactiver, consentement).
-7. Un **module d'exemple** (ex. « Compteur de fichiers » : commande qui compte
-   les entrées du dossier serveur courant et affiche un toast).
+5. Contributions : **commandes** (palette), **événements**, **écriture distante**
+   médiée, **lecture locale**, **stockage** isolé, **système**, **panneaux
+   déclaratifs**.
+6. Onglet Réglages → Modules (liste, activer/désactiver, ouvrir le dossier,
+   supprimer).
+7. Deux modules d'exemple : « Compteur de fichiers » et « Moniteur VPS ».
 
-Non-v1 : panneaux (chantier ②), signature/registre (chantier ③), `remote:write`
-(après durcissement du consentement), WASM.
+Non-v1 : `ui:menu` (menu contextuel), `local:write`, signature/registre
+(chantier ③), WASM.
 
 ## Invariants de sécurité (à ne jamais casser)
 
-- Le module n'a **jamais** `invoke`, le DOM de l'app, ni le réseau.
+- Le module n'a **jamais** `invoke`, ni le DOM de l'app, ni `window`, ni le réseau
+  (contexte Worker).
 - Chaque appel d'API est **vérifié contre les permissions déclarées** avant
   exécution — refus par défaut.
-- Aucun secret, aucun mot de passe, aucun `sudo`, aucun shell n'est atteignable.
-- Un module ne voit **que** ses propres contributions et son propre `storage`.
-- Désactiver un module ne laisse **aucun** résidu (contributions ni iframe).
+- Aucun secret, aucun mot de passe, aucun `sudo`, aucun shell arbitraire n'est
+  atteignable ; `system:read` n'exécute que des commandes **fixes read-only**.
+- L'écriture distante (`remote:write`) passe par les **mêmes** garde-fous que
+  l'utilisateur (lecture seule, confirmation par nom d'hôte) — un module ne peut
+  pas les contourner.
+- Un module ne voit **que** ses propres contributions et son propre `storage`
+  (namespacé par slug).
+- Désactiver un module ne laisse **aucun** résidu (Worker `terminate()`,
+  commandes et vues retirées).

@@ -103,7 +103,7 @@ flowchart TB
         ui["UI uniquement : état d'affichage<br/>CSP stricte · pas d'API Tauri globale · aucun secret"]
     end
 
-    ui =="IPC Tauri — 52 commandes explicitement<br/>enregistrées, rien d'autre n'est invocable"==> backend
+    ui =="IPC Tauri — 53 commandes explicitement<br/>enregistrées, rien d'autre n'est invocable"==> backend
 
     subgraph backend["Backend Rust — Tauri v2"]
         direction LR
@@ -191,7 +191,7 @@ aucune application ne peut s'en protéger.
   offerte à un éventuel code injecté (réactivée en dev par un overlay).
 - **Pas d'`innerHTML`** : interpolation Angular partout — un nom de fichier
   hostile s'affiche, il ne s'exécute pas.
-- **Surface IPC minimale** : 52 commandes explicitement enregistrées, rien
+- **Surface IPC minimale** : 53 commandes explicitement enregistrées, rien
   d'autre. Pas de shell arbitraire : le terminal intégré et le `tail -F`
   passent par des canaux SSH dédiés, les chemins sont échappés en quotes
   simples POSIX (`shell_quote`) — rien ne peut s'en échapper.

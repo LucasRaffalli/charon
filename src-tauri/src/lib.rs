@@ -19,15 +19,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
-            // Console ouverte d'office en dev ; inerte en build release
-            // (les devtools n'existent qu'en debug, la prod reste verrouillée).
-            #[cfg(debug_assertions)]
-            {
-                use tauri::Manager;
-                if let Some(window) = app.get_webview_window("main") {
-                    window.open_devtools();
-                }
-            }
+            // Les devtools ne s'ouvrent PAS d'office : ouverture manuelle en
+            // dev (clic droit → Inspecter, ou Cmd+Option+I) ; verrouillés en
+            // build release de toute façon.
 
             // Fermeture des connexions inactives (vérification toutes les 30 s
             // — les sessions interactives (terminal, tail, édition) posent un
@@ -68,6 +62,8 @@ pub fn run() {
             sftp::sftp_remove,
             sftp::sftp_remove_all,
             sftp::sftp_rename,
+            sftp::sftp_system_stats,
+            sftp::sftp_disk_usage,
             ftp::ftp_connect,
             ftp::ftp_list_dir,
             ftp::ftp_disconnect,
@@ -102,6 +98,7 @@ pub fn run() {
             modules::module_set_enabled,
             modules::modules_open_folder,
             modules::module_delete,
+            modules::module_read_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running charon");

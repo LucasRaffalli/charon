@@ -7,7 +7,8 @@ export type DockPanelId =
   | 'transfers'
   | 'journal'
   | 'logs'
-  | 'terminal';
+  | 'terminal'
+  | 'modules';
 
 /** Feuille : groupe de panneaux à onglets (au moins un panneau). */
 export interface DockGroup {

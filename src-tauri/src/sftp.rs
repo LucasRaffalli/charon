@@ -770,6 +770,78 @@ pub async fn sftp_rename(
         .map_err(|e| format!("Renommage de {from} impossible : {e}"))
 }
 
+/// Stats système du serveur : sorties brutes de commandes read-only
+/// whitelistées (le parse est fait côté module). Aucune commande arbitraire.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemStats {
+    df: String,
+    mem: String,
+    uptime: String,
+    processes: String,
+    os: String,
+}
+
+/// Renvoie un instantané système (disque, mémoire, charge, top process).
+/// SFTP uniquement — canal exec sur la session SSH, commandes fixes read-only.
+#[tauri::command]
+pub async fn sftp_system_stats(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+) -> Result<SystemStats, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    const SEP: &str = "@@@CHARON@@@";
+    // Commandes read-only, séparées par un marqueur ; `LC_ALL=C` pour un
+    // format stable. Aucune entrée utilisateur n'entre dans cette commande.
+    let command = format!(
+        "export LC_ALL=C; \
+         df -P -k 2>/dev/null; echo '{SEP}'; \
+         (free -k 2>/dev/null || cat /proc/meminfo 2>/dev/null); echo '{SEP}'; \
+         uptime 2>/dev/null; echo '{SEP}'; \
+         (ps -eo pid,pcpu,pmem,comm --sort=-pmem 2>/dev/null | head -n 15); echo '{SEP}'; \
+         (uname -sr 2>/dev/null)"
+    );
+    let (_code, output) = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        conn.exec_capture(command, &[]),
+    )
+    .await
+    .map_err(|_| "Délai dépassé pour les stats système.".to_string())??;
+
+    let mut parts = output.split(SEP);
+    let mut next = || parts.next().unwrap_or("").trim().to_string();
+    Ok(SystemStats {
+        df: next(),
+        mem: next(),
+        uptime: next(),
+        processes: next(),
+        os: next(),
+    })
+}
+
+/// Usage disque des sous-dossiers d'un chemin (`du`), top entrées. Peut être
+/// lent sur de grosses arborescences — appelé à la demande. SFTP uniquement.
+#[tauri::command]
+pub async fn sftp_disk_usage(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+) -> Result<String, String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    // Chemin échappé (quotes simples POSIX) — même garantie que shell.rs.
+    let quoted = format!("'{}'", path.replace('\'', r"'\''"));
+    let command = format!(
+        "export LC_ALL=C; du -sh {quoted}/* {quoted}/.[!.]* 2>/dev/null | sort -rh | head -n 20"
+    );
+    let (_code, output) = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        conn.exec_capture(command, &[]),
+    )
+    .await
+    .map_err(|_| "Délai dépassé pour l'analyse disque.".to_string())??;
+    Ok(output)
+}
+
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 /// Suffixe des fichiers en cours de transfert : renommés à la fin,

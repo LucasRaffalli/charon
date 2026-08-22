@@ -9,6 +9,7 @@ export type ModulePermission =
   | 'remote:write'
   | 'local:read'
   | 'local:write'
+  | 'system:read'
   | 'ui:command'
   | 'ui:panel'
   | 'ui:menu'
@@ -61,6 +62,8 @@ export interface ModuleSummary {
   name: string;
   version: string;
   engine: string;
+  /** Point d'entrée JS (relatif au dossier du module). */
+  main: string;
   description?: string | null;
   author?: string | null;
   permissions: ModulePermission[];
@@ -78,6 +81,56 @@ export interface ModuleRecord {
   enabled: boolean;
   /** Renseigné si le manifeste est invalide (module non chargeable). */
   error?: string;
+}
+
+// ---------- Vue déclarative d'un panneau de module ----------
+//
+// Un module ne dessine PAS de HTML : il émet une structure que l'hôte rend
+// nativement (sûr, pas d'injection possible). Suffisant pour dashboards,
+// tableaux, listes de stats.
+
+export interface ModuleStat {
+  label: string;
+  value: string;
+  /** Ratio 0–1 pour afficher une jauge (optionnel). */
+  ratio?: number;
+  /** Teinte d'alerte si vrai. */
+  warn?: boolean;
+}
+
+export interface ModuleTable {
+  headers: string[];
+  rows: string[][];
+}
+
+export interface ModuleSection {
+  title?: string;
+  text?: string;
+  stats?: ModuleStat[];
+  table?: ModuleTable;
+}
+
+export interface ModuleView {
+  title?: string;
+  sections: ModuleSection[];
+}
+
+/** Vue d'un panneau contribuée par un module (avec la provenance). */
+export interface ModulePanelView {
+  slug: string;
+  moduleName: string;
+  panelId: string;
+  title: string;
+  view: ModuleView;
+}
+
+/** Stats système renvoyées par `sftp_system_stats` (sorties brutes à parser). */
+export interface SystemStats {
+  df: string;
+  mem: string;
+  uptime: string;
+  processes: string;
+  os: string;
 }
 
 // ---------- Pont postMessage hôte ↔ module ----------

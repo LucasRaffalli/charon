@@ -242,6 +242,71 @@ export class SftpService extends FileBrowserState {
     return id ? operation(id) : Promise.reject('Aucune connexion active');
   }
 
+  // --- API médiée pour les modules (mêmes garde-fous que l'utilisateur) ---
+
+  /** Liste un chemin sans changer le dossier courant (lecture seule). */
+  moduleList(path: string): Promise<FileEntryDto[]> {
+    return this.withConnection((id) =>
+      invoke<FileEntryDto[]>(this.commandFor('list_dir'), { connectionId: id, path }),
+    );
+  }
+
+  /** Rafraîchit la vue si l'écriture touche le dossier courant. */
+  private async refreshIfCurrent(path: string): Promise<void> {
+    const parent = path.replace(/\/[^/]*$/, '') || '/';
+    if (parent === this._currentPath()) {
+      await this.refresh();
+    }
+  }
+
+  async moduleMkdir(path: string): Promise<void> {
+    await this.createDir(path);
+    await this.refreshIfCurrent(path);
+  }
+
+  async moduleCreateFile(path: string): Promise<void> {
+    await this.createFile(path);
+    await this.refreshIfCurrent(path);
+  }
+
+  async moduleRemove(path: string, isDir: boolean): Promise<void> {
+    await this.removeEntry(path, isDir);
+    await this.refreshIfCurrent(path);
+  }
+
+  async moduleRename(from: string, to: string): Promise<void> {
+    await this.renameEntry(from, to);
+    await this.refreshIfCurrent(from);
+  }
+
+  async moduleWriteText(path: string, content: string): Promise<void> {
+    this.guardWritable('écriture', path);
+    if (this._protocol() !== 'sftp') {
+      throw 'Écriture de fichier disponible en SFTP uniquement.';
+    }
+    await this.withConnection((id) =>
+      invoke('sftp_write_text', { connectionId: id, path, content }),
+    );
+    this.activity.log('edit', 'remote', path, 'module');
+    await this.refreshIfCurrent(path);
+  }
+
+  /** Instantané système du serveur (disque, mémoire, charge, process). */
+  systemStats(): Promise<unknown> {
+    if (this._protocol() !== 'sftp') {
+      return Promise.reject('Stats système disponibles en SFTP uniquement.');
+    }
+    return this.withConnection((id) => invoke('sftp_system_stats', { connectionId: id }));
+  }
+
+  /** Usage disque des sous-dossiers d'un chemin (peut être lent). */
+  diskUsage(path: string): Promise<string> {
+    if (this._protocol() !== 'sftp') {
+      return Promise.reject('Analyse disque disponible en SFTP uniquement.');
+    }
+    return this.withConnection((id) => invoke<string>('sftp_disk_usage', { connectionId: id, path }));
+  }
+
   /** Une erreur ressemble-t-elle à un refus de permission ? */
   private isPermissionDenied(error: unknown): boolean {
     const message = String(error).toLowerCase();

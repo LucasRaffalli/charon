@@ -1,0 +1,10 @@
+{
+  "id": "com.charon.exemple.compteur",
+  "name": "Compteur de fichiers",
+  "version": "1.0.0",
+  "description": "Ajoute une commande qui compte les entrées du dossier serveur courant.",
+  "author": "Charon",
+  "main": "main.js",
+  "engine": "^1",
+  "permissions": ["remote:read", "ui:command", "events"]
+}

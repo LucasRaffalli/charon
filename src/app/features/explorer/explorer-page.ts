@@ -18,6 +18,7 @@ import { Dock } from '@app/components/dock/dock';
 import { FilePane } from '@app/components/panels/file-pane/file-pane';
 import { Icon } from '@app/components/ui/icon/icon';
 import { LogPane } from '@app/components/panels/log-pane/log-pane';
+import { ModulePanel } from '@app/components/panels/module-panel/module-panel';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { RemoteEditBar } from '@app/components/overlays/remote-edit-bar/remote-edit-bar';
@@ -55,6 +56,7 @@ const isValidEntryName = (name: string): boolean =>
     FilePane,
     Icon,
     LogPane,
+    ModulePanel,
     ServerTree,
     TerminalPane,
     TransferPanel,

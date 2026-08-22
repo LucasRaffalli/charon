@@ -5,6 +5,7 @@ import { ActivityLogService } from '@app/services/activity-log.service';
 import { ConnectionFlowService } from '@app/services/connection-flow.service';
 import { DialogService } from '@app/services/dialog.service';
 import { DockService } from '@app/services/dock.service';
+import { ModuleHostService } from '@app/services/module-host.service';
 import { ProfilesService } from '@app/services/profiles.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
@@ -36,6 +37,7 @@ export class CommandPaletteService {
   private readonly flow = inject(ConnectionFlowService);
   private readonly settings = inject(SettingsService);
   private readonly dock = inject(DockService);
+  private readonly moduleHost = inject(ModuleHostService);
   private readonly theme = inject(ThemeService);
   private readonly dialog = inject(DialogService);
   private readonly activity = inject(ActivityLogService);
@@ -162,6 +164,9 @@ export class CommandPaletteService {
       keywords: 'préférences paramètres options',
       run: () => this.settings.openPanel(),
     });
+
+    // Commandes contribuées par les modules actifs.
+    list.push(...this.moduleHost.commands());
 
     return list;
   }

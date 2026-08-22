@@ -14,6 +14,8 @@ export const ALL_PANELS: readonly DockPanelId[] = [
   'journal',
   'logs',
   'terminal',
+  // Fermé par défaut : ouvert à la volée quand un module appelle ui.render.
+  'modules',
 ];
 
 /** Part de l'espace donnée à un panneau déposé sur un bord de la fenêtre. */

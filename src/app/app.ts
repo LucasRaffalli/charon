@@ -8,6 +8,7 @@ import { SettingsPanel } from '@app/components/overlays/settings-panel/settings-
 import { ConnectPage } from '@app/features/connect/connect-page';
 import { ExplorerPage } from '@app/features/explorer/explorer-page';
 import { SftpService } from '@app/services/sftp.service';
+import { ModuleHostService } from '@app/services/module-host.service';
 import { ThemeService } from '@app/services/theme.service';
 
 @Component({
@@ -30,4 +31,7 @@ export class App {
 
   // Injecté ici pour que le thème soit appliqué dès le démarrage.
   private readonly theme = inject(ThemeService);
+
+  // Démarre l'hôte des modules dès le lancement (charge les modules actifs).
+  private readonly moduleHost = inject(ModuleHostService);
 }

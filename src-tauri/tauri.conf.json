@@ -38,9 +38,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGNzU5NkFFRjU3REIxNzEKUldSeHNYMzFycFoxVHhQMkJMS2Y5QUZ3WjJpMmpEWlFibFZqc0I0NUFBdy8xQk45MkZlSUFuR2wK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5OUVFOUM0ODdGRjE3NQpSV1IxOFg5SW5PNlpCUi80ZkpETXdiWTB6RmNvZllOWDFWcCs3WVlMYlhGSjJiNVlSYW02aWs3Mwo=",
       "endpoints": [
-        "https://REMPLACE-MOI.exemple/charon/latest.json"
+        "https://release.lucasraffalli.com/charon/latest.json"
       ]
     }
   }

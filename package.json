@@ -8,7 +8,8 @@
     "watch": "ng build --watch --configuration development",
     "tauri": "tauri",
     "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
-    "release": "tauri build --config src-tauri/tauri.release.conf.json"
+    "release": "bash scripts/release.sh",
+    "deploy": "bash scripts/deploy.sh"
   },
   "private": true,
   "dependencies": {

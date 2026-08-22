@@ -164,16 +164,27 @@ d'artefact de mise à jour — pas besoin de clé. La signature n'intervient
 qu'à la publication d'une release, via le script `release` (overlay
 `tauri.release.conf.json` qui réactive `createUpdaterArtifacts`).
 
+Préconfig (une seule fois) — stocker le mot de passe de la clé privée dans
+le trousseau macOS (rien n'est écrit dans le dépôt) :
+
+```bash
+security add-generic-password -a charon-updater -s charon-updater-password -w
+```
+
 Publication d'une version :
 
 ```bash
 # 1. incrémenter "version" dans src-tauri/tauri.conf.json
-# 2. build signé (réactive la création d'artefacts de mise à jour)
-TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/charon-updater.key npm run release
+# 2. build signé (le script lit la clé + le mot de passe du trousseau)
+npm run release
 # 3. générer le manifeste
 scripts/make-latest-json.sh https://ton-vps.exemple/charon > latest.json
 # 4. téléverser latest.json + l'archive .app.tar.gz sur le VPS
 ```
+
+`scripts/release.sh` exporte `TAURI_SIGNING_PRIVATE_KEY_PATH` et lit
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` depuis le trousseau — aucun secret
+en clair, aucune variable à retaper.
 
 L'endpoint est déclaré dans `tauri.conf.json` (`plugins.updater.endpoints`).
 

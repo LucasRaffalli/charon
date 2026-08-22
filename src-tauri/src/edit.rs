@@ -18,13 +18,13 @@ use crate::sftp::{get_connection, ConnectionPool};
 
 /// Un handle d'édition : garder le watcher vivant maintient la surveillance ;
 /// le drop du watcher arrête la tâche (le sender de son callback disparaît).
-struct EditHandle {
+pub(crate) struct EditHandle {
     _watcher: RecommendedWatcher,
     temp_dir: PathBuf,
 }
 
 #[derive(Default)]
-pub struct EditRegistry(pub StdMutex<HashMap<String, EditHandle>>);
+pub struct EditRegistry(pub(crate) StdMutex<HashMap<String, EditHandle>>);
 
 static EDIT_COUNTER: AtomicU64 = AtomicU64::new(0);
 

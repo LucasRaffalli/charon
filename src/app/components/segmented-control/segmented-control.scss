@@ -1,0 +1,68 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.seg__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.seg {
+  position: relative;
+  display: flex;
+  padding: 3px;
+  background: var(--surface-active);
+  border-radius: var(--radius-md);
+}
+
+.seg__pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--seg-count, 3)); // segments à parts égales
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.seg__option {
+  position: relative; // au-dessus de la pastille
+  flex: 1;
+  padding: 6px 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover,
+  &--active {
+    color: var(--text);
+  }
+
+  &--active {
+    cursor: default;
+  }
+
+  // Segment à teinte d'alerte (ex. « Prod »).
+  &--danger {
+    color: var(--danger);
+
+    &:hover,
+    &.seg__option--active {
+      color: var(--danger);
+    }
+  }
+}

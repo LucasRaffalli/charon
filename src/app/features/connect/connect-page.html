@@ -1,237 +1,272 @@
 <div class="connect">
-  <app-drawer label="Serveurs enregistrés" [(open)]="drawerOpen">
-    <header class="connect__saved-header">
-      <app-icon class="connect__saved-icon" name="server" [size]="15" />
-      <h2 class="connect__saved-title">Serveurs enregistrés</h2>
-      <span class="connect__saved-count">{{ profiles.profiles().length }}</span>
-    </header>
+  <div class="connect__frame">
+    <!-- Illustration (gauche) : image de fond (+ glyphe) + texte HTML par-dessus -->
+    <aside class="connect__aside">
+      <img class="connect__cover-bg" src="/assets/png/cover.png" alt="" />
 
-    @if (profiles.profiles().length > 0) {
-      <ul class="connect__profiles">
-        @for (profile of profiles.profiles(); track profile.id) {
-          <li class="connect__profile-row" (contextmenu)="openProfileMenu($event, profile)">
-            <button
-              type="button"
-              class="profile"
-              [title]="profile.name"
-              [disabled]="sftp.loading()"
-              (click)="connectProfile(profile)"
-            >
-              <span class="profile__icon"><app-icon name="server" [size]="16" /></span>
-              <span class="profile__name">{{ profile.name }}</span>
-              @if (profile.environment; as env) {
-                <span
-                  class="profile__env profile__env--{{ env }}"
-                  [title]="'Environnement : ' + env"
-                ></span>
-              }
-              <app-icon class="profile__go" name="chevron-right" [size]="15" />
-            </button>
-            <button
-              type="button"
-              class="profile__edit"
-              title="Modifier ce profil"
-              [attr.aria-label]="'Modifier le profil ' + profile.name"
-              (click)="editProfile(profile)"
-            >
-              <app-icon name="edit" [size]="14" />
-            </button>
-            <button
-              type="button"
-              class="profile__delete"
-              title="Supprimer ce profil"
-              [attr.aria-label]="'Supprimer le profil ' + profile.name"
-              (click)="removeProfile(profile)"
-            >
-              <app-icon name="trash" [size]="14" />
-            </button>
-          </li>
+      <div class="connect__cover">
+        @if (version(); as v) {
+          <p class="connect__cover-top">v.{{ v }}</p>
         }
-      </ul>
-    } @else {
-      <p class="connect__saved-empty">
-        Aucun serveur enregistré. Active « Se souvenir de ce serveur » lors d'une connexion.
-      </p>
-    }
-  </app-drawer>
+        <div class="connect__cover-group">
+          <app-charon-glyph class="connect__cover-mark" />
+          <p class="connect__cover-tagline">Le passeur de fichiers</p>
+        </div>
+      </div>
+    </aside>
 
-  <div class="connect__corner">
-    <app-button variant="ghost" iconOnly title="Réglages" (click)="settings.openPanel()">
-      <app-icon name="settings" [size]="15" />
-    </app-button>
-  </div>
+    <!-- Panneau switchable (droite) — hauteur fixe, sans scroll -->
+    <section class="connect__panel">
+      <div class="connect__panel-switch">
+        <app-segmented-control
+          ariaLabel="Afficher"
+          [options]="panelOptions()"
+          [value]="panel()"
+          (valueChange)="setPanel($event)"
+        />
+      </div>
 
-  <section class="connect__card">
-    <div class="connect__logo">
-      <span class="connect__logo-mark" aria-hidden="true"></span>
-    </div>
-    <h1 class="connect__title">Charon</h1>
-    <p class="connect__tagline">Le passeur de fichiers</p>
-
-    <form class="connect__form" (submit)="onSubmit($event)">
-      <app-tabs stretch [tabs]="connectTabs" [(active)]="activeTab">
-        <div class="connect__tab-fields">
-          @if (activeTab() === 'server') {
-            <div class="connect__protocols" role="radiogroup" aria-label="Protocole">
-              <span
-                class="connect__protocols-pill"
-                aria-hidden="true"
-                [style.transform]="'translateX(' + protocolIndex() * 100 + '%)'"
-              ></span>
-              @for (option of protocols; track option.value) {
-                <button
-                  type="button"
-                  class="connect__protocol"
-                  role="radio"
-                  [class.connect__protocol--active]="protocol() === option.value"
-                  [attr.aria-checked]="protocol() === option.value"
-                  (click)="setProtocol(option.value)"
-                >
-                  {{ option.label }}
+      <div class="connect__panel-body">
+        @if (showForm()) {
+          <form class="connect__form" (submit)="submitForm($event)">
+            @if (editingId()) {
+              <div class="connect__edit-head">
+                <button type="button" class="connect__back" (click)="cancelEdit()">
+                  <app-icon class="connect__back-caret" name="chevron-right" [size]="15" />
+                  Retour
                 </button>
+                <span class="connect__edit-title">Modifier ce serveur</span>
+              </div>
+            }
+
+            <div class="connect__fields">
+              <div class="connect__section">
+                <span class="connect__section-label">Serveur</span>
+
+                <app-segmented-control
+                  ariaLabel="Protocole"
+                  [options]="protocolOptions"
+                  [value]="protocol()"
+                  (valueChange)="onProtocol($event)"
+                />
+
+                <app-text-field
+                  label="Hôte"
+                  name="host"
+                  placeholder="styx.exemple.net"
+                  [(value)]="host"
+                />
+
+                <div class="connect__row">
+                  <app-text-field
+                    label="Utilisateur"
+                    name="user"
+                    placeholder="nocher"
+                    [(value)]="user"
+                  />
+                  <app-text-field
+                    label="Port"
+                    name="port"
+                    type="number"
+                    placeholder="22"
+                    [(value)]="port"
+                  />
+                </div>
+              </div>
+
+              <div class="connect__section">
+                <span class="connect__section-label">Authentification</span>
+
+                @if (protocol() === 'sftp') {
+                  <app-text-field
+                    label="Passphrase de la clé"
+                    name="passphrase"
+                    type="password"
+                    placeholder="••••••••"
+                    hint="Vide si la clé n'est pas chiffrée"
+                    [(value)]="passphrase"
+                  />
+                } @else {
+                  <app-text-field
+                    label="Mot de passe"
+                    name="ftp-password"
+                    type="password"
+                    placeholder="••••••••"
+                    hint="Vide = connexion anonyme"
+                    [(value)]="password"
+                  />
+
+                  @if (protocol() === 'ftp') {
+                    <p class="connect__warn">
+                      FTP transmet identifiants et fichiers <strong>en clair</strong> —
+                      préfère FTPS ou SFTP dès que possible.
+                    </p>
+                  }
+                }
+              </div>
+
+              <div class="connect__section">
+                <span class="connect__section-label">Profil</span>
+
+                <app-text-field
+                  label="Nom (optionnel)"
+                  name="profile-name"
+                  placeholder="Mon VPS"
+                  hint="Vide = connexion sans l'enregistrer"
+                  [(value)]="profileName"
+                />
+              </div>
+            </div>
+
+            <div class="connect__foot">
+              <button
+                type="button"
+                class="connect__gear"
+                title="Options avancées"
+                aria-label="Options avancées"
+                [class.connect__gear--set]="environment() || protection() || keyPath()"
+                (click)="showAdvanced.set(true)"
+              >
+                <app-icon name="settings" [size]="15" />
+              </button>
+
+              @if (editingId()) {
+                <div class="connect__actions">
+                  <app-button
+                    variant="ghost"
+                    type="button"
+                    [disabled]="!canSubmit()"
+                    [loading]="sftp.loading()"
+                    (click)="connect()"
+                  >
+                    Se connecter
+                  </app-button>
+                  <app-button type="submit" [disabled]="!canSubmit()">
+                    Enregistrer
+                  </app-button>
+                </div>
+              } @else {
+                <app-button
+                  class="connect__submit"
+                  type="submit"
+                  [disabled]="!canSubmit()"
+                  [loading]="sftp.loading()"
+                >
+                  {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
+                </app-button>
               }
             </div>
-
-            <app-text-field
-              label="Hôte"
-              name="host"
-              placeholder="styx.exemple.net"
-              [(value)]="host"
-            />
-
-            <div class="connect__seg">
-              <span class="connect__seg-label">Environnement</span>
-              <div
-                class="connect__protocols"
-                role="radiogroup"
-                aria-label="Environnement"
-                style="--seg-count: 4"
-              >
-                <span
-                  class="connect__protocols-pill"
-                  aria-hidden="true"
-                  [style.transform]="'translateX(' + environmentIndex() * 100 + '%)'"
-                ></span>
-                @for (option of environments; track option.label) {
-                  <button
-                    type="button"
-                    class="connect__protocol"
-                    [class.connect__protocol--prod]="option.value === 'prod'"
-                    role="radio"
-                    [class.connect__protocol--active]="environment() === option.value"
-                    [attr.aria-checked]="environment() === option.value"
-                    (click)="environment.set(option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
+          </form>
+        } @else {
+          <div class="connect__list">
+            @if (profiles.profiles().length > 0) {
+              <ul class="connect__profiles">
+                @for (profile of profiles.profiles(); track profile.id) {
+                  <li class="connect__profile-row" (contextmenu)="openProfileMenu($event, profile)">
+                    <button
+                      type="button"
+                      class="profile"
+                      [title]="profile.name"
+                      [disabled]="sftp.loading()"
+                      (click)="connectProfile(profile)"
+                    >
+                      <span class="profile__icon"><app-icon name="server" [size]="16" /></span>
+                      <span class="profile__name">{{ profile.name }}</span>
+                      @if (profile.environment; as env) {
+                        <span
+                          class="profile__env profile__env--{{ env }}"
+                          [title]="'Environnement : ' + env"
+                        ></span>
+                      }
+                      <app-icon class="profile__go" name="chevron-right" [size]="15" />
+                    </button>
+                    <button
+                      type="button"
+                      class="profile__edit"
+                      title="Modifier ce profil"
+                      [attr.aria-label]="'Modifier le profil ' + profile.name"
+                      (click)="editProfile(profile)"
+                    >
+                      <app-icon name="edit" [size]="14" />
+                    </button>
+                    <button
+                      type="button"
+                      class="profile__delete"
+                      title="Supprimer ce profil"
+                      [attr.aria-label]="'Supprimer le profil ' + profile.name"
+                      (click)="removeProfile(profile)"
+                    >
+                      <app-icon name="trash" [size]="14" />
+                    </button>
+                  </li>
                 }
+              </ul>
+            } @else {
+              <div class="connect__servers-empty">
+                <span class="connect__servers-empty-icon"><app-icon name="server" [size]="22" /></span>
+                <p class="connect__servers-empty-title">Aucun serveur enregistré</p>
+                <p class="connect__servers-empty-hint">
+                  Donne un nom à un serveur lors d'une connexion pour le retrouver ici.
+                </p>
+                <app-button variant="ghost" (click)="setPanel('form')">Nouvelle connexion</app-button>
               </div>
-            </div>
-
-            <div class="connect__seg">
-              <span class="connect__seg-label">Garde-fou</span>
-              <div
-                class="connect__protocols"
-                role="radiogroup"
-                aria-label="Garde-fou"
-                style="--seg-count: 3"
-              >
-                <span
-                  class="connect__protocols-pill"
-                  aria-hidden="true"
-                  [style.transform]="'translateX(' + protectionIndex() * 100 + '%)'"
-                ></span>
-                @for (option of protections; track option.label) {
-                  <button
-                    type="button"
-                    class="connect__protocol"
-                    role="radio"
-                    [class.connect__protocol--active]="protection() === option.value"
-                    [attr.aria-checked]="protection() === option.value"
-                    (click)="protection.set(option.value)"
-                  >
-                    {{ option.label }}
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="connect__row">
-              <app-text-field
-                label="Utilisateur"
-                name="user"
-                placeholder="nocher"
-                [(value)]="user"
-              />
-              <app-text-field
-                label="Port"
-                name="port"
-                type="number"
-                placeholder="22"
-                [(value)]="port"
-              />
-            </div>
-          } @else if (protocol() === 'sftp') {
-            <app-text-field
-              label="Clé SSH"
-              name="key-path"
-              placeholder="~/.ssh/id_ed25519"
-              hint="Laisser vide pour la détection automatique (~/.ssh)"
-              [(value)]="keyPath"
-            />
-
-            <app-text-field
-              label="Passphrase de la clé"
-              name="passphrase"
-              type="password"
-              placeholder="••••••••"
-              hint="Laisser vide si la clé n'est pas chiffrée"
-              [(value)]="passphrase"
-            />
-          } @else {
-            <app-text-field
-              label="Mot de passe"
-              name="ftp-password"
-              type="password"
-              placeholder="••••••••"
-              hint="Laisser vide pour une connexion anonyme"
-              [(value)]="password"
-            />
-
-            @if (protocol() === 'ftp') {
-              <p class="connect__warn">
-                FTP transmet identifiants et fichiers <strong>en clair</strong> —
-                préfère FTPS ou SFTP dès que possible.
-              </p>
             }
-          }
-        </div>
-      </app-tabs>
+          </div>
+        }
+      </div>
 
-      <app-toggle label="Se souvenir de ce serveur" [(checked)]="remember" />
-
-      @if (remember()) {
-        <app-text-field
-          label="Nom du profil"
-          name="profile-name"
-          placeholder="Mon VPS"
-          hint="Seul ce nom sera affiché dans la liste (l'hôte reste masqué)"
-          [(value)]="profileName"
-        />
+      @if (sftp.error() ?? profiles.error(); as error) {
+        <app-alert class="connect__panel-alert" variant="error">{{ error }}</app-alert>
       }
 
-      <app-button
-        class="connect__submit"
-        type="submit"
-        [disabled]="!canSubmit()"
-        [loading]="sftp.loading()"
-      >
-        {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
-      </app-button>
-    </form>
+      <!-- Bottom-sheet : options avancées (couche par-dessus, n'agrandit rien) -->
+      @if (showForm()) {
+        <div
+          class="connect__sheet-backdrop"
+          [class.connect__sheet-backdrop--show]="showAdvanced()"
+          (click)="showAdvanced.set(false)"
+        ></div>
+        <div class="connect__sheet" [class.connect__sheet--open]="showAdvanced()">
+          <div class="connect__sheet-head">
+            <span class="connect__sheet-title">Options avancées</span>
+            <button
+              type="button"
+              class="connect__sheet-close"
+              aria-label="Fermer"
+              (click)="showAdvanced.set(false)"
+            >
+              <app-icon name="close" [size]="16" />
+            </button>
+          </div>
+          <div class="connect__sheet-body">
+            @if (protocol() === 'sftp') {
+              <app-text-field
+                label="Clé SSH"
+                name="key-path"
+                placeholder="~/.ssh/id_ed25519"
+                hint="Vide = détection automatique (~/.ssh). À préciser si tu as plusieurs clés."
+                [(value)]="keyPath"
+              />
+            }
 
-    @if (sftp.error() ?? profiles.error(); as error) {
-      <app-alert class="connect__error" variant="error">{{ error }}</app-alert>
-    }
-  </section>
+            <app-segmented-control
+              label="Environnement"
+              ariaLabel="Environnement"
+              [options]="environmentOptions"
+              [value]="environmentKey()"
+              (valueChange)="onEnvironment($event)"
+            />
+
+            <app-segmented-control
+              label="Garde-fou"
+              ariaLabel="Garde-fou"
+              [options]="protectionOptions"
+              [value]="protectionKey()"
+              (valueChange)="onProtection($event)"
+            />
+          </div>
+        </div>
+      }
+    </section>
+  </div>
 </div>

@@ -26,6 +26,13 @@ body {
   cursor: default;
 }
 
+// Données techniques (tailles, ports, dates, empreintes, octets…) :
+// police à chasse fixe qui dissocie clairement 0/O, 1/l/I.
+.data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 button {
   font: inherit;
   color: inherit;

@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/button/button';
 import { Icon, IconName } from '@app/components/icon/icon';
+import { SegmentedControl, SegmentedOption } from '@app/components/segmented-control/segmented-control';
 import { TextField } from '@app/components/text-field/text-field';
 import { Toggle } from '@app/components/toggle/toggle';
 import { LayoutMode } from '@app/interfaces';
@@ -17,15 +18,9 @@ interface TabOption {
   label: string;
 }
 
-interface LayoutOption {
-  value: LayoutMode;
-  icon: IconName;
-  label: string;
-}
-
 @Component({
   selector: 'app-settings-panel',
-  imports: [Button, Icon, TextField, Toggle],
+  imports: [Button, Icon, SegmentedControl, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -47,17 +42,26 @@ export class SettingsPanel {
     { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
   ];
 
+  /** Titre de la section affichée (en-tête du contenu). */
+  protected readonly activeLabel = computed(
+    () => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '',
+  );
+
+  protected readonly themeOptions = THEME_OPTIONS;
+
+  protected readonly layoutOptions: readonly SegmentedOption[] = [
+    { value: 'bento', label: 'Bento' },
+    { value: 'classic', label: 'Classique' },
+  ];
+
+  protected setLayout(value: string): void {
+    this.settings.update({ layout: value as LayoutMode });
+  }
+
   /** Pourcentage du téléchargement de mise à jour (0 si taille inconnue). */
   protected downloadPercent(transferred: number, total: number): number {
     return total > 0 ? Math.min(100, Math.round((transferred / total) * 100)) : 0;
   }
-
-  protected readonly themeOptions = THEME_OPTIONS;
-
-  protected readonly layouts: readonly LayoutOption[] = [
-    { value: 'bento', icon: 'layout-grid', label: 'Bento' },
-    { value: 'classic', icon: 'rows', label: 'Classique' },
-  ];
 
   /** Minutes d'inactivité avant fermeture, bornées à [0 ; 240] (0 = jamais). */
   protected setIdleMinutes(raw: string): void {

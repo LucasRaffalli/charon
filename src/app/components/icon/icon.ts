@@ -30,6 +30,7 @@ import {
   SquareTerminal,
   Server,
   Settings,
+  ShieldCheck,
   SquarePen,
   Sun,
   Trash2,
@@ -70,6 +71,7 @@ const ICONS = {
   edit: SquarePen,
   'layout-grid': LayoutGrid,
   lock: Lock,
+  'shield-check': ShieldCheck,
   rows: Rows3,
 } as const;
 

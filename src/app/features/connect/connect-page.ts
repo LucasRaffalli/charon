@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { getVersion } from '@tauri-apps/api/app';
 
 import { Alert } from '@app/components/alert/alert';
 import { Button } from '@app/components/button/button';
-import { Drawer } from '@app/components/drawer/drawer';
+import { CharonGlyph } from '@app/components/charon-logo/charon-glyph';
 import { Icon } from '@app/components/icon/icon';
-import { TabItem, Tabs } from '@app/components/tabs/tabs';
+import { SegmentedControl, SegmentedOption } from '@app/components/segmented-control/segmented-control';
 import { TextField } from '@app/components/text-field/text-field';
-import { Toggle } from '@app/components/toggle/toggle';
 import {
   ConnectionParams,
   RemoteProtocol,
@@ -18,36 +18,22 @@ import { ConnectionFlowService } from '@app/services/connection-flow.service';
 import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
-import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 
 const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
 
-interface ProtocolOption {
-  value: RemoteProtocol;
-  label: string;
-}
-
-interface EnvironmentOption {
-  value: ServerEnvironment | null;
-  label: string;
-}
-
-interface ProtectionOption {
-  value: ServerProtection | null;
-  label: string;
-}
+/** Panneau affiché à droite : formulaire de connexion ou serveurs enregistrés. */
+type Panel = 'form' | 'servers';
 
 @Component({
   selector: 'app-connect-page',
-  imports: [Alert, Button, Drawer, Icon, Tabs, TextField, Toggle],
+  imports: [Alert, Button, CharonGlyph, Icon, SegmentedControl, TextField],
   templateUrl: './connect-page.html',
   styleUrl: './connect-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ConnectPage {
   protected readonly sftp = inject(SftpService);
-  protected readonly settings = inject(SettingsService);
   protected readonly profiles = inject(ProfilesService);
   protected readonly contextMenu = inject(ContextMenuService);
   private readonly dialog = inject(DialogService);
@@ -60,88 +46,135 @@ export class ConnectPage {
   protected readonly passphrase = signal('');
   protected readonly keyPath = signal('');
   protected readonly password = signal('');
-  protected readonly remember = signal(false);
 
-  protected readonly protocols: readonly ProtocolOption[] = [
+  protected readonly protocolOptions: readonly SegmentedOption[] = [
     { value: 'sftp', label: 'SFTP' },
     { value: 'ftps', label: 'FTPS' },
     { value: 'ftp', label: 'FTP' },
   ];
 
   protected readonly environment = signal<ServerEnvironment | null>(null);
-  protected readonly environments: readonly EnvironmentOption[] = [
-    { value: null, label: 'Aucun' },
+  protected readonly environmentOptions: readonly SegmentedOption[] = [
+    { value: '', label: 'Aucun' },
     { value: 'dev', label: 'Dev' },
     { value: 'staging', label: 'Staging' },
-    { value: 'prod', label: 'Prod' },
+    { value: 'prod', label: 'Prod', tone: 'danger' },
   ];
+  /** Clé (chaîne) attendue par le SegmentedControl — null devient ''. */
+  protected readonly environmentKey = computed(() => this.environment() ?? '');
 
   protected readonly protection = signal<ServerProtection | null>(null);
-  protected readonly protections: readonly ProtectionOption[] = [
-    { value: null, label: 'Aucun' },
+  protected readonly protectionOptions: readonly SegmentedOption[] = [
+    { value: '', label: 'Aucun' },
     { value: 'confirm', label: 'Confirmation' },
     { value: 'readonly', label: 'Lecture seule' },
   ];
+  protected readonly protectionKey = computed(() => this.protection() ?? '');
 
-  /** Position de la pastille du sélecteur de garde-fou. */
-  protected readonly protectionIndex = computed(() =>
-    Math.max(
-      0,
-      this.protections.findIndex((option) => option.value === this.protection()),
-    ),
-  );
-
-  /** Position de la pastille du sélecteur d'environnement. */
-  protected readonly environmentIndex = computed(() =>
-    Math.max(
-      0,
-      this.environments.findIndex((option) => option.value === this.environment()),
-    ),
-  );
-
-  /** Position de la pastille glissante du sélecteur de protocole. */
-  protected readonly protocolIndex = computed(() =>
-    Math.max(
-      0,
-      this.protocols.findIndex((option) => option.value === this.protocol()),
-    ),
-  );
   protected readonly profileName = signal('');
-  protected readonly drawerOpen = signal(false);
 
-  protected readonly connectTabs: TabItem[] = [
-    { id: 'server', label: 'Serveur', icon: 'server' },
-    { id: 'auth', label: 'Authentification', icon: 'key' },
-  ];
-  protected readonly activeTab = signal('server');
+  /** Version de l'app (affichée sur la cover), lue via l'API Tauri. */
+  protected readonly version = signal('');
 
-  /** Profil en cours d'édition via le formulaire, null sinon. */
-  private readonly editingId = signal<string | null>(null);
+  /** Panneau droit courant + son switch (le libellé « Serveurs » porte le compteur). */
+  protected readonly panel = signal<Panel>('form');
+  protected readonly panelOptions = computed<SegmentedOption[]>(() => {
+    const count = this.profiles.profiles().length;
+    return [
+      { value: 'form', label: 'Connexion' },
+      { value: 'servers', label: count > 0 ? `Serveurs · ${count}` : 'Serveurs' },
+    ];
+  });
+  /** Passe à true dès que l'utilisateur choisit un panneau : plus d'auto-bascule. */
+  private panelPinned = false;
+
+  /** Repli « Options avancées » (environnement + garde-fou). */
+  protected readonly showAdvanced = signal(false);
+
+  /** Profil en cours d'édition, null pour une nouvelle connexion. */
+  protected readonly editingId = signal<string | null>(null);
+  /** Le profil édité possédait-il déjà un secret au trousseau ? */
+  private editingHadSecret = false;
 
   protected readonly canSubmit = computed(
     () => this.host().trim() !== '' && this.user().trim() !== '',
   );
 
+  /** Formulaire visible ? (nouvelle connexion, ou édition d'un profil). */
+  protected readonly showForm = computed(
+    () => this.panel() === 'form' || this.editingId() !== null,
+  );
+
   constructor() {
     void this.profiles.load();
+    // Version de l'app (ignore l'échec hors contexte Tauri, ex. ng serve).
+    getVersion()
+      .then((v) => this.version.set(v))
+      .catch(() => {});
+
+    // Au premier chargement : s'il existe des serveurs enregistrés, ouvrir
+    // directement leur liste (plus utile qu'un formulaire vide). On ne le
+    // fait qu'une fois, et jamais si l'utilisateur a déjà choisi un panneau.
+    effect(() => {
+      const hasProfiles = this.profiles.profiles().length > 0;
+      if (!this.panelPinned && hasProfiles) {
+        this.panelPinned = true;
+        this.panel.set('servers');
+      }
+    });
   }
 
-  protected async onSubmit(event: Event): Promise<void> {
+  /** Bascule de panneau depuis le switch (fige l'auto-bascule initiale). */
+  protected setPanel(panel: string): void {
+    this.panelPinned = true;
+    // Revenir à « Connexion » depuis une édition = repartir sur un formulaire vierge.
+    if (panel === 'form' && this.editingId() !== null) {
+      this.exitEdit();
+    }
+    this.panel.set(panel as Panel);
+  }
+
+  protected onProtocol(value: string): void {
+    this.setProtocol(value as RemoteProtocol);
+  }
+
+  protected onEnvironment(value: string): void {
+    this.environment.set((value || null) as ServerEnvironment | null);
+  }
+
+  protected onProtection(value: string): void {
+    this.protection.set((value || null) as ServerProtection | null);
+  }
+
+  /** Le secret saisi : passphrase de clé (SFTP) ou mot de passe (FTP/FTPS). */
+  private currentSecret(): string {
+    return this.protocol() === 'sftp' ? this.passphrase() : this.password();
+  }
+
+  /** Soumission du formulaire (Entrée / bouton principal). */
+  protected submitForm(event: Event): void {
     event.preventDefault();
+    // En édition, la soumission enregistre ; sinon elle connecte.
+    if (this.editingId() !== null) {
+      void this.saveEdits();
+    } else {
+      void this.connect();
+    }
+  }
+
+  /** Se connecter (nouvelle connexion, ou bouton « Se connecter » en édition). */
+  protected async connect(): Promise<void> {
     if (!this.canSubmit() || this.sftp.loading()) {
       return;
     }
-
     const protocol = this.protocol();
     const host = this.host().trim();
     const user = this.user().trim();
     const port = Number(this.port()) || DEFAULT_PORTS[protocol];
     const keyPath = protocol === 'sftp' ? this.keyPath().trim() || null : null;
-    // Le secret saisi : passphrase de clé (SFTP) ou mot de passe (FTP/FTPS).
-    const secret = protocol === 'sftp' ? this.passphrase() : this.password();
+    const secret = this.currentSecret();
 
-    // Édition avec secret laissé vide : le backend relit celui de
-    // l'ancien profil dans le trousseau via profileId.
+    // Secret laissé vide : le backend relit celui du profil dans le trousseau via profileId.
     await this.connectWithTrust({
       environment: this.environment(),
       protection: this.protection(),
@@ -158,37 +191,87 @@ export class ConnectPage {
       return;
     }
 
-    if (this.remember()) {
-      const id =
-        protocol === 'sftp' ? `${user}@${host}:${port}` : `${protocol}://${user}@${host}:${port}`;
-      const editingId = this.editingId();
-
-      // Édition avec identifiant changé et secret laissé vide : le backend
-      // migre lui-même le secret du trousseau (il ne transite pas par la WebView).
-      const migrateFrom = !secret && editingId && editingId !== id ? editingId : null;
-
-      await this.profiles.save(
-        {
-          id,
-          name: this.profileName().trim() || host,
-          host,
-          port,
-          user,
-          keyPath,
-          hasSecret: secret !== '',
-          protocol,
-          environment: this.environment(),
-          protection: this.protection(),
-        },
-        secret || null,
-        migrateFrom,
-      );
-
-      if (editingId && editingId !== id) {
-        await this.profiles.delete(editingId);
-      }
+    // On persiste si l'utilisateur le demande (nouvelle connexion) ou en édition.
+    // On enregistre si un nom de profil est saisi (ou si on édite un profil).
+    if (this.profileName().trim() !== '' || this.editingId() !== null) {
+      await this.persistProfile();
     }
+    this.exitEdit();
+  }
+
+  /** Enregistre les modifications du profil sans se connecter (mode édition). */
+  protected async saveEdits(): Promise<void> {
+    if (!this.canSubmit() || this.sftp.loading()) {
+      return;
+    }
+    await this.persistProfile();
+    this.exitEdit(); // retour à la liste des serveurs
+  }
+
+  /** Écrit le profil courant dans le store (+ trousseau), avec migration au besoin. */
+  private async persistProfile(): Promise<void> {
+    const protocol = this.protocol();
+    const host = this.host().trim();
+    const user = this.user().trim();
+    const port = Number(this.port()) || DEFAULT_PORTS[protocol];
+    const keyPath = protocol === 'sftp' ? this.keyPath().trim() || null : null;
+    const secret = this.currentSecret();
+    const id =
+      protocol === 'sftp' ? `${user}@${host}:${port}` : `${protocol}://${user}@${host}:${port}`;
+    const editingId = this.editingId();
+
+    // Identifiant changé + secret laissé vide : le backend migre lui-même le
+    // secret du trousseau (il ne transite jamais par la WebView).
+    const migrateFrom = !secret && editingId && editingId !== id ? editingId : null;
+
+    await this.profiles.save(
+      {
+        id,
+        name: this.profileName().trim() || host,
+        host,
+        port,
+        user,
+        keyPath,
+        // Secret laissé vide en édition = on garde celui déjà stocké.
+        hasSecret: secret !== '' || this.editingHadSecret,
+        protocol,
+        environment: this.environment(),
+        protection: this.protection(),
+      },
+      secret || null,
+      migrateFrom,
+    );
+
+    if (editingId && editingId !== id) {
+      await this.profiles.delete(editingId);
+    }
+  }
+
+  /** Annule l'édition et revient à la liste des serveurs. */
+  protected cancelEdit(): void {
+    this.exitEdit();
+  }
+
+  /** Quitte le mode édition et remet le formulaire à zéro. */
+  private exitEdit(): void {
     this.editingId.set(null);
+    this.editingHadSecret = false;
+    this.resetForm();
+  }
+
+  /** Réinitialise tous les champs du formulaire. */
+  private resetForm(): void {
+    this.protocol.set('sftp');
+    this.host.set('');
+    this.port.set(String(DEFAULT_PORTS.sftp));
+    this.user.set('');
+    this.passphrase.set('');
+    this.keyPath.set('');
+    this.password.set('');
+    this.environment.set(null);
+    this.protection.set(null);
+    this.profileName.set('');
+    this.showAdvanced.set(false);
   }
 
   /** Change de protocole en ajustant le port s'il était celui par défaut. */
@@ -215,9 +298,13 @@ export class ConnectPage {
     this.passphrase.set('');
     this.password.set('');
     this.keyPath.set(profile.keyPath ?? '');
-    this.remember.set(true);
     this.editingId.set(profile.id);
-    this.drawerOpen.set(false);
+    this.editingHadSecret = profile.hasSecret;
+    // Déplier les options avancées si le profil en utilise, pour les montrer.
+    this.showAdvanced.set(!!(profile.environment || profile.protection));
+    // Rester dans la vue Serveurs : c'est editingId qui affiche le formulaire.
+    this.panelPinned = true;
+    this.panel.set('servers');
   }
 
   protected async connectProfile(profile: ServerProfile): Promise<void> {

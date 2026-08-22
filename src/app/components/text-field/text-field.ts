@@ -7,7 +7,8 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TextField {
-  readonly label = input.required<string>();
+  /** Libellé au-dessus du champ ; vide = champ seul (ligne de réglage). */
+  readonly label = input('');
   readonly type = input<'text' | 'password' | 'number'>('text');
   readonly name = input('');
   readonly placeholder = input('');

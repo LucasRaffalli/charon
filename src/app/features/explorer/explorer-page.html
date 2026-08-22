@@ -65,10 +65,6 @@
       {{ sftp.connectionId() }}
     </span>
 
-    <app-button variant="ghost" iconOnly title="Réglages" (click)="settings.openPanel()">
-      <app-icon name="settings" [size]="15" />
-    </app-button>
-
     <app-button variant="danger" title="Fermer la connexion" (click)="sftp.disconnect()">
       <app-icon name="log-out" [size]="15" />
       Débarquer
@@ -134,7 +130,7 @@
             >
               <app-icon class="entry__icon" [name]="entry.isDir ? 'folder' : 'file'" [size]="17" />
               <span class="entry__name">{{ entry.name }}</span>
-              <span class="entry__size">{{ entry.isDir ? '—' : (entry.size | fileSize) }}</span>
+              <span class="entry__size data">{{ entry.isDir ? '—' : (entry.size | fileSize) }}</span>
             </button>
             @if (!entry.isDir) {
               <button

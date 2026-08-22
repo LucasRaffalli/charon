@@ -7,7 +7,8 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Toggle {
-  readonly label = input.required<string>();
+  /** Libellé à gauche du switch ; vide = switch seul (ligne de réglage). */
+  readonly label = input('');
   readonly checked = model(false);
 
   protected toggle(): void {

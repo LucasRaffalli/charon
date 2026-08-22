@@ -10,8 +10,12 @@
   animation: overlay-in 120ms ease;
 }
 
+// Modal : navigation latérale + contenu, hauteur fixe (pas de saut entre sections).
 .panel {
-  width: min(440px, 100%);
+  display: flex;
+  width: min(640px, 100%);
+  height: min(440px, 100%);
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -19,19 +23,99 @@
   animation: panel-in 160ms ease;
 }
 
-.panel__header {
+// --- Navigation latérale ---
+
+.panel__nav {
+  display: flex;
+  flex-direction: column;
+  width: 168px;
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-xs) var(--space-sm);
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+}
+
+.panel__brand {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-md) var(--space-lg) var(--space-sm);
+  padding: 0 var(--space-xs);
+  margin-bottom: var(--space-md);
+  font-size: 13px;
+  font-weight: 700;
+
+  app-icon {
+    color: var(--accent);
+  }
 }
 
-.panel__header-icon {
-  color: var(--accent);
+.panel__nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.panel__title {
+.panel__nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 7px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  app-icon {
+    color: var(--text-faint);
+  }
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  &--active {
+    background: color-mix(in srgb, var(--accent-solid) 10%, transparent);
+    color: var(--accent);
+
+    app-icon {
+      color: var(--accent);
+    }
+  }
+}
+
+.panel__nav-version {
+  margin-top: auto;
+  padding: 0 var(--space-xs);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+// --- Contenu ---
+
+.panel__content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  min-width: 0;
+}
+
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: var(--space-md) var(--space-lg) 0;
+}
+
+.panel__head-title {
   font-size: 15px;
 }
 
@@ -51,66 +135,79 @@
   }
 }
 
-.panel__tabs {
-  display: flex;
-  gap: 2px;
-  padding: 0 var(--space-md);
-  border-bottom: 1px solid var(--border);
-}
-
-.panel__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: -1px;
-  padding: 8px 12px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--text);
-  }
-
-  &--active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-}
-
 .panel__body {
-  min-height: 180px;
-  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2xs) var(--space-lg) var(--space-lg);
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-// Espace entre le toggle « fichiers cachés » et le champ éditeur.
-.panel__body app-toggle + app-text-field {
-  display: block;
-  margin-top: var(--space-md);
-}
+// --- Lignes de réglage ---
 
-.panel__group-title {
-  margin-bottom: var(--space-xs);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
 
   & + & {
-    margin-top: var(--space-md);
+    border-top: 1px solid var(--border);
+  }
+
+  app-toggle,
+  app-segmented-control,
+  .setting__minutes {
+    flex-shrink: 0;
   }
 }
 
+// Variante empilée : le contrôle passe sous le texte (thèmes, champ large).
+.setting--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+
+  app-text-field {
+    display: block;
+  }
+}
+
+.setting__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.setting__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setting__desc {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.setting__seg {
+  width: 200px;
+}
+
+.setting__minutes {
+  width: 88px;
+}
+
+// Grille de thèmes (4 colonnes dans la modal large).
 .panel__themes {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--space-xs);
-  margin-bottom: var(--space-md);
 }
 
 .panel__theme {
@@ -118,12 +215,12 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: var(--space-sm);
+  padding: var(--space-sm) var(--space-2xs);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -142,36 +239,31 @@
   }
 }
 
-.panel__segmented {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+// --- Section Mises à jour ---
+
+.panel__version {
+  font-size: 12.5px;
 }
 
-.panel__segment {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 10px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
+.panel__update-status {
+  padding: var(--space-xs) 0;
   font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
+  color: var(--text-muted);
+}
 
-  &:hover {
-    color: var(--text);
-  }
+.panel__update-error {
+  padding: var(--space-2xs) var(--space-xs);
+  margin: var(--space-xs) 0;
+  font-size: 12px;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
 
-  &--active {
-    background: var(--surface-active);
-    color: var(--accent);
-  }
+.panel__check {
+  display: inline-flex;
+  margin-top: var(--space-xs);
 }
 
 @keyframes overlay-in {
@@ -185,27 +277,4 @@
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
-}
-
-// Onglet Mises à jour.
-.panel__version {
-  font-size: 13px;
-  color: var(--text);
-  margin-bottom: var(--space-xs);
-}
-
-.panel__update-status {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  margin-bottom: var(--space-xs);
-}
-
-.panel__update-error {
-  padding: var(--space-2xs) var(--space-xs);
-  margin-bottom: var(--space-xs);
-  font-size: 12px;
-  color: var(--danger);
-  background: var(--danger-bg);
-  border-radius: var(--radius-sm);
-  word-break: break-word;
 }

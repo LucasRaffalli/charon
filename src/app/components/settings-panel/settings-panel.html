@@ -7,149 +7,189 @@
       aria-label="Réglages"
       (click)="$event.stopPropagation()"
     >
-      <header class="panel__header">
-        <app-icon class="panel__header-icon" name="settings" [size]="16" />
-        <h2 class="panel__title">Réglages</h2>
-        <button type="button" class="panel__close" aria-label="Fermer" (click)="close()">
-          <app-icon name="close" [size]="16" />
-        </button>
-      </header>
+      <!-- Navigation latérale -->
+      <aside class="panel__nav">
+        <h2 class="panel__brand">
+          <app-icon name="settings" [size]="14" />
+          Réglages
+        </h2>
 
-      <nav class="panel__tabs" role="tablist">
-        @for (tab of tabs; track tab.id) {
-          <button
-            type="button"
-            role="tab"
-            class="panel__tab"
-            [class.panel__tab--active]="activeTab() === tab.id"
-            [attr.aria-selected]="activeTab() === tab.id"
-            (click)="activeTab.set(tab.id)"
-          >
-            <app-icon [name]="tab.icon" [size]="14" />
-            {{ tab.label }}
+        <nav class="panel__nav-list" role="tablist">
+          @for (tab of tabs; track tab.id) {
+            <button
+              type="button"
+              role="tab"
+              class="panel__nav-item"
+              [class.panel__nav-item--active]="activeTab() === tab.id"
+              [attr.aria-selected]="activeTab() === tab.id"
+              (click)="activeTab.set(tab.id)"
+            >
+              <app-icon [name]="tab.icon" [size]="15" />
+              {{ tab.label }}
+            </button>
+          }
+        </nav>
+
+        <span class="panel__nav-version data">v.{{ updater.currentVersion() }}</span>
+      </aside>
+
+      <!-- Contenu de la section -->
+      <div class="panel__content">
+        <header class="panel__head">
+          <h3 class="panel__head-title">{{ activeLabel() }}</h3>
+          <button type="button" class="panel__close" aria-label="Fermer" (click)="close()">
+            <app-icon name="close" [size]="16" />
           </button>
-        }
-      </nav>
+        </header>
 
-      <div class="panel__body" role="tabpanel">
-        @switch (activeTab()) {
-          @case ('appearance') {
-            <h3 class="panel__group-title">Thème</h3>
-            <div class="panel__themes">
-              @for (option of themeOptions; track option.value) {
-                <button
-                  type="button"
-                  class="panel__theme"
-                  [class.panel__theme--active]="themeService.theme() === option.value"
-                  (click)="themeService.select(option.value)"
-                >
-                  <app-icon [name]="option.icon" [size]="18" />
-                  <span>{{ option.label }}</span>
-                </button>
-              }
-            </div>
-
-            <h3 class="panel__group-title">Disposition</h3>
-            <div class="panel__segmented">
-              @for (layout of layouts; track layout.value) {
-                <button
-                  type="button"
-                  class="panel__segment"
-                  [class.panel__segment--active]="settings.layout() === layout.value"
-                  (click)="settings.update({ layout: layout.value })"
-                >
-                  <app-icon [name]="layout.icon" [size]="14" />
-                  {{ layout.label }}
-                </button>
-              }
-            </div>
-
-            <h3 class="panel__group-title">Fond</h3>
-            <app-toggle
-              label="Logo Charon en filigrane"
-              [checked]="settings.logoBackground()"
-              (checkedChange)="settings.update({ logoBackground: $event })"
-            />
-          }
-          @case ('files') {
-            <app-toggle
-              label="Afficher les fichiers cachés"
-              [checked]="settings.showHidden()"
-              (checkedChange)="settings.update({ showHidden: $event })"
-            />
-
-            <app-text-field
-              label="Éditeur pour l'édition distante"
-              name="editor-app"
-              placeholder="Visual Studio Code"
-              hint="Nom de l'application (ex. Visual Studio Code, Sublime Text). Vide = éditeur par défaut du système."
-              [value]="settings.editorApp()"
-              (valueChange)="settings.update({ editorApp: $event })"
-            />
-          }
-          @case ('connection') {
-            <app-text-field
-              label="Fermeture après inactivité (minutes)"
-              name="idle-minutes"
-              type="number"
-              hint="Une session inutilisée est fermée passé ce délai. 0 = ne jamais fermer."
-              [value]="'' + settings.idleMinutes()"
-              (valueChange)="setIdleMinutes($event)"
-            />
-          }
-          @case ('updates') {
-            <p class="panel__version">
-              Version installée : <strong>{{ updater.currentVersion() }}</strong>
-            </p>
-
-            @switch (updater.status().kind) {
-              @case ('checking') {
-                <p class="panel__update-status">Vérification en cours…</p>
-              }
-              @case ('upToDate') {
-                <p class="panel__update-status">Charon est à jour.</p>
-              }
-              @case ('available') {
-                <p class="panel__update-status">
-                  Nouvelle version disponible — l'installation vérifie la signature
-                  avant d'appliquer quoi que ce soit.
-                </p>
-                <app-button (click)="updater.install()">Installer et redémarrer</app-button>
-              }
-              @case ('downloading') {
-                <p class="panel__update-status">
-                  Téléchargement…
-                  @if (updater.status(); as status) {
-                    @if (status.kind === 'downloading' && status.total > 0) {
-                      {{ downloadPercent(status.transferred, status.total) }} %
-                    }
+        <div class="panel__body" role="tabpanel">
+          @switch (activeTab()) {
+            @case ('appearance') {
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">Thème</span>
+                </div>
+                <div class="panel__themes">
+                  @for (option of themeOptions; track option.value) {
+                    <button
+                      type="button"
+                      class="panel__theme"
+                      [class.panel__theme--active]="themeService.theme() === option.value"
+                      (click)="themeService.select(option.value)"
+                    >
+                      <app-icon [name]="option.icon" [size]="17" />
+                      <span>{{ option.label }}</span>
+                    </button>
                   }
-                </p>
-              }
-              @case ('ready') {
-                <p class="panel__update-status">Installée — redémarrage…</p>
-              }
-              @case ('error') {
-                @if (updater.status(); as status) {
-                  @if (status.kind === 'error') {
-                    <p class="panel__update-error">{{ status.message }}</p>
+                </div>
+              </div>
+
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Disposition</span>
+                  <span class="setting__desc">Agencement des panneaux de l'explorateur.</span>
+                </div>
+                <app-segmented-control
+                  class="setting__seg"
+                  ariaLabel="Disposition"
+                  [options]="layoutOptions"
+                  [value]="settings.layout()"
+                  (valueChange)="setLayout($event)"
+                />
+              </div>
+
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Filigrane</span>
+                  <span class="setting__desc">Logo Charon en fond, une fois connecté.</span>
+                </div>
+                <app-toggle
+                  [checked]="settings.logoBackground()"
+                  (checkedChange)="settings.update({ logoBackground: $event })"
+                />
+              </div>
+            }
+            @case ('files') {
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Fichiers cachés</span>
+                  <span class="setting__desc">Afficher les fichiers commençant par un point.</span>
+                </div>
+                <app-toggle
+                  [checked]="settings.showHidden()"
+                  (checkedChange)="settings.update({ showHidden: $event })"
+                />
+              </div>
+
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">Éditeur externe</span>
+                  <span class="setting__desc">
+                    Application pour « Éditer (éditeur système) ». Vide = défaut du système.
+                  </span>
+                </div>
+                <app-text-field
+                  name="editor-app"
+                  placeholder="Visual Studio Code"
+                  [value]="settings.editorApp()"
+                  (valueChange)="settings.update({ editorApp: $event })"
+                />
+              </div>
+            }
+            @case ('connection') {
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Fermeture après inactivité</span>
+                  <span class="setting__desc">
+                    Minutes avant fermeture d'une session inutilisée. 0 = jamais.
+                  </span>
+                </div>
+                <app-text-field
+                  class="setting__minutes"
+                  name="idle-minutes"
+                  type="number"
+                  [value]="'' + settings.idleMinutes()"
+                  (valueChange)="setIdleMinutes($event)"
+                />
+              </div>
+            }
+            @case ('updates') {
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Version installée</span>
+                </div>
+                <span class="panel__version data">{{ updater.currentVersion() }}</span>
+              </div>
+
+              @switch (updater.status().kind) {
+                @case ('checking') {
+                  <p class="panel__update-status">Vérification en cours…</p>
+                }
+                @case ('upToDate') {
+                  <p class="panel__update-status">Charon est à jour.</p>
+                }
+                @case ('available') {
+                  <p class="panel__update-status">
+                    Nouvelle version disponible — l'installation vérifie la signature
+                    avant d'appliquer quoi que ce soit.
+                  </p>
+                  <app-button (click)="updater.install()">Installer et redémarrer</app-button>
+                }
+                @case ('downloading') {
+                  <p class="panel__update-status">
+                    Téléchargement…
+                    @if (updater.status(); as status) {
+                      @if (status.kind === 'downloading' && status.total > 0) {
+                        {{ downloadPercent(status.transferred, status.total) }} %
+                      }
+                    }
+                  </p>
+                }
+                @case ('ready') {
+                  <p class="panel__update-status">Installée — redémarrage…</p>
+                }
+                @case ('error') {
+                  @if (updater.status(); as status) {
+                    @if (status.kind === 'error') {
+                      <p class="panel__update-error">{{ status.message }}</p>
+                    }
                   }
                 }
               }
-            }
 
-            @if (
-              updater.status().kind === 'idle' ||
-              updater.status().kind === 'upToDate' ||
-              updater.status().kind === 'error'
-            ) {
-              <app-button variant="ghost" (click)="updater.checkForUpdates()">
-                <app-icon name="refresh" [size]="14" />
-                Vérifier les mises à jour
-              </app-button>
+              @if (
+                updater.status().kind === 'idle' ||
+                updater.status().kind === 'upToDate' ||
+                updater.status().kind === 'error'
+              ) {
+                <app-button class="panel__check" variant="ghost" (click)="updater.checkForUpdates()">
+                  <app-icon name="refresh" [size]="14" />
+                  Vérifier les mises à jour
+                </app-button>
+              }
             }
           }
-        }
+        </div>
       </div>
     </section>
   </div>

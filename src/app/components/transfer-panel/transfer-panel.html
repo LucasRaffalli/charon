@@ -28,10 +28,12 @@
             </span>
             <span class="row__status">
               @if (transfer.status === 'active') {
-                {{ transfer.transferred | fileSize }}
-                @if (transfer.total > 0) {
-                  / {{ transfer.total | fileSize }}
-                }
+                <span class="data">
+                  {{ transfer.transferred | fileSize }}
+                  @if (transfer.total > 0) {
+                    / {{ transfer.total | fileSize }}
+                  }
+                </span>
               } @else {
                 {{ statusLabel(transfer) }}
               }

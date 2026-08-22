@@ -85,10 +85,12 @@ export class TerminalPane {
     };
   }
 
-  private async open(): Promise<void> {
+  /** Le shell a-t-il été démarré (une seule fois, quand le conteneur est dimensionné) ? */
+  private started = false;
+
+  private open(): void {
     const element = this.host()?.nativeElement;
-    const connectionId = this.sftp.connectionId();
-    if (!element || !connectionId || this.sftp.protocol() !== 'sftp') {
+    if (!element || !this.sftp.connectionId() || this.sftp.protocol() !== 'sftp') {
       return;
     }
 
@@ -100,10 +102,49 @@ export class TerminalPane {
     });
     terminal.loadAddon(this.fit);
     terminal.open(element);
-    this.fit.fit();
     this.terminal = terminal;
     this.applyTheme();
 
+    // Le shell ne démarre qu'une fois le conteneur réellement dimensionné :
+    // xterm ouvert dans un conteneur 0×0 (onglet pas encore visible) produit
+    // un PTY invalide → terminal vide. Le ResizeObserver pilote le démarrage
+    // puis les redimensionnements. Il émet un premier callback à l'observation.
+    const observer = new ResizeObserver(() => {
+      if (element.offsetHeight === 0 || element.offsetWidth === 0) {
+        return; // masqué / pas encore dimensionné
+      }
+      if (!this.started) {
+        this.started = true;
+        void this.startShell(terminal);
+      } else {
+        this.fit.fit();
+        const id = this.terminalId;
+        if (id) {
+          void invoke('shell_resize', {
+            terminalId: id,
+            cols: terminal.cols,
+            rows: terminal.rows,
+          }).catch(() => undefined);
+        }
+      }
+    });
+    observer.observe(element);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+
+    // Cas où l'élément est déjà dimensionné au montage.
+    if (!this.started && element.offsetHeight > 0 && element.offsetWidth > 0) {
+      this.started = true;
+      void this.startShell(terminal);
+    }
+  }
+
+  /** Ouvre le shell SSH une fois le conteneur dimensionné, et branche l'I/O. */
+  private async startShell(terminal: Terminal): Promise<void> {
+    const connectionId = this.sftp.connectionId();
+    if (!connectionId) {
+      return;
+    }
+    this.fit.fit();
     try {
       const id = await invoke<string>('shell_open', {
         connectionId,
@@ -137,24 +178,6 @@ export class TerminalPane {
       unlistenData();
       unlistenClosed();
     });
-
-    // Suit la taille du conteneur (redimensionnement fenêtre/panneau).
-    const observer = new ResizeObserver(() => {
-      if (element.offsetHeight === 0) {
-        return; // onglet masqué
-      }
-      this.fit.fit();
-      const id = this.terminalId;
-      if (id) {
-        void invoke('shell_resize', {
-          terminalId: id,
-          cols: terminal.cols,
-          rows: terminal.rows,
-        }).catch(() => undefined);
-      }
-    });
-    observer.observe(element);
-    this.destroyRef.onDestroy(() => observer.disconnect());
 
     terminal.focus();
   }

@@ -25,6 +25,16 @@ export class LocalFsService extends FileBrowserState {
     }
   }
 
+  protected async createFile(path: string): Promise<void> {
+    try {
+      await invoke('local_create_file', { path });
+      this.activity.log('mkdir', 'local', path, 'fichier');
+    } catch (error) {
+      this.activity.log('mkdir', 'local', path, String(error), false);
+      throw error;
+    }
+  }
+
   /** Fichier : suppression simple. Dossier : suppression récursive
    *  (la confirmation renforcée est gérée par l'UI en amont). */
   protected async removeEntry(path: string, isDir: boolean): Promise<void> {

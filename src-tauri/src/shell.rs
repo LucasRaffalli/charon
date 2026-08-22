@@ -38,6 +38,145 @@ fn shell_quote(path: &str) -> String {
     format!("'{}'", path.replace('\'', r"'\''"))
 }
 
+/// Erreur balisée : l'utilisateur a annulé l'invite de mot de passe.
+const SUDO_CANCELLED: &str = "CHARON_SUDO_CANCELLED";
+
+/// Demande le mot de passe administrateur via une invite macOS **native**
+/// (osascript). Le mot de passe est saisi hors WebView (hors de portée d'un
+/// XSS), renvoyé uniquement au backend. `detail` décrit l'opération pour que
+/// l'utilisateur puisse refuser toute action inattendue.
+async fn prompt_admin_password(detail: &str) -> Result<String, String> {
+    let message = format!(
+        "Cette action nécessite des droits administrateur (sudo) sur le serveur.\n\n{detail}\n\nMot de passe :"
+    );
+    // Échappement de chaîne AppleScript (les arguments -e ne passent pas par
+    // un shell : pas d'injection possible). Backslash d'abord, puis guillemets,
+    // puis les retours à la ligne — une chaîne AppleScript n'accepte pas de
+    // saut de ligne brut, il faut la séquence littérale `\n` (interprétée).
+    let esc = message
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n");
+    let script = format!(
+        "set r to display dialog \"{esc}\" with title \"Charon\" \
+         default answer \"\" with hidden answer with icon caution \
+         buttons {{\"Annuler\", \"Autoriser\"}} default button \"Autoriser\" \
+         cancel button \"Annuler\"\ntext returned of r"
+    );
+    let output = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("/usr/bin/osascript")
+            .arg("-e")
+            .arg(script)
+            .output()
+    })
+    .await
+    .map_err(|e| format!("Invite système impossible : {e}"))?
+    .map_err(|e| format!("Invite système impossible : {e}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let low = stderr.to_lowercase();
+        // Annulation utilisateur (bouton Annuler / Échap) → erreur -128.
+        if stderr.contains("-128") || low.contains("canceled") || low.contains("cancelled") {
+            return Err(SUDO_CANCELLED.to_string());
+        }
+        // Toute autre défaillance osascript remonte (plus de silence).
+        return Err(format!("Invite système impossible : {}", stderr.trim()));
+    }
+    let mut password = String::from_utf8_lossy(&output.stdout).into_owned();
+    while password.ends_with('\n') || password.ends_with('\r') {
+        password.pop();
+    }
+    Ok(password)
+}
+
+/// Réessaie une opération de fichier **échouée pour permission** en l'exécutant
+/// avec `sudo` sur la session SSH. SFTP uniquement.
+///
+/// Sécurité :
+/// - l'`op` est **whitelistée** (mkdir / rm fichier / rm -rf dossier / mv) —
+///   jamais une commande brute venue de la WebView ;
+/// - les chemins sont échappés en quotes simples POSIX (`shell_quote`) ;
+/// - `sudo -S -k` lit le mot de passe sur stdin et **réinvalide** le cache sudo
+///   (chaque escalade re-demande le mot de passe) ;
+/// - le mot de passe transite par stdin, n'est ni stocké ni journalisé.
+/// Garde-fou de chemin pour une opération sudo : chemin absolu, jamais la
+/// racine seule, aucun composant `..`. Défense en profondeur — `sftp_sudo`
+/// est invocable directement depuis la WebView, on ne se repose pas sur l'UI
+/// pour empêcher un `rm -rf /` en root.
+fn ensure_sudo_path(path: &str) -> Result<(), String> {
+    if !path.starts_with('/')
+        || path == "/"
+        || path.split('/').any(|component| component == "..")
+    {
+        return Err(format!("Chemin refusé pour une opération privilégiée : {path}"));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn sftp_sudo(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    op: String,
+    path: String,
+    path2: Option<String>,
+) -> Result<(), String> {
+    ensure_sudo_path(&path)?;
+    // Commande à exécuter + description humaine affichée dans l'invite native.
+    let (target, detail) = match op.as_str() {
+        "mkdir" => (
+            format!("mkdir -p -- {}", shell_quote(&path)),
+            format!("Créer le dossier :\n{path}"),
+        ),
+        "touch" => (
+            format!("touch -- {}", shell_quote(&path)),
+            format!("Créer le fichier :\n{path}"),
+        ),
+        "rm_file" => (
+            format!("rm -f -- {}", shell_quote(&path)),
+            format!("Supprimer le fichier :\n{path}"),
+        ),
+        "rm_dir" => (
+            format!("rm -rf -- {}", shell_quote(&path)),
+            format!("Supprimer le dossier et tout son contenu :\n{path}"),
+        ),
+        "rename" => {
+            let to = path2.ok_or("Chemin de destination manquant.")?;
+            ensure_sudo_path(&to)?;
+            (
+                format!("mv -f -- {} {}", shell_quote(&path), shell_quote(&to)),
+                format!("Renommer :\n{path}\n→ {to}"),
+            )
+        }
+        _ => return Err("Opération non autorisée.".into()),
+    };
+
+    let conn = get_connection(&pool, &connection_id).await?;
+    // Mot de passe saisi hors WebView (invite native), jamais transmis par l'IPC.
+    let password = prompt_admin_password(&detail).await?;
+
+    // -S : mot de passe sur stdin ; -k : ignore le cache (re-demande à chaque
+    // fois) ; -p '' : pas d'invite parasite dans la sortie capturée.
+    let command = format!("sudo -S -k -p '' -- {target}");
+    let stdin = format!("{password}\n");
+    // Timeout : un serveur qui garde le canal ouvert ne bloque pas une tâche.
+    let (code, output) = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        conn.exec_capture(command, stdin.as_bytes()),
+    )
+    .await
+    .map_err(|_| "Délai dépassé pour l'opération privilégiée.".to_string())??;
+    if code == 0 {
+        return Ok(());
+    }
+    let message = output.trim();
+    Err(if message.is_empty() {
+        format!("Échec de l'opération sudo (code {code}).")
+    } else {
+        message.to_string()
+    })
+}
+
 /// Payload des events `term:data` (sortie du shell, base64) et `term:closed`.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

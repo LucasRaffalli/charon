@@ -18,6 +18,12 @@
   animation: menu-in 100ms ease;
 }
 
+.menu__divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
 .menu__item {
   display: flex;
   align-items: center;

@@ -5,21 +5,25 @@
     (contextmenu)="$event.preventDefault(); menu.close()"
   >
     <ul class="menu" role="menu" [style.left.px]="x(state)" [style.top.px]="y(state)">
-      @for (item of state.items; track item.label) {
-        <li role="none">
-          <button
-            type="button"
-            role="menuitem"
-            class="menu__item"
-            [class.menu__item--danger]="item.danger"
-            (click)="run(item)"
-          >
-            @if (item.icon; as icon) {
-              <app-icon [name]="icon" [size]="14" />
-            }
-            {{ item.label }}
-          </button>
-        </li>
+      @for (item of state.items; track $index) {
+        @if (item.divider) {
+          <li role="separator" class="menu__divider"></li>
+        } @else {
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              class="menu__item"
+              [class.menu__item--danger]="item.danger"
+              (click)="run(item)"
+            >
+              @if (item.icon; as icon) {
+                <app-icon [name]="icon" [size]="14" />
+              }
+              {{ item.label }}
+            </button>
+          </li>
+        }
       }
     </ul>
   </div>

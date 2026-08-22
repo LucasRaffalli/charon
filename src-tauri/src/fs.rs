@@ -91,6 +91,19 @@ pub fn local_mkdir(path: String) -> Result<(), String> {
     std::fs::create_dir(&path).map_err(|e| format!("Création de {path} impossible : {e}"))
 }
 
+/// Crée un fichier vide localement. `create_new` échoue si l'entrée existe
+/// déjà (atomique, pas d'écrasement).
+#[tauri::command]
+pub fn local_create_file(path: String) -> Result<(), String> {
+    ensure_no_parent_dir(&path)?;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map(|_| ())
+        .map_err(|e| format!("Création de {path} impossible : {e}"))
+}
+
 /// Supprime un fichier local, ou un dossier vide.
 #[tauri::command]
 pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {

@@ -26,7 +26,7 @@ export class ContextMenu {
 
   protected run(item: ContextMenuItem): void {
     this.menu.close();
-    item.action();
+    item.action?.();
   }
 
   protected x(state: ContextMenuState): number {

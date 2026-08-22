@@ -1,4 +1,5 @@
 use russh::client;
+use russh::ChannelMsg;
 use russh::keys::known_hosts::learn_known_hosts;
 use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHashAlg};
 use russh_sftp::client::SftpSession;
@@ -52,6 +53,54 @@ impl ActiveConnection {
     ) -> Result<russh::Channel<client::Msg>, russh::Error> {
         self.touch();
         self._handle.channel_open_session().await
+    }
+
+    /// Exécute une commande via un canal exec, injecte `stdin` puis EOF, et
+    /// capture `(code de sortie, sortie fusionnée stdout+stderr)`. Support du
+    /// sudo : le mot de passe est écrit sur stdin (`sudo -S`), consommé par la
+    /// commande distante, et n'est jamais conservé côté Charon.
+    pub(crate) async fn exec_capture(
+        &self,
+        command: String,
+        stdin: &[u8],
+    ) -> Result<(u32, String), String> {
+        self.touch();
+        let channel = self
+            ._handle
+            .channel_open_session()
+            .await
+            .map_err(|e| format!("Ouverture du canal impossible : {e}"))?;
+        channel
+            .exec(true, command)
+            .await
+            .map_err(|e| format!("Exécution impossible : {e}"))?;
+
+        let (mut read, write) = channel.split();
+        if !stdin.is_empty() {
+            write
+                .data_bytes(stdin.to_vec())
+                .await
+                .map_err(|e| format!("Écriture stdin impossible : {e}"))?;
+        }
+        let _ = write.eof().await;
+
+        let mut output = Vec::new();
+        let mut code: u32 = 0;
+        loop {
+            match read.wait().await {
+                Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
+                    output.extend_from_slice(&data);
+                    // Garde-fou mémoire : une sortie hostile ne gonfle pas sans fin.
+                    if output.len() > 64 * 1024 {
+                        output.truncate(64 * 1024);
+                    }
+                }
+                Some(ChannelMsg::ExitStatus { exit_status }) => code = exit_status,
+                Some(ChannelMsg::Close) | None => break,
+                Some(_) => {}
+            }
+        }
+        Ok((code, String::from_utf8_lossy(&output).into_owned()))
     }
 
     /// Lit un fichier distant en entier (édition distante — fichiers texte).
@@ -600,6 +649,20 @@ pub async fn sftp_mkdir(
         .create_dir(&path)
         .await
         .map_err(|e| format!("Création de {path} impossible : {e}"))
+}
+
+/// Crée un fichier vide sur le serveur. Refuse d'écraser une entrée existante.
+#[tauri::command]
+pub async fn sftp_create_file(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+) -> Result<(), String> {
+    let conn = get_connection(&pool, &connection_id).await?;
+    if conn.sftp.metadata(&path).await.is_ok() {
+        return Err(format!("« {path} » existe déjà."));
+    }
+    conn.write_file(&path, &[]).await
 }
 
 /// Supprime un fichier, ou un dossier vide.

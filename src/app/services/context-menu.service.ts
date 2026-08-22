@@ -6,7 +6,9 @@ export interface ContextMenuItem {
   label: string;
   icon?: IconName;
   danger?: boolean;
-  action: () => void;
+  /** Ligne de séparation (les autres champs sont ignorés). */
+  divider?: boolean;
+  action?: () => void;
 }
 
 export interface ContextMenuState {

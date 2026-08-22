@@ -13,6 +13,9 @@ import {
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 
+/** Opérations qu'un `sudo` peut réexécuter (whitelist, côté backend aussi). */
+type SudoOp = 'mkdir' | 'touch' | 'rm_file' | 'rm_dir' | 'rename';
+
 /** Balise émise par le backend quand la clé d'un hôte inconnu attend confirmation. */
 const UNKNOWN_KEY_TAG = 'CHARON_UNKNOWN_KEY:';
 
@@ -79,10 +82,26 @@ export class SftpService extends FileBrowserState {
   protected async createDir(path: string): Promise<void> {
     this.guardWritable('mkdir', path);
     try {
-      await this.withConnection((id) =>
-        invoke(this.commandFor('mkdir'), { connectionId: id, path }),
+      await this.escalateOnDenied('mkdir', path, undefined, () =>
+        this.withConnection((id) => invoke(this.commandFor('mkdir'), { connectionId: id, path })),
       );
       this.activity.log('mkdir', 'remote', path);
+    } catch (error) {
+      this.activity.log('mkdir', 'remote', path, String(error), false);
+      throw error;
+    }
+  }
+
+  protected async createFile(path: string): Promise<void> {
+    this.guardWritable('création de fichier', path);
+    if (this._protocol() !== 'sftp') {
+      throw 'Création de fichier disponible en SFTP uniquement.';
+    }
+    try {
+      await this.escalateOnDenied('touch', path, undefined, () =>
+        this.withConnection((id) => invoke('sftp_create_file', { connectionId: id, path })),
+      );
+      this.activity.log('mkdir', 'remote', path, 'fichier');
     } catch (error) {
       this.activity.log('mkdir', 'remote', path, String(error), false);
       throw error;
@@ -94,10 +113,12 @@ export class SftpService extends FileBrowserState {
   protected async removeEntry(path: string, isDir: boolean): Promise<void> {
     this.guardWritable('suppression', path);
     try {
-      await this.withConnection((id) =>
-        isDir
-          ? invoke(this.commandFor('remove_all'), { connectionId: id, path })
-          : invoke(this.commandFor('remove'), { connectionId: id, path, isDir }),
+      await this.escalateOnDenied(isDir ? 'rm_dir' : 'rm_file', path, undefined, () =>
+        this.withConnection((id) =>
+          isDir
+            ? invoke(this.commandFor('remove_all'), { connectionId: id, path })
+            : invoke(this.commandFor('remove'), { connectionId: id, path, isDir }),
+        ),
       );
       this.activity.log('remove', 'remote', path, isDir ? 'récursif' : null);
     } catch (error) {
@@ -109,8 +130,8 @@ export class SftpService extends FileBrowserState {
   protected async renameEntry(from: string, to: string): Promise<void> {
     this.guardWritable('renommage', from);
     try {
-      await this.withConnection((id) =>
-        invoke(this.commandFor('rename'), { connectionId: id, from, to }),
+      await this.escalateOnDenied('rename', from, to, () =>
+        this.withConnection((id) => invoke(this.commandFor('rename'), { connectionId: id, from, to })),
       );
       this.activity.log('rename', 'remote', from, `→ ${to}`);
     } catch (error) {
@@ -219,5 +240,50 @@ export class SftpService extends FileBrowserState {
   private withConnection<T>(operation: (id: string) => Promise<T>): Promise<T> {
     const id = this._connectionId();
     return id ? operation(id) : Promise.reject('Aucune connexion active');
+  }
+
+  /** Une erreur ressemble-t-elle à un refus de permission ? */
+  private isPermissionDenied(error: unknown): boolean {
+    const message = String(error).toLowerCase();
+    return (
+      message.includes('permission') ||
+      message.includes('denied') ||
+      message.includes('not permitted')
+    );
+  }
+
+  /**
+   * Exécute `run` ; si ça échoue **pour permission** (SFTP uniquement), rejoue
+   * l'opération whitelistée via `sudo`. Le mot de passe est demandé par une
+   * invite macOS **native** côté backend — il ne transite jamais par la
+   * WebView. Annulation de l'invite = on remonte l'erreur d'origine.
+   */
+  private async escalateOnDenied(
+    op: SudoOp,
+    path: string,
+    path2: string | undefined,
+    run: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await run();
+    } catch (error) {
+      if (this._protocol() !== 'sftp' || !this.isPermissionDenied(error)) {
+        throw error;
+      }
+      try {
+        await this.withConnection((id) =>
+          invoke('sftp_sudo', { connectionId: id, op, path, path2: path2 ?? null }),
+        );
+        const action =
+          op === 'mkdir' || op === 'touch' ? 'mkdir' : op === 'rename' ? 'rename' : 'remove';
+        this.activity.log(action, 'remote', path, 'sudo');
+      } catch (sudoError) {
+        // Invite annulée : on conserve l'erreur de permission d'origine.
+        if (String(sudoError).includes('CHARON_SUDO_CANCELLED')) {
+          throw error;
+        }
+        throw sudoError;
+      }
+    }
   }
 }

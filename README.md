@@ -103,7 +103,7 @@ flowchart TB
         ui["UI uniquement : état d'affichage<br/>CSP stricte · pas d'API Tauri globale · aucun secret"]
     end
 
-    ui =="IPC Tauri — 45 commandes explicitement<br/>enregistrées, rien d'autre n'est invocable"==> backend
+    ui =="IPC Tauri — 48 commandes explicitement<br/>enregistrées, rien d'autre n'est invocable"==> backend
 
     subgraph backend["Backend Rust — Tauri v2"]
         direction LR
@@ -191,10 +191,16 @@ aucune application ne peut s'en protéger.
   offerte à un éventuel code injecté (réactivée en dev par un overlay).
 - **Pas d'`innerHTML`** : interpolation Angular partout — un nom de fichier
   hostile s'affiche, il ne s'exécute pas.
-- **Surface IPC minimale** : 45 commandes explicitement enregistrées, rien
+- **Surface IPC minimale** : 48 commandes explicitement enregistrées, rien
   d'autre. Pas de shell arbitraire : le terminal intégré et le `tail -F`
   passent par des canaux SSH dédiés, les chemins sont échappés en quotes
   simples POSIX (`shell_quote`) — rien ne peut s'en échapper.
+- **Escalade sudo hors WebView** : quand le serveur refuse une opération pour
+  permission, Charon peut la rejouer en `sudo`. Le mot de passe admin est
+  saisi dans une **invite macOS native** (jamais dans la WebView, jamais sur
+  l'IPC — hors de portée d'un XSS), l'invite affiche l'opération exacte, et
+  seules 4 opérations whitelistées (mkdir / rm / rm -rf / mv) sont possibles,
+  sur un chemin absolu validé côté backend.
 
 ### Système de fichiers
 

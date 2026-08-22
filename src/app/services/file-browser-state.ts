@@ -30,6 +30,7 @@ export abstract class FileBrowserState {
   protected abstract fetchEntries(path: string): Promise<FileEntryDto[]>;
 
   protected abstract createDir(path: string): Promise<void>;
+  protected abstract createFile(path: string): Promise<void>;
   protected abstract removeEntry(path: string, isDir: boolean): Promise<void>;
   protected abstract renameEntry(from: string, to: string): Promise<void>;
 
@@ -60,6 +61,13 @@ export abstract class FileBrowserState {
 
   async mkdir(name: string): Promise<boolean> {
     if (!(await this.runVoid(() => this.createDir(this.pathTo(name))))) {
+      return false;
+    }
+    return this.refresh();
+  }
+
+  async mkfile(name: string): Promise<boolean> {
+    if (!(await this.runVoid(() => this.createFile(this.pathTo(name))))) {
       return false;
     }
     return this.refresh();

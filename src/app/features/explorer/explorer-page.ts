@@ -214,6 +214,8 @@ export class ExplorerPage {
     if (entry.isDir) {
       void this.sftp.openDir(entry.name);
     } else {
+      // Rouvre le panneau Aperçu s'il était fermé (ou le focalise).
+      this.dock.openPanel('preview');
       void this.preview.openFile(this.sftp.pathTo(entry.name), entry.name);
     }
   }
@@ -279,12 +281,24 @@ export class ExplorerPage {
         action: () => void this.followLog(entry),
       });
     }
-    items.push({
-      label: 'Copier le chemin',
-      icon: 'copy',
-      action: () => this.copyPath(this.sftp.pathTo(entry.name)),
-    });
-    this.contextMenu.open(event, [...items, ...this.entryActions(this.sftp, entry)]);
+    items.push(
+      { divider: true, label: '' },
+      {
+        label: 'Copier le nom',
+        icon: 'copy',
+        action: () => this.copyPath(entry.name),
+      },
+      {
+        label: 'Copier le chemin',
+        icon: 'copy',
+        action: () => this.copyPath(this.sftp.pathTo(entry.name)),
+      },
+    );
+    const writes = this.entryActions(this.sftp, entry);
+    this.contextMenu.open(
+      event,
+      writes.length ? [...items, { divider: true, label: '' }, ...writes] : items,
+    );
   }
 
   /** Ouvre le suivi de log dans le panneau Logs (rouvert au besoin). */
@@ -299,23 +313,40 @@ export class ExplorerPage {
   }
 
   protected openServerAreaMenu(event: MouseEvent): void {
-    this.contextMenu.open(event, this.areaActions(this.sftp, 'Nouveau dossier sur le serveur'));
+    this.contextMenu.open(event, [
+      ...this.areaActions(this.sftp, 'sur le serveur'),
+      { divider: true, label: '' },
+      {
+        label: 'Copier le chemin courant',
+        icon: 'copy',
+        action: () => this.copyPath(this.sftp.currentPath()),
+      },
+    ]);
   }
 
   protected openLocalEntryMenu(event: MouseEvent, entry: FileEntry): void {
     const first: ContextMenuItem = entry.isDir
       ? { label: 'Ouvrir', icon: 'folder', action: () => void this.localFs.openDir(entry.name) }
       : { label: 'Envoyer vers le serveur', icon: 'upload', action: () => void this.upload(entry) };
-    const copy: ContextMenuItem = {
-      label: 'Copier le chemin',
-      icon: 'copy',
-      action: () => this.copyPath(this.localFs.pathTo(entry.name)),
-    };
-    this.contextMenu.open(event, [first, copy, ...this.entryActions(this.localFs, entry)]);
+    const copy: ContextMenuItem[] = [
+      { divider: true, label: '' },
+      { label: 'Copier le nom', icon: 'copy', action: () => this.copyPath(entry.name) },
+      {
+        label: 'Copier le chemin',
+        icon: 'copy',
+        action: () => this.copyPath(this.localFs.pathTo(entry.name)),
+      },
+    ];
+    const writes = this.entryActions(this.localFs, entry);
+    this.contextMenu.open(event, [
+      first,
+      ...copy,
+      ...(writes.length ? [{ divider: true, label: '' } as ContextMenuItem, ...writes] : []),
+    ]);
   }
 
   protected openLocalAreaMenu(event: MouseEvent): void {
-    this.contextMenu.open(event, this.areaActions(this.localFs, 'Nouveau dossier local'));
+    this.contextMenu.open(event, this.areaActions(this.localFs, 'local'));
   }
 
   private entryActions(browser: FileBrowserState, entry: FileEntry): ContextMenuItem[] {
@@ -334,7 +365,8 @@ export class ExplorerPage {
     ];
   }
 
-  private areaActions(browser: FileBrowserState, createTitle: string): ContextMenuItem[] {
+  /** `where` = « sur le serveur » / « local » (suffixe des titres de dialogue). */
+  private areaActions(browser: FileBrowserState, where: string): ContextMenuItem[] {
     const refresh: ContextMenuItem = {
       label: 'Actualiser',
       icon: 'refresh',
@@ -347,7 +379,12 @@ export class ExplorerPage {
       {
         label: 'Nouveau dossier…',
         icon: 'folder-plus',
-        action: () => void this.createDirIn(browser, createTitle),
+        action: () => void this.createDirIn(browser, `Nouveau dossier ${where}`),
+      },
+      {
+        label: 'Nouveau fichier…',
+        icon: 'file',
+        action: () => void this.createFileIn(browser, `Nouveau fichier ${where}`),
       },
       refresh,
     ];
@@ -421,6 +458,15 @@ export class ExplorerPage {
     )?.trim();
     if (name && isValidEntryName(name)) {
       await browser.mkdir(name);
+    }
+  }
+
+  private async createFileIn(browser: FileBrowserState, title: string): Promise<void> {
+    const name = (
+      await this.dialog.prompt({ title, placeholder: 'nom-du-fichier.txt', confirmLabel: 'Créer' })
+    )?.trim();
+    if (name && isValidEntryName(name)) {
+      await browser.mkfile(name);
     }
   }
 

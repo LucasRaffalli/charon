@@ -133,6 +133,78 @@
                 />
               </div>
             }
+            @case ('modules') {
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Dossier des modules</span>
+                  <span class="setting__desc">
+                    Installe un module en déposant son dossier ici, puis actualise.
+                  </span>
+                </div>
+                <app-button variant="ghost" (click)="modules.openFolder()">
+                  <app-icon name="folder" [size]="14" />
+                  Ouvrir
+                </app-button>
+              </div>
+
+              @if (modules.error(); as error) {
+                <p class="panel__update-error">{{ error }}</p>
+              }
+
+              @if (modules.modules().length > 0) {
+                <ul class="modules">
+                  @for (module of modules.modules(); track module.slug) {
+                    <li class="module" [class.module--invalid]="module.error">
+                      <div class="module__head">
+                        <div class="module__text">
+                          <span class="module__name">
+                            {{ module.name }}
+                            @if (module.version) {
+                              <span class="module__version data">v{{ module.version }}</span>
+                            }
+                          </span>
+                          @if (module.error) {
+                            <span class="module__desc module__desc--error">{{ module.error }}</span>
+                          } @else if (module.description) {
+                            <span class="module__desc">{{ module.description }}</span>
+                          }
+                        </div>
+
+                        @if (!module.error) {
+                          <app-toggle
+                            [ariaLabel]="'Activer ' + module.name"
+                            [checked]="module.enabled"
+                            (checkedChange)="toggleModule(module.slug, $event)"
+                          />
+                        }
+                      </div>
+
+                      @if (module.permissions.length > 0) {
+                        <div class="module__perms">
+                          @for (perm of module.permissions; track perm) {
+                            <span class="module__perm">{{ perm }}</span>
+                          }
+                        </div>
+                      }
+
+                      <button
+                        type="button"
+                        class="module__delete"
+                        title="Supprimer ce module"
+                        (click)="deleteModule(module.slug, module.name)"
+                      >
+                        <app-icon name="trash" [size]="13" />
+                        Supprimer
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="panel__update-status">
+                  Aucun module installé. Dépose un dossier de module dans le dossier ci-dessus.
+                </p>
+              }
+            }
             @case ('updates') {
               <div class="setting">
                 <div class="setting__text">

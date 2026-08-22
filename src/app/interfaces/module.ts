@@ -53,6 +53,23 @@ export interface ModuleManifest {
   contributes?: ModuleContributes;
 }
 
+/** Résumé d'un module pour la liste des réglages (renvoyé par `modules_list`). */
+export interface ModuleSummary {
+  /** Nom du dossier = identité fichier stable (activer/supprimer). */
+  slug: string;
+  id: string;
+  name: string;
+  version: string;
+  engine: string;
+  description?: string | null;
+  author?: string | null;
+  permissions: ModulePermission[];
+  enabled: boolean;
+  dir: string;
+  /** Renseigné si le manifeste est invalide (module non chargeable). */
+  error?: string | null;
+}
+
 /** État d'un module découvert côté hôte. */
 export interface ModuleRecord {
   manifest: ModuleManifest;

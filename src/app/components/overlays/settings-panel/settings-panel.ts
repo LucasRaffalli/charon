@@ -1,15 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/ui/button/button';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { Toggle } from '@app/components/ui/toggle/toggle';
+import { DialogService } from '@app/services/dialog.service';
 import { DockService } from '@app/services/dock.service';
+import { ModulesService } from '@app/services/modules.service';
 import { SettingsService } from '@app/services/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
 import { UpdaterService } from '@app/services/updater.service';
 
-type SettingsTab = 'appearance' | 'files' | 'connection' | 'updates';
+type SettingsTab = 'appearance' | 'files' | 'connection' | 'modules' | 'updates';
 
 interface TabOption {
   id: SettingsTab;
@@ -32,6 +34,8 @@ export class SettingsPanel {
   protected readonly themeService = inject(ThemeService);
   protected readonly updater = inject(UpdaterService);
   protected readonly dock = inject(DockService);
+  protected readonly modules = inject(ModulesService);
+  private readonly dialog = inject(DialogService);
 
   protected readonly activeTab = signal<SettingsTab>('appearance');
 
@@ -39,6 +43,7 @@ export class SettingsPanel {
     { id: 'appearance', icon: 'palette', label: 'Apparence' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
     { id: 'connection', icon: 'server', label: 'Connexion' },
+    { id: 'modules', icon: 'layout-grid', label: 'Modules' },
     { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
   ];
 
@@ -46,6 +51,35 @@ export class SettingsPanel {
   protected readonly activeLabel = computed(
     () => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '',
   );
+
+  constructor() {
+    // (Re)scanne les modules à l'ouverture de leur onglet.
+    effect(() => {
+      if (this.settings.panelOpen() && this.activeTab() === 'modules') {
+        void this.modules.refresh();
+      }
+    });
+  }
+
+  protected async toggleModule(slug: string, enabled: boolean): Promise<void> {
+    await this.modules.setEnabled(slug, enabled);
+  }
+
+  /** Supprime un module après confirmation renforcée (nom exact à retaper). */
+  protected async deleteModule(slug: string, name: string): Promise<void> {
+    const typed = (
+      await this.dialog.prompt({
+        title: `Supprimer le module « ${name} » ?`,
+        message: `Le dossier du module sera supprimé définitivement. Tape « ${name} » pour confirmer.`,
+        placeholder: name,
+        confirmLabel: 'Supprimer',
+        danger: true,
+      })
+    )?.trim();
+    if (typed === name) {
+      await this.modules.delete(slug);
+    }
+  }
 
   protected readonly themeOptions = THEME_OPTIONS;
 

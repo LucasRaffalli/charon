@@ -1,6 +1,7 @@
 mod edit;
 mod fs;
 mod ftp;
+mod modules;
 mod profiles;
 mod sftp;
 mod shell;
@@ -97,6 +98,10 @@ pub fn run() {
             profiles::profiles_list,
             profiles::profile_save,
             profiles::profile_delete,
+            modules::modules_list,
+            modules::module_set_enabled,
+            modules::modules_open_folder,
+            modules::module_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running charon");

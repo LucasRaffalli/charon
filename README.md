@@ -159,12 +159,17 @@ est vérifiée contre la **clé publique embarquée** dans l'application avant
 toute installation — un `latest.json` ou un binaire altéré sur le serveur est
 rejeté. La clé privée vit hors du dépôt (`~/.tauri/charon-updater.key`).
 
+Un build normal (`npm run tauri build`) **ne signe rien** et ne produit pas
+d'artefact de mise à jour — pas besoin de clé. La signature n'intervient
+qu'à la publication d'une release, via le script `release` (overlay
+`tauri.release.conf.json` qui réactive `createUpdaterArtifacts`).
+
 Publication d'une version :
 
 ```bash
 # 1. incrémenter "version" dans src-tauri/tauri.conf.json
-# 2. build signé
-TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/charon-updater.key npm run tauri build
+# 2. build signé (réactive la création d'artefacts de mise à jour)
+TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/charon-updater.key npm run release
 # 3. générer le manifeste
 scripts/make-latest-json.sh https://ton-vps.exemple/charon > latest.json
 # 4. téléverser latest.json + l'archive .app.tar.gz sur le VPS

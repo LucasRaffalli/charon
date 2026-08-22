@@ -192,9 +192,17 @@
   width: 56px;
   height: 56px;
   margin: 0 auto var(--space-sm);
-  border-radius: 50%;
+  border-radius: 22%; // carré arrondi (squircle), comme l'icône de l'app
   background: color-mix(in srgb, var(--accent-solid) 14%, transparent);
-  color: var(--accent);
+}
+
+// Marque Charon (SVG) teintée à l'accent, via masque.
+.connect__logo-mark {
+  width: 30px;
+  height: 30px;
+  background: var(--accent);
+  -webkit-mask: var(--charon-mark) no-repeat center / contain;
+  mask: var(--charon-mark) no-repeat center / contain;
 }
 
 .connect__title {

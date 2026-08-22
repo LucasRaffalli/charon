@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS: Settings = {
   bottomPanelOpen: true,
   bottomPanelTab: 'transfers',
   editorApp: '',
+  logoBackground: true,
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -33,6 +34,7 @@ export class SettingsService {
   readonly bottomPanelOpen = computed(() => this._settings().bottomPanelOpen);
   readonly bottomPanelTab = computed(() => this._settings().bottomPanelTab);
   readonly editorApp = computed(() => this._settings().editorApp);
+  readonly logoBackground = computed(() => this._settings().logoBackground);
 
   constructor() {
     effect(() => {

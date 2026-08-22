@@ -15,4 +15,6 @@ export interface Settings {
   bottomPanelTab: string;
   /** App d'ouverture pour l'édition distante (vide = défaut système). */
   editorApp: string;
+  /** Logo Charon en filigrane de fond quand on est connecté. */
+  logoBackground: boolean;
 }

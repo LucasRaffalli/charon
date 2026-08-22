@@ -410,3 +410,43 @@ app-bottom-panel {
     color: var(--text);
   }
 }
+
+// --- Filigrane centré en arrière-plan (option « logo en fond ») ---
+// Le logo est fixé au centre du fond ; les containers passent en surface
+// légèrement translucide pour le laisser transparaître.
+.explorer--logo {
+  position: relative;
+  isolation: isolate;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-color: var(--text);
+    opacity: 0.06;
+    pointer-events: none;
+    -webkit-mask: var(--charon-mark) no-repeat center / min(44vmin, 460px);
+    mask: var(--charon-mark) no-repeat center / min(44vmin, 460px);
+  }
+
+  // Seule la zone centrale (là où le logo est centré) devient légèrement
+  // translucide pour le laisser transparaître. Toute la chrome (barre
+  // d'outils, sidebar, panneau bas, aperçu) reste opaque et nette.
+  .explorer__main {
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+  }
+}
+
+// Thème unicorn : le filigrane de fond devient l'image licorne (en couleur,
+// donc pas de masque monochrome).
+:host-context([data-theme='unicorn']) .explorer--logo::before {
+  background-color: transparent;
+  background-image: url('/assets/unicorn.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(46vmin, 500px);
+  opacity: 0.16;
+  -webkit-mask: none;
+  mask: none;
+}

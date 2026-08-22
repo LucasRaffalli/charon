@@ -63,6 +63,13 @@
                 </button>
               }
             </div>
+
+            <h3 class="panel__group-title">Fond</h3>
+            <app-toggle
+              label="Logo Charon en filigrane"
+              [checked]="settings.logoBackground()"
+              (checkedChange)="settings.update({ logoBackground: $event })"
+            />
           }
           @case ('files') {
             <app-toggle

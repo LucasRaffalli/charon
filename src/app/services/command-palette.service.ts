@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
 
-import { IconName } from '@app/components/icon/icon';
+import { IconName } from '@app/components/ui/icon/icon';
 import { ActivityLogService } from '@app/services/activity-log.service';
 import { ConnectionFlowService } from '@app/services/connection-flow.service';
 import { DialogService } from '@app/services/dialog.service';
+import { DockService } from '@app/services/dock.service';
 import { ProfilesService } from '@app/services/profiles.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
@@ -34,6 +35,7 @@ export class CommandPaletteService {
   private readonly profiles = inject(ProfilesService);
   private readonly flow = inject(ConnectionFlowService);
   private readonly settings = inject(SettingsService);
+  private readonly dock = inject(DockService);
   private readonly theme = inject(ThemeService);
   private readonly dialog = inject(DialogService);
   private readonly activity = inject(ActivityLogService);
@@ -112,7 +114,7 @@ export class CommandPaletteService {
           icon: 'terminal',
           hint: 'panneau',
           keywords: 'shell ssh console',
-          run: () => this.settings.update({ bottomPanelTab: 'terminal', bottomPanelOpen: true }),
+          run: () => this.dock.openPanel('terminal'),
         },
         {
           id: 'panel:transfers',
@@ -120,7 +122,7 @@ export class CommandPaletteService {
           icon: 'arrow-down-up',
           hint: 'panneau',
           keywords: 'file téléchargements uploads',
-          run: () => this.settings.update({ bottomPanelTab: 'transfers', bottomPanelOpen: true }),
+          run: () => this.dock.openPanel('transfers'),
         },
         {
           id: 'panel:journal',
@@ -128,7 +130,7 @@ export class CommandPaletteService {
           icon: 'info',
           hint: 'panneau',
           keywords: 'activité historique audit',
-          run: () => this.settings.update({ bottomPanelTab: 'journal', bottomPanelOpen: true }),
+          run: () => this.dock.openPanel('journal'),
         },
         {
           id: 'disconnect',
@@ -152,30 +154,14 @@ export class CommandPaletteService {
       });
     }
 
-    list.push(
-      {
-        id: 'layout',
-        label:
-          this.settings.layout() === 'bento'
-            ? 'Passer en disposition classique'
-            : 'Passer en disposition bento',
-        icon: this.settings.layout() === 'bento' ? 'rows' : 'layout-grid',
-        hint: 'apparence',
-        keywords: 'disposition layout',
-        run: () =>
-          this.settings.update({
-            layout: this.settings.layout() === 'bento' ? 'classic' : 'bento',
-          }),
-      },
-      {
-        id: 'settings',
-        label: 'Ouvrir les réglages',
-        icon: 'settings',
-        hint: 'app',
-        keywords: 'préférences paramètres options',
-        run: () => this.settings.openPanel(),
-      },
-    );
+    list.push({
+      id: 'settings',
+      label: 'Ouvrir les réglages',
+      icon: 'settings',
+      hint: 'app',
+      keywords: 'préférences paramètres options',
+      run: () => this.settings.openPanel(),
+    });
 
     return list;
   }

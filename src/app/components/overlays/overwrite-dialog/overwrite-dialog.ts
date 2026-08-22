@@ -1,8 +1,8 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { Button } from '@app/components/button/button';
-import { Icon } from '@app/components/icon/icon';
+import { Button } from '@app/components/ui/button/button';
+import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { DiffLine, diffStats, toSplitRows } from '@app/services/diff';
 import { OverwriteService } from '@app/services/overwrite.service';

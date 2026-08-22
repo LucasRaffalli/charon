@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 
-import { Icon, IconName } from '@app/components/icon/icon';
+import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { ActivityKind } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/activity-log.service';
 

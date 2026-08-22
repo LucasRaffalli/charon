@@ -1,11 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { Button } from '@app/components/button/button';
-import { Icon, IconName } from '@app/components/icon/icon';
-import { SegmentedControl, SegmentedOption } from '@app/components/segmented-control/segmented-control';
-import { TextField } from '@app/components/text-field/text-field';
-import { Toggle } from '@app/components/toggle/toggle';
-import { LayoutMode } from '@app/interfaces';
+import { Button } from '@app/components/ui/button/button';
+import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { TextField } from '@app/components/ui/text-field/text-field';
+import { Toggle } from '@app/components/ui/toggle/toggle';
+import { DockService } from '@app/services/dock.service';
 import { SettingsService } from '@app/services/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
 import { UpdaterService } from '@app/services/updater.service';
@@ -20,7 +19,7 @@ interface TabOption {
 
 @Component({
   selector: 'app-settings-panel',
-  imports: [Button, Icon, SegmentedControl, TextField, Toggle],
+  imports: [Button, Icon, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -32,6 +31,7 @@ export class SettingsPanel {
   protected readonly settings = inject(SettingsService);
   protected readonly themeService = inject(ThemeService);
   protected readonly updater = inject(UpdaterService);
+  protected readonly dock = inject(DockService);
 
   protected readonly activeTab = signal<SettingsTab>('appearance');
 
@@ -48,15 +48,6 @@ export class SettingsPanel {
   );
 
   protected readonly themeOptions = THEME_OPTIONS;
-
-  protected readonly layoutOptions: readonly SegmentedOption[] = [
-    { value: 'bento', label: 'Bento' },
-    { value: 'classic', label: 'Classique' },
-  ];
-
-  protected setLayout(value: string): void {
-    this.settings.update({ layout: value as LayoutMode });
-  }
 
   /** Pourcentage du téléchargement de mise à jour (0 si taille inconnue). */
   protected downloadPercent(transferred: number, total: number): number {

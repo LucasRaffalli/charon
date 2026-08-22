@@ -66,27 +66,24 @@
 
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Disposition</span>
-                  <span class="setting__desc">Agencement des panneaux de l'explorateur.</span>
+                  <span class="setting__name">Filigrane</span>
+                  <span class="setting__desc">Logo Charon en fond, une fois connecté.</span>
                 </div>
-                <app-segmented-control
-                  class="setting__seg"
-                  ariaLabel="Disposition"
-                  [options]="layoutOptions"
-                  [value]="settings.layout()"
-                  (valueChange)="setLayout($event)"
+                <app-toggle
+                  ariaLabel="Filigrane : logo Charon en fond"
+                  [checked]="settings.logoBackground()"
+                  (checkedChange)="settings.update({ logoBackground: $event })"
                 />
               </div>
 
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Filigrane</span>
-                  <span class="setting__desc">Logo Charon en fond, une fois connecté.</span>
+                  <span class="setting__name">Panneaux</span>
+                  <span class="setting__desc">
+                    Glisse les onglets des panneaux pour réagencer l'explorateur.
+                  </span>
                 </div>
-                <app-toggle
-                  [checked]="settings.logoBackground()"
-                  (checkedChange)="settings.update({ logoBackground: $event })"
-                />
+                <app-button variant="ghost" (click)="dock.reset()">Réinitialiser</app-button>
               </div>
             }
             @case ('files') {
@@ -96,6 +93,7 @@
                   <span class="setting__desc">Afficher les fichiers commençant par un point.</span>
                 </div>
                 <app-toggle
+                  ariaLabel="Afficher les fichiers cachés"
                   [checked]="settings.showHidden()"
                   (checkedChange)="settings.update({ showHidden: $event })"
                 />
@@ -109,6 +107,7 @@
                   </span>
                 </div>
                 <app-text-field
+                  ariaLabel="Éditeur externe"
                   name="editor-app"
                   placeholder="Visual Studio Code"
                   [value]="settings.editorApp()"
@@ -126,6 +125,7 @@
                 </div>
                 <app-text-field
                   class="setting__minutes"
+                  ariaLabel="Minutes d'inactivité avant fermeture"
                   name="idle-minutes"
                   type="number"
                   [value]="'' + settings.idleMinutes()"

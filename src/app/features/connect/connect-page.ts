@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { getVersion } from '@tauri-apps/api/app';
 
-import { Alert } from '@app/components/alert/alert';
-import { Button } from '@app/components/button/button';
-import { CharonGlyph } from '@app/components/charon-logo/charon-glyph';
-import { Icon } from '@app/components/icon/icon';
-import { SegmentedControl, SegmentedOption } from '@app/components/segmented-control/segmented-control';
-import { TextField } from '@app/components/text-field/text-field';
+import { Alert } from '@app/components/ui/alert/alert';
+import { Button } from '@app/components/ui/button/button';
+import { CharonGlyph } from '@app/components/brand/charon-logo/charon-glyph';
+import { Icon } from '@app/components/ui/icon/icon';
+import { SegmentedControl, SegmentedOption } from '@app/components/ui/segmented-control/segmented-control';
+import { TextField } from '@app/components/ui/text-field/text-field';
 import {
   ConnectionParams,
   RemoteProtocol,

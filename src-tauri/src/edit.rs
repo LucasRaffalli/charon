@@ -8,7 +8,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
-use crate::sftp::{get_connection, ConnectionPool};
+use crate::sftp::{get_connection, ConnectionHold, ConnectionPool};
 
 // ---------- État ----------
 //
@@ -78,6 +78,9 @@ pub async fn edit_open(
     opener: Option<String>,
 ) -> Result<EditSession, String> {
     let conn = get_connection(&pool, &connection_id).await?;
+    // Édition externe en cours = connexion maintenue (le re-upload d'une
+    // sauvegarde tardive doit toujours trouver la session ouverte).
+    let hold = ConnectionHold::new(conn.clone());
     let bytes = conn.read_file(&remote_path).await?;
 
     let id = format!(
@@ -122,6 +125,9 @@ pub async fn edit_open(
     let task_remote = remote_path.clone();
     let task_local = temp_file.clone();
     tauri::async_runtime::spawn(async move {
+        // Vit tant que la surveillance existe : relâché par edit_stop
+        // (drop du watcher → fin de la boucle).
+        let _hold = hold;
         while rx.recv().await.is_some() {
             // Debounce : laisser l'éditeur finir d'écrire, puis vider la file.
             tokio::time::sleep(std::time::Duration::from_millis(400)).await;

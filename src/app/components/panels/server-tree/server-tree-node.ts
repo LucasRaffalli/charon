@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
+import { Icon } from '@app/components/ui/icon/icon';
 import { TreeNode } from '@app/interfaces';
+import { DockService } from '@app/services/dock.service';
+import { PreviewService } from '@app/services/preview.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { SftpTreeService } from '@app/services/sftp-tree.service';
 
-/** Un nœud de l'arborescence serveur, rendu récursivement. */
+/** Un nœud de l'arborescence serveur (dossier ou fichier), rendu récursivement. */
 @Component({
   selector: 'app-server-tree-node',
   imports: [Icon, ServerTreeNode],
@@ -16,11 +18,12 @@ import { SftpTreeService } from '@app/services/sftp-tree.service';
 })
 export class ServerTreeNode {
   readonly node = input.required<TreeNode>();
-  readonly depth = input(0);
 
   protected readonly tree = inject(SftpTreeService);
   protected readonly sftp = inject(SftpService);
   private readonly settings = inject(SettingsService);
+  private readonly preview = inject(PreviewService);
+  private readonly dock = inject(DockService);
 
   protected visibleChildren(): TreeNode[] {
     const children = this.node().children ?? [];
@@ -29,8 +32,14 @@ export class ServerTreeNode {
       : children.filter((child) => !child.name.startsWith('.'));
   }
 
-  /** Ouvre ce dossier dans la vue principale (l'arbre suivra via le service). */
+  /** Dossier : ouvre dans la vue principale ; fichier : ouvre l'aperçu. */
   protected open(): void {
-    void this.sftp.listDir(this.node().path);
+    const node = this.node();
+    if (node.isDir) {
+      void this.sftp.listDir(node.path);
+    } else {
+      this.dock.focusPanel('preview');
+      void this.preview.openFile(node.path, node.name);
+    }
   }
 }

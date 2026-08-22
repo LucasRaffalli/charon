@@ -7,10 +7,17 @@ import { SftpService } from '@app/services/sftp.service';
 const freshRoot = (): TreeNode => ({
   name: '/',
   path: '/',
+  isDir: true,
   expanded: false,
   loading: false,
   children: null,
 });
+
+/** Tri d'affichage : dossiers d'abord, puis ordre alphabétique. */
+const sortNodes = (nodes: TreeNode[]): TreeNode[] =>
+  [...nodes].sort((a, b) =>
+    a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1,
+  );
 
 /** Le chemin `ancestor` contient-il `path` (strictement) ? */
 const isAncestor = (ancestor: string, path: string): boolean =>
@@ -47,8 +54,9 @@ const findNode = (node: TreeNode, path: string): TreeNode | null => {
 };
 
 /**
- * Arborescence des dossiers du serveur : chargement paresseux à l'expansion,
- * et dépliage automatique jusqu'au dossier courant de la vue principale.
+ * Arborescence du serveur (dossiers ET fichiers) : chargement paresseux à
+ * l'expansion, dépliage automatique jusqu'au dossier courant de la vue
+ * principale, tri dossiers d'abord.
  */
 @Injectable({ providedIn: 'root' })
 export class SftpTreeService {
@@ -93,24 +101,29 @@ export class SftpTreeService {
         return node;
       }
       const existing = new Map((node.children ?? []).map((child) => [child.name, child]));
-      const children = entries
-        .filter((entry) => entry.isDir)
-        .map(
-          (entry) =>
-            existing.get(entry.name) ?? {
+      const children = entries.map((entry) => {
+        const kept = existing.get(entry.name);
+        // Réutilise le sous-arbre existant (état de dépliage) si le type n'a pas changé.
+        return kept && kept.isDir === entry.isDir
+          ? kept
+          : {
               name: entry.name,
               path: childPath(path, entry.name),
+              isDir: entry.isDir,
               expanded: false,
               loading: false,
               children: null,
-            },
-        );
-      return { ...node, children };
+            };
+      });
+      return { ...node, children: sortNodes(children) };
     });
   }
 
   /** Déplie (en rechargeant les enfants) ou replie un nœud. */
   async toggle(node: TreeNode): Promise<void> {
+    if (!node.isDir) {
+      return;
+    }
     if (node.expanded) {
       this.patch(node.path, (n) => ({ ...n, expanded: false }));
       return;
@@ -121,7 +134,7 @@ export class SftpTreeService {
   /** Déplie un nœud en rafraîchissant sa liste de sous-dossiers. */
   private async expand(path: string): Promise<void> {
     this.patch(path, (n) => ({ ...n, expanded: true, loading: true }));
-    const children = await this.fetchDirs(path);
+    const children = await this.fetchChildren(path);
     this.patch(path, (n) => ({
       ...n,
       loading: false,
@@ -150,7 +163,7 @@ export class SftpTreeService {
     this._root.update((root) => mapNode(root, path, fn));
   }
 
-  private async fetchDirs(path: string): Promise<TreeNode[] | null> {
+  private async fetchChildren(path: string): Promise<TreeNode[] | null> {
     const connectionId = this.sftp.connectionId();
     if (!connectionId) {
       return null;
@@ -160,15 +173,16 @@ export class SftpTreeService {
         connectionId,
         path,
       });
-      return entries
-        .filter((entry) => entry.is_dir)
-        .map((entry) => ({
+      return sortNodes(
+        entries.map((entry) => ({
           name: entry.name,
           path: childPath(path, entry.name),
+          isDir: entry.is_dir,
           expanded: false,
           loading: false,
           children: null,
-        }));
+        })),
+      );
     } catch {
       return null;
     }

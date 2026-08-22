@@ -1,0 +1,12 @@
+<app-dock-node [node]="dock.tree()" />
+
+@if (rootZone(); as zone) {
+  <div class="root-drop" [attr.data-zone]="zone" aria-hidden="true"></div>
+}
+
+@if (dock.drag(); as d) {
+  <div class="ghost" [style.left.px]="d.x + 12" [style.top.px]="d.y + 10">
+    <app-icon [name]="ghostIcon()" [size]="13" />
+    {{ ghostLabel() }}
+  </div>
+}

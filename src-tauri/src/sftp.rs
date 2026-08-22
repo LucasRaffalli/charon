@@ -4,7 +4,7 @@ use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHas
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use tauri::{AppHandle, Emitter, State};
@@ -28,6 +28,9 @@ pub struct ActiveConnection {
     sftp: SftpSession,
     /// Dernier usage : sert à la fermeture d'inactivité.
     last_used: StdMutex<std::time::Instant>,
+    /// Sessions interactives ouvertes (terminal, tail -F, édition externe) :
+    /// tant qu'il y en a au moins une, la fermeture d'inactivité est suspendue.
+    holds: AtomicUsize,
 }
 
 impl ActiveConnection {
@@ -37,6 +40,10 @@ impl ActiveConnection {
 
     fn idle_for(&self) -> std::time::Duration {
         self.last_used.lock().unwrap().elapsed()
+    }
+
+    fn hold_count(&self) -> usize {
+        self.holds.load(Ordering::Relaxed)
     }
 
     /// Ouvre un canal supplémentaire sur la session SSH (terminal intégré).
@@ -179,6 +186,27 @@ pub fn ensure_no_parent_dir(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Guard RAII d'une session interactive (terminal, tail, édition externe) :
+/// tant qu'il vit, la connexion est à l'abri de la fermeture d'inactivité ;
+/// son drop relâche la connexion et fait repartir le chrono de zéro.
+pub(crate) struct ConnectionHold {
+    conn: Arc<ActiveConnection>,
+}
+
+impl ConnectionHold {
+    pub(crate) fn new(conn: Arc<ActiveConnection>) -> Self {
+        conn.holds.fetch_add(1, Ordering::Relaxed);
+        Self { conn }
+    }
+}
+
+impl Drop for ConnectionHold {
+    fn drop(&mut self) {
+        self.conn.holds.fetch_sub(1, Ordering::Relaxed);
+        self.conn.touch();
+    }
+}
+
 /// Récupère une connexion du pool sans garder le verrou : un transfert long
 /// ne bloque ni les listages ni les autres transferts.
 pub(crate) async fn get_connection(
@@ -234,7 +262,7 @@ pub async fn reap_idle_connections(app: &AppHandle) {
     let mut map = pool.inner().0.lock().await;
     let expired: Vec<String> = map
         .iter()
-        .filter(|(_, conn)| conn.idle_for() > timeout)
+        .filter(|(_, conn)| conn.idle_for() > timeout && conn.hold_count() == 0)
         .map(|(id, _)| id.clone())
         .collect();
     for id in expired {
@@ -406,6 +434,7 @@ pub async fn sftp_connect(
             _handle: session,
             sftp,
             last_used: StdMutex::new(std::time::Instant::now()),
+            holds: AtomicUsize::new(0),
         }),
     );
 

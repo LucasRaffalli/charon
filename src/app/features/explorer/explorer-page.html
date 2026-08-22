@@ -1,91 +1,27 @@
-<div class="explorer" [class.explorer--bento]="bento()" [class.explorer--logo]="settings.logoBackground()">
-  <header class="explorer__toolbar">
-    <app-button
-      variant="ghost"
-      iconOnly
-      title="Dossier parent"
-      [disabled]="sftp.atRoot() || sftp.loading()"
-      (click)="sftp.navigateUp()"
-    >
-      <app-icon name="arrow-up" [size]="15" />
-    </app-button>
-
-    <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
-      <button
-        type="button"
-        class="crumb"
-        [class.crumb--current]="sftp.atRoot()"
-        [disabled]="sftp.atRoot()"
-        (click)="sftp.listDir('/')"
-      >
-        /
-      </button>
-      @for (segment of sftp.breadcrumb(); track segment.path) {
-        <app-icon class="crumb__sep" name="chevron-right" [size]="13" />
-        <button
-          type="button"
-          class="crumb"
-          [class.crumb--current]="$last"
-          [disabled]="$last"
-          (click)="sftp.listDir(segment.path)"
-        >
-          {{ segment.name }}
-        </button>
-      }
-    </nav>
-
-    @if (sftp.protection(); as protection) {
-      <span
-        class="explorer__guard"
-        [title]="
-          protection === 'readonly'
-            ? 'Garde-fou : lecture seule — aucune écriture possible'
-            : 'Garde-fou : suppression confirmée par le nom d’hôte'
-        "
-      >
-        <app-icon name="lock" [size]="12" />
-        {{ protection === 'readonly' ? 'Lecture seule' : 'Protégé' }}
-      </span>
-    }
-
-    @if (sftp.environment(); as env) {
-      @if (env !== 'dev') {
-        <span
-          class="explorer__env"
-          [class.explorer__env--prod]="env === 'prod'"
-          [class.explorer__env--staging]="env === 'staging'"
-          [title]="env === 'prod' ? 'Attention : serveur de PRODUCTION' : 'Serveur de staging'"
-        >
-          {{ env === 'prod' ? 'PROD' : 'STAGING' }}
-        </span>
-      }
-    }
-
-    <span class="explorer__connection" [title]="'Connecté à ' + sftp.connectionId()">
-      {{ sftp.connectionId() }}
-    </span>
-
-    <app-button variant="danger" title="Fermer la connexion" (click)="sftp.disconnect()">
-      <app-icon name="log-out" [size]="15" />
-      Débarquer
-    </app-button>
-  </header>
-
+<div class="explorer" [class.explorer--logo]="settings.logoBackground()">
   <div
     class="explorer__progress"
     [class.explorer__progress--active]="sftp.loading()"
     aria-hidden="true"
   ></div>
 
+  <!-- Corps : dock librement réagençable (drag d'onglets + resize) -->
   <div class="explorer__body">
-    <aside class="explorer__sidebar" [style.width.px]="settings.sidebarWidth()">
+    <app-dock />
+  </div>
+
+  <!--
+    Hangar : contenus des panneaux, rendus UNE fois ici puis déplacés dans
+    les slots du dock (le DOM n'est jamais recréé : terminal, logs et
+    positions de scroll survivent aux réagencements).
+  -->
+  <div class="explorer__hangar" data-dock-hangar>
+    <div class="explorer__panel" data-dock-panel="local" [hidden]="!dock.activePanels().has('local')">
       <app-file-pane
-        class="explorer__pane explorer__pane--local"
         title="Cet ordinateur"
         icon="monitor"
         [actionIcon]="sftp.protection() === 'readonly' ? null : 'upload'"
         actionLabel="Envoyer vers le serveur"
-        [style.height.px]="settings.localPaneHeight()"
         [path]="localFs.currentPath()"
         [entries]="localEntries()"
         [loading]="localFs.loading()"
@@ -97,23 +33,49 @@
         (entryMenu)="openLocalEntryMenu($event.event, $event.entry)"
         (areaMenu)="openLocalAreaMenu($event)"
       />
+    </div>
 
-      <app-resize-handle
-        axis="y"
-        (dragStarted)="beginPaneResize()"
-        (dragged)="resizePane($event)"
-      />
+    <div class="explorer__panel" data-dock-panel="tree" [hidden]="!dock.activePanels().has('tree')">
+      <app-server-tree />
+    </div>
 
-      <app-server-tree class="explorer__pane explorer__pane--server" />
-    </aside>
+    <section class="explorer__panel explorer__main" data-dock-panel="server" [hidden]="!dock.activePanels().has('server')" #serverZone>
+      <header class="explorer__server-head">
+        <app-button
+          variant="ghost"
+          iconOnly
+          title="Dossier parent"
+          [disabled]="sftp.atRoot() || sftp.loading()"
+          (click)="sftp.navigateUp()"
+        >
+          <app-icon name="corner-up" [size]="14" />
+        </app-button>
 
-    <app-resize-handle
-      axis="x"
-      (dragStarted)="beginSidebarResize()"
-      (dragged)="resizeSidebar($event)"
-    />
+        <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
+          <button
+            type="button"
+            class="crumb"
+            [class.crumb--current]="sftp.atRoot()"
+            [disabled]="sftp.atRoot()"
+            (click)="sftp.listDir('/')"
+          >
+            /
+          </button>
+          @for (segment of sftp.breadcrumb(); track segment.path) {
+            <app-icon class="crumb__sep" name="chevron-right" [size]="13" />
+            <button
+              type="button"
+              class="crumb"
+              [class.crumb--current]="$last"
+              [disabled]="$last"
+              (click)="sftp.listDir(segment.path)"
+            >
+              {{ segment.name }}
+            </button>
+          }
+        </nav>
+      </header>
 
-    <section class="explorer__main" #serverZone>
       @if (sftp.error(); as error) {
         <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
       }
@@ -164,12 +126,118 @@
       }
     </section>
 
-    @if (preview.open()) {
-      <app-preview-panel class="explorer__preview" />
-    }
+    <div class="explorer__panel" data-dock-panel="preview" [hidden]="!dock.activePanels().has('preview')">
+      @if (preview.open()) {
+        <app-preview-panel />
+      } @else {
+        <div class="explorer__panel-empty">
+          <app-icon name="file" [size]="26" />
+          <p>Double-clique un fichier serveur pour l'ouvrir ici.</p>
+        </div>
+      }
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="transfers" [hidden]="!dock.activePanels().has('transfers')">
+      <app-transfer-panel />
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="journal" [hidden]="!dock.activePanels().has('journal')">
+      <app-activity-log />
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="logs" [hidden]="!dock.activePanels().has('logs')">
+      <app-log-pane />
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="terminal" [hidden]="!dock.activePanels().has('terminal')">
+      @if (terminalReady()) {
+        <app-terminal-pane />
+      } @else {
+        <div class="explorer__panel-empty">
+          <app-icon name="terminal" [size]="26" />
+          <p>
+            {{
+              sftp.protocol() === 'sftp'
+                ? 'Ouverture du terminal…'
+                : 'Terminal disponible en SFTP uniquement.'
+            }}
+          </p>
+        </div>
+      }
+    </div>
   </div>
 
-  <app-bottom-panel />
+  <!-- Barre de statut : session à gauche, actions à droite -->
+  <footer class="explorer__status">
+    @if (sftp.protection(); as protection) {
+      <span
+        class="explorer__guard"
+        [title]="
+          protection === 'readonly'
+            ? 'Garde-fou : lecture seule — aucune écriture possible'
+            : 'Garde-fou : suppression confirmée par le nom d’hôte'
+        "
+      >
+        <app-icon name="lock" [size]="11" />
+        {{ protection === 'readonly' ? 'Lecture seule' : 'Protégé' }}
+      </span>
+    }
+
+    @if (sftp.environment(); as env) {
+      @if (env !== 'dev') {
+        <span
+          class="explorer__env"
+          [class.explorer__env--prod]="env === 'prod'"
+          [class.explorer__env--staging]="env === 'staging'"
+          [title]="env === 'prod' ? 'Attention : serveur de PRODUCTION' : 'Serveur de staging'"
+        >
+          {{ env === 'prod' ? 'PROD' : 'STAGING' }}
+        </span>
+      }
+    }
+
+    <span class="explorer__connection" [title]="'Connecté à ' + sftp.connectionId()">
+      {{ sftp.connectionId() }}
+    </span>
+
+    <span class="explorer__status-spacer"></span>
+
+    @if (dock.closedPanels().length > 0) {
+      <span class="explorer__status-closed">
+        @for (panel of dock.closedPanels(); track panel) {
+          <button
+            type="button"
+            class="explorer__status-btn"
+            [title]="'Rouvrir : ' + panelMeta[panel].label"
+            [attr.aria-label]="'Rouvrir le panneau ' + panelMeta[panel].label"
+            (click)="dock.openPanel(panel)"
+          >
+            <app-icon [name]="panelMeta[panel].icon" [size]="13" />
+          </button>
+        }
+      </span>
+    }
+
+    <button
+      type="button"
+      class="explorer__status-btn"
+      title="Réglages"
+      aria-label="Réglages"
+      (click)="settings.openPanel()"
+    >
+      <app-icon name="settings" [size]="13" />
+    </button>
+
+    <button
+      type="button"
+      class="explorer__status-btn explorer__status-btn--danger"
+      title="Fermer la connexion"
+      (click)="sftp.disconnect()"
+    >
+      <app-icon name="log-out" [size]="13" />
+      Débarquer
+    </button>
+  </footer>
 
   <app-remote-edit-bar />
 </div>

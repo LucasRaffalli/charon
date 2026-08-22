@@ -1,9 +1,10 @@
-/** Un nœud de l'arborescence serveur (dossiers uniquement, chargement paresseux). */
+/** Un nœud de l'arborescence serveur (dossiers ET fichiers, chargement paresseux). */
 export interface TreeNode {
   name: string;
   path: string;
+  isDir: boolean;
   expanded: boolean;
   loading: boolean;
-  /** null = sous-dossiers pas encore chargés. */
+  /** null = enfants pas encore chargés (dossiers uniquement). */
   children: TreeNode[] | null;
 }

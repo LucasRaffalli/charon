@@ -7,7 +7,7 @@ import {
   output,
 } from '@angular/core';
 
-import { Icon, IconName } from '@app/components/icon/icon';
+import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { FileEntry } from '@app/interfaces';
 
 /**

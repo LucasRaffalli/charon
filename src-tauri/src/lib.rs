@@ -28,11 +28,13 @@ pub fn run() {
                 }
             }
 
-            // Fermeture des connexions inactives (vérification chaque minute).
+            // Fermeture des connexions inactives (vérification toutes les 30 s
+            // — les sessions interactives (terminal, tail, édition) posent un
+            // « hold » qui suspend la fermeture).
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
                     sftp::reap_idle_connections(&handle).await;
                     ftp::reap_idle_connections(&handle).await;
                 }

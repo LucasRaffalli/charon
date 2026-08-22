@@ -1,6 +1,6 @@
 import { DOCUMENT, Injectable, effect, inject, signal } from '@angular/core';
 
-import { IconName } from '@app/components/icon/icon';
+import { IconName } from '@app/components/ui/icon/icon';
 import { Theme, isTheme } from '@app/interfaces';
 
 const STORAGE_KEY = 'charon:theme';

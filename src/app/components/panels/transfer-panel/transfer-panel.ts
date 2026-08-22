@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
+import { Icon } from '@app/components/ui/icon/icon';
 import { Transfer } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { TransfersService } from '@app/services/transfers.service';

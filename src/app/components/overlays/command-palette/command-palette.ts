@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
+import { Icon } from '@app/components/ui/icon/icon';
 import { CommandPaletteService, PaletteCommand } from '@app/services/command-palette.service';
 
 /** Score de correspondance : préfixe > mot > inclusion > rien. */

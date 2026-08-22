@@ -8,6 +8,8 @@
     [name]="name()"
     [placeholder]="placeholder()"
     [autocomplete]="autocomplete()"
+    [attr.aria-label]="ariaLabel() || null"
+    [attr.autofocus]="autofocus() ? '' : null"
     [value]="value()"
     (input)="onInput($event)"
   />

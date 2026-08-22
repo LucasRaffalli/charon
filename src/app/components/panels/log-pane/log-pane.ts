@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
+import { Icon } from '@app/components/ui/icon/icon';
 import { LogTailService } from '@app/services/log-tail.service';
 
 /** Contenu de l'onglet Logs : suivi de fichier en direct avec filtre. */

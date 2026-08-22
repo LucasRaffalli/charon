@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
-import { CommandPalette } from '@app/components/command-palette/command-palette';
-import { ContextMenu } from '@app/components/context-menu/context-menu';
-import { DialogHost } from '@app/components/dialog-host/dialog-host';
-import { OverwriteDialog } from '@app/components/overwrite-dialog/overwrite-dialog';
-import { SettingsPanel } from '@app/components/settings-panel/settings-panel';
+import { CommandPalette } from '@app/components/overlays/command-palette/command-palette';
+import { ContextMenu } from '@app/components/overlays/context-menu/context-menu';
+import { DialogHost } from '@app/components/overlays/dialog-host/dialog-host';
+import { OverwriteDialog } from '@app/components/overlays/overwrite-dialog/overwrite-dialog';
+import { SettingsPanel } from '@app/components/overlays/settings-panel/settings-panel';
 import { ConnectPage } from '@app/features/connect/connect-page';
 import { ExplorerPage } from '@app/features/explorer/explorer-page';
 import { SftpService } from '@app/services/sftp.service';

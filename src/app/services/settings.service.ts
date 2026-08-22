@@ -6,15 +6,10 @@ import { Settings } from '@app/interfaces';
 const STORAGE_KEY = 'charon:settings';
 
 const DEFAULT_SETTINGS: Settings = {
-  layout: 'bento',
   showHidden: false,
-  sidebarWidth: 280,
-  localPaneHeight: 300,
   idleMinutes: 15,
-  bottomPanelOpen: true,
-  bottomPanelTab: 'transfers',
   editorApp: '',
-  logoBackground: true,
+  logoBackground: false,
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -26,13 +21,8 @@ export class SettingsService {
   readonly settings = this._settings.asReadonly();
   readonly panelOpen = this._panelOpen.asReadonly();
 
-  readonly layout = computed(() => this._settings().layout);
   readonly showHidden = computed(() => this._settings().showHidden);
-  readonly sidebarWidth = computed(() => this._settings().sidebarWidth);
-  readonly localPaneHeight = computed(() => this._settings().localPaneHeight);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
-  readonly bottomPanelOpen = computed(() => this._settings().bottomPanelOpen);
-  readonly bottomPanelTab = computed(() => this._settings().bottomPanelTab);
   readonly editorApp = computed(() => this._settings().editorApp);
   readonly logoBackground = computed(() => this._settings().logoBackground);
 
@@ -63,9 +53,17 @@ export class SettingsService {
   private load(): Settings {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw
-        ? { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as Partial<Settings>) }
-        : DEFAULT_SETTINGS;
+      if (!raw) {
+        return DEFAULT_SETTINGS;
+      }
+      const parsed = JSON.parse(raw) as Partial<Settings>;
+      // Ne reprend que les clés connues (purge les réglages disparus).
+      return {
+        showHidden: parsed.showHidden ?? DEFAULT_SETTINGS.showHidden,
+        idleMinutes: parsed.idleMinutes ?? DEFAULT_SETTINGS.idleMinutes,
+        editorApp: parsed.editorApp ?? DEFAULT_SETTINGS.editorApp,
+        logoBackground: parsed.logoBackground ?? DEFAULT_SETTINGS.logoBackground,
+      };
     } catch {
       return DEFAULT_SETTINGS;
     }

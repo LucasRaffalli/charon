@@ -1,5 +1,6 @@
 export * from './activity';
 export * from './connection';
+export * from './dock';
 export * from './file-entry';
 export * from './path-segment';
 export * from './profile';

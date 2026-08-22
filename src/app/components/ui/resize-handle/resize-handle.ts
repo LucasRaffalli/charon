@@ -25,6 +25,7 @@ export class ResizeHandle {
 
   readonly dragStarted = output<void>();
   readonly dragged = output<number>();
+  readonly dragEnded = output<void>();
 
   protected readonly dragging = signal(false);
   private origin = 0;
@@ -51,5 +52,6 @@ export class ResizeHandle {
     }
     this.dragging.set(false);
     (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    this.dragEnded.emit();
   }
 }

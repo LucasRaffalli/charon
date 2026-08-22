@@ -9,7 +9,7 @@ use russh::{ChannelMsg, ChannelWriteHalf};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::sftp::{get_connection, ConnectionPool};
+use crate::sftp::{get_connection, ConnectionHold, ConnectionPool};
 
 // ---------- État ----------
 
@@ -72,6 +72,8 @@ pub async fn shell_open(
     rows: u16,
 ) -> Result<String, String> {
     let conn = get_connection(&pool, &connection_id).await?;
+    // Terminal ouvert = connexion maintenue (pas de fermeture d'inactivité).
+    let hold = ConnectionHold::new(conn.clone());
 
     // Un seul terminal par connexion : remplace l'éventuel existant.
     if let Some(previous) = registry.inner().0.lock().unwrap().remove(&connection_id) {
@@ -103,6 +105,8 @@ pub async fn shell_open(
     let handle = app.clone();
     let term_id = connection_id.clone();
     tauri::async_runtime::spawn(async move {
+        // Vit aussi longtemps que la pompe : relâché à la fermeture du shell.
+        let _hold = hold;
         loop {
             match read.wait().await {
                 Some(ChannelMsg::Data { data }) => {
@@ -163,6 +167,8 @@ pub async fn tail_open(
     lines: u32,
 ) -> Result<String, String> {
     let conn = get_connection(&pool, &connection_id).await?;
+    // Suivi de log actif = connexion maintenue (pas de fermeture d'inactivité).
+    let hold = ConnectionHold::new(conn.clone());
 
     let channel = conn
         .open_channel()
@@ -193,6 +199,8 @@ pub async fn tail_open(
     let handle = app.clone();
     let id = tail_id.clone();
     tauri::async_runtime::spawn(async move {
+        // Vit aussi longtemps que le suivi : relâché à l'arrêt du tail.
+        let _hold = hold;
         loop {
             match read.wait().await {
                 Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {

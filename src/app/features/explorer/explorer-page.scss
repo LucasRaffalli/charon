@@ -4,20 +4,26 @@
 }
 
 .explorer {
+  position: relative;
   display: flex;
   flex-direction: column;
+  gap: var(--space-2xs);
   height: 100%;
 }
 
-// --- Barre d'outils ---
+.explorer__progress {
+  border-radius: 999px;
+  margin: 0 var(--space-2xs);
+}
 
-.explorer__toolbar {
+// --- En-tête du panneau serveur : bouton parent + fil d'Ariane ---
+
+.explorer__server-head {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+  padding: 4px var(--space-xs) 2px;
 }
 
 .explorer__breadcrumb {
@@ -68,9 +74,9 @@
   align-items: center;
   gap: 5px;
   flex-shrink: 0;
-  padding: 3px 10px;
+  padding: 1px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--text-muted);
   background: var(--surface-active);
@@ -80,9 +86,9 @@
 // Badge d'environnement : impossible à rater quand on est sur la prod.
 .explorer__env {
   flex-shrink: 0;
-  padding: 3px 10px;
+  padding: 1px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.08em;
 
@@ -112,19 +118,75 @@
 }
 
 .explorer__connection {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  color: var(--text-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 260px;
+}
 
-  @media (max-width: 900px) {
-    display: none;
+// --- Barre de statut (bas de fenêtre) ---
+
+.explorer__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 var(--space-xs) 0 var(--space-sm);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.explorer__status-spacer {
+  flex: 1;
+}
+
+// Panneaux fermés : icônes de réouverture, séparées des actions.
+.explorer__status-closed {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--space-2xs);
+  margin-right: var(--space-2xs);
+  border-right: 1px solid var(--border);
+
+  .explorer__status-btn {
+    opacity: 0.6;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+.explorer__status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  &--danger:hover {
+    background: var(--danger-bg);
+    color: var(--danger);
   }
 }
 
@@ -149,6 +211,13 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .explorer__progress--active::after {
+    animation: none;
+    width: 100%;
+  }
+}
+
 @keyframes progress-slide {
   from {
     transform: translateX(-100%);
@@ -159,47 +228,68 @@
   }
 }
 
-// --- Corps : sidebar + contenu ---
+// --- Corps : dock librement réagençable ---
 
 .explorer__body {
   display: flex;
   flex: 1;
   min-height: 0;
+  padding: 0 var(--space-xs) var(--space-2xs);
 }
 
-.explorer__sidebar {
+// Hangar : ne contient les panneaux qu'avant leur placement dans le dock.
+.explorer__hangar {
+  display: none;
+}
+
+// Wrapper d'un panneau dockable (déplacé dans un slot du dock).
+.explorer__panel {
+  height: 100%;
+  overflow: hidden;
+
+  // Onglet inactif : [hidden] doit gagner même contre une classe qui pose
+  // un display (ex. .explorer__main en flex) — même piège que feu BottomPanel.
+  &[hidden] {
+    display: none;
+  }
+
+  // Les contenus « pleine hauteur » (scroll interne) remplissent leur slot.
+  > app-file-pane,
+  > app-server-tree,
+  > app-preview-panel,
+  > app-terminal-pane,
+  > app-log-pane {
+    height: 100%;
+  }
+
+  // Contenus à hauteur naturelle : c'est le wrapper qui défile.
+  &[data-dock-panel='transfers'],
+  &[data-dock-panel='journal'] {
+    overflow-y: auto;
+  }
+}
+
+// État vide d'un panneau (aperçu sans fichier, terminal non démarré).
+.explorer__panel-empty {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-}
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  height: 100%;
+  padding: var(--space-lg);
+  color: var(--text-faint);
+  text-align: center;
 
-.explorer__pane {
-  &--local {
-    flex: 0 0 auto;
-    max-height: calc(100% - 150px);
+  p {
+    font-size: 12.5px;
   }
-
-  &--server {
-    flex: 1;
-    min-height: 0;
-    border-top: 1px solid var(--border);
-  }
-}
-
-.explorer__sidebar app-resize-handle {
-  margin: -3px 0 -2px;
-}
-
-.explorer__body > app-resize-handle {
-  margin: 0 -3px 0 -2px;
 }
 
 .explorer__main {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  height: 100%;
   min-width: 0;
 }
 
@@ -305,75 +395,7 @@
   color: var(--text-faint);
 }
 
-// Panneau d'aperçu / édition (colonne de droite).
-.explorer__preview {
-  flex: 0 0 clamp(320px, 42%, 640px);
-  min-width: 0;
-  // Gap uniquement entre la liste serveur et l'aperçu.
-  margin-left: var(--space-xs);
-}
 
-// --- Panneau inférieur ---
-
-app-bottom-panel {
-  margin: var(--space-2xs) var(--space-xs) var(--space-xs);
-}
-
-// --- Variante bento : chaque zone devient une carte ---
-
-.explorer--bento {
-  padding: var(--space-xs);
-  gap: var(--space-2xs);
-
-  app-bottom-panel {
-    margin: 0;
-  }
-
-  .explorer__toolbar {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-  }
-
-  .explorer__progress {
-    border-radius: 999px;
-    margin: 0 var(--space-2xs);
-  }
-
-  .explorer__sidebar {
-    background: transparent;
-    border-right: none;
-  }
-
-  .explorer__pane {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-
-  .explorer__sidebar app-resize-handle {
-    height: var(--space-xs);
-    margin: 0;
-  }
-
-  .explorer__body > app-resize-handle {
-    width: var(--space-xs);
-    margin: 0;
-  }
-
-  .explorer__main {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-
-  .explorer__preview {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-  }
-}
 
 // Overlay du glisser-déposer : couvre uniquement le container serveur.
 .explorer__main {
@@ -430,19 +452,15 @@ app-bottom-panel {
     mask: var(--charon-mark) no-repeat center / min(44vmin, 460px);
   }
 
-  // Seule la zone centrale (là où le logo est centré) devient légèrement
-  // translucide pour le laisser transparaître. Toute la chrome (barre
-  // d'outils, sidebar, panneau bas, aperçu) reste opaque et nette.
-  .explorer__main {
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
-  }
+  // La translucidité du groupe contenant la vue serveur est gérée par le
+  // dock (`.group--server` dans dock-node.scss).
 }
 
 // Thème unicorn : le filigrane de fond devient l'image licorne (en couleur,
 // donc pas de masque monochrome).
 :host-context([data-theme='unicorn']) .explorer--logo::before {
   background-color: transparent;
-  background-image: url('/assets/unicorn.png');
+  background-image: url('/assets/png/unicorn.png');
   background-repeat: no-repeat;
   background-position: center;
   background-size: min(46vmin, 500px);

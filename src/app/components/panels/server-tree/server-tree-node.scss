@@ -6,6 +6,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  padding-left: 4px;
   border-radius: var(--radius-sm);
 
   &:hover {
@@ -20,17 +21,25 @@
       color: var(--text);
     }
 
-    .node__folder {
+    .node__icon {
       color: var(--accent);
     }
   }
+}
+
+// Enfants : indentation structurelle + ligne de guidage verticale.
+.node__children {
+  margin-left: 12px;
+  padding-left: 5px;
+  border-left: 1px solid var(--border);
 }
 
 .node__chevron {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  padding: 4px 2px;
+  width: 18px;
+  padding: 4px 0;
   border: none;
   background: none;
   color: var(--text-faint);
@@ -53,6 +62,19 @@
   }
 }
 
+// Aligne les fichiers (sans chevron) sur les dossiers.
+.node__chevron-space {
+  flex-shrink: 0;
+  width: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node__chevron--loading app-icon {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 @keyframes chevron-pulse {
   50% {
     opacity: 0.25;
@@ -65,7 +87,7 @@
   gap: var(--space-2xs);
   flex: 1;
   min-width: 0;
-  padding: 4px 6px 4px 2px;
+  padding: 3px 6px 3px 2px;
   border: none;
   background: none;
   color: var(--text-muted);
@@ -73,9 +95,13 @@
   cursor: pointer;
 }
 
-.node__folder {
+.node__icon {
   flex-shrink: 0;
   color: var(--text-faint);
+
+  &--file {
+    opacity: 0.75;
+  }
 }
 
 .node__name {
@@ -86,7 +112,7 @@
 }
 
 .node__empty {
-  padding: 2px 6px 4px;
+  padding: 2px 6px 4px 22px;
   font-size: 11px;
   font-style: italic;
   color: var(--text-faint);

@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
+import { Icon } from '@app/components/ui/icon/icon';
 import { RemoteEditService } from '@app/services/remote-edit.service';
 
 /** Après ce délai sans activité, une ligne de la barre se masque (toast). */

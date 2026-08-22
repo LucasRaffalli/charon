@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
-import { Icon } from '@app/components/icon/icon';
-import { ServerTreeNode } from '@app/components/server-tree/server-tree-node';
+import { Icon } from '@app/components/ui/icon/icon';
+import { ServerTreeNode } from '@app/components/panels/server-tree/server-tree-node';
 import { SftpTreeService } from '@app/services/sftp-tree.service';
 
 /** Panneau latéral : arborescence des dossiers du serveur depuis la racine. */

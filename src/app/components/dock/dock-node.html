@@ -1,0 +1,83 @@
+@if (split(); as s) {
+  <div
+    #splitEl
+    class="split"
+    [class.split--row]="s.dir === 'row'"
+    [class.split--column]="s.dir === 'column'"
+  >
+    @for (child of s.children; track child.id; let i = $index; let last = $last) {
+      <div class="split__cell" [style.flex-grow]="s.sizes[i]">
+        <app-dock-node [node]="child" />
+      </div>
+      @if (!last) {
+        <app-resize-handle
+          [axis]="s.dir === 'row' ? 'x' : 'y'"
+          (dragStarted)="beginResize(s, i, splitEl)"
+          (dragged)="onResize($event)"
+          (dragEnded)="endResize()"
+        />
+      }
+    }
+  </div>
+} @else if (groupNode(); as g) {
+  <div
+    class="group"
+    [attr.data-dock-group]="g.id"
+    [class.group--server]="g.panels.includes('server')"
+  >
+    <div class="group__tabs" [attr.data-dock-tabs]="g.id">
+      <div
+        class="group__tabs-strip"
+        role="tablist"
+        [class.group__tabs-strip--dense]="g.panels.length > 4"
+      >
+        @for (panel of g.panels; track panel) {
+          <button
+            type="button"
+            role="tab"
+            class="group__tab"
+            [class.group__tab--active]="g.active === panel"
+            [class.group__tab--dragged]="dock.drag()?.panel === panel"
+            [title]="tabLabel(panel)"
+            [attr.aria-selected]="g.active === panel"
+            (click)="onTabClick($event, g, panel)"
+            (contextmenu)="openTabMenu($event, g, panel)"
+          >
+            <app-icon [name]="meta[panel].icon" [size]="13" />
+            <span class="group__tab-label">{{ tabLabel(panel) }}</span>
+          </button>
+        }
+      </div>
+
+      <span
+        class="group__grip"
+        title="Déplacer ce panneau"
+        aria-hidden="true"
+        (pointerdown)="onTabPointerDown($event, g, g.active)"
+        (pointermove)="onTabPointerMove($event)"
+        (pointerup)="onTabPointerUp()"
+        (pointercancel)="onTabPointerCancel()"
+      >
+        <app-icon name="grip" [size]="13" />
+      </span>
+
+      @if (g.active !== 'server') {
+        <button
+          type="button"
+          class="group__close"
+          title="Fermer ce panneau"
+          aria-label="Fermer ce panneau"
+          (click)="dock.closePanel(g.active)"
+        >
+          <app-icon name="close" [size]="13" />
+        </button>
+      }
+    </div>
+
+    <div class="group__slot" [attr.data-dock-slot]="g.id"></div>
+
+    @if (dropZone(); as zone) {
+      <div class="group__drop" [attr.data-zone]="zone" aria-hidden="true"></div>
+    }
+  </div>
+}

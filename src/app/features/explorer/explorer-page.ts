@@ -4,25 +4,30 @@ import {
   DestroyRef,
   ElementRef,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 
-import { Alert } from '@app/components/alert/alert';
-import { Button } from '@app/components/button/button';
-import { FilePane } from '@app/components/file-pane/file-pane';
-import { Icon } from '@app/components/icon/icon';
-import { ResizeHandle } from '@app/components/resize-handle/resize-handle';
+import { ActivityLog } from '@app/components/panels/activity-log/activity-log';
+import { Alert } from '@app/components/ui/alert/alert';
+import { Button } from '@app/components/ui/button/button';
+import { Dock } from '@app/components/dock/dock';
+import { FilePane } from '@app/components/panels/file-pane/file-pane';
+import { Icon } from '@app/components/ui/icon/icon';
+import { LogPane } from '@app/components/panels/log-pane/log-pane';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
-import { BottomPanel } from '@app/components/bottom-panel/bottom-panel';
-import { RemoteEditBar } from '@app/components/remote-edit-bar/remote-edit-bar';
-import { PreviewPanel } from '@app/components/preview-panel/preview-panel';
-import { ServerTree } from '@app/components/server-tree/server-tree';
+import { RemoteEditBar } from '@app/components/overlays/remote-edit-bar/remote-edit-bar';
+import { PreviewPanel } from '@app/components/panels/preview-panel/preview-panel';
+import { ServerTree } from '@app/components/panels/server-tree/server-tree';
+import { TerminalPane } from '@app/components/panels/terminal-pane/terminal-pane';
+import { TransferPanel } from '@app/components/panels/transfer-panel/transfer-panel';
 import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
+import { DockService, PANEL_META } from '@app/services/dock.service';
 import { FileBrowserState } from '@app/services/file-browser-state';
 import { lineDiff } from '@app/services/diff';
 import { LocalFsService } from '@app/services/local-fs.service';
@@ -34,9 +39,6 @@ import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { TransfersService } from '@app/services/transfers.service';
 
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
-
 /** Nom d'entrée valide : pas de séparateur, pas de `.` / `..`. */
 const isValidEntryName = (name: string): boolean =>
   !/[/\\]/.test(name) && name !== '.' && name !== '..';
@@ -44,15 +46,18 @@ const isValidEntryName = (name: string): boolean =>
 @Component({
   selector: 'app-explorer-page',
   imports: [
+    ActivityLog,
     Alert,
-    BottomPanel,
+    Dock,
     RemoteEditBar,
     PreviewPanel,
     Button,
     FilePane,
     Icon,
-    ResizeHandle,
+    LogPane,
     ServerTree,
+    TerminalPane,
+    TransferPanel,
     FileSizePipe,
   ],
   templateUrl: './explorer-page.html',
@@ -70,27 +75,40 @@ export class ExplorerPage {
   private readonly remoteEdit = inject(RemoteEditService);
   protected readonly preview = inject(PreviewService);
   private readonly dialog = inject(DialogService);
+  protected readonly dock = inject(DockService);
 
   /** Taille max lue de chaque côté pour l'aperçu de diff (256 Kio). */
   private static readonly DIFF_MAX_BYTES = 256 * 1024;
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly bento = computed(() => this.settings.layout() === 'bento');
   protected readonly localEntries = computed(() => this.withoutHidden(this.localFs.entries()));
   protected readonly serverEntries = computed(() => this.withoutHidden(this.sftp.entries()));
 
   /** Un glisser-déposer de fichiers survole le container serveur. */
   protected readonly dropActive = signal(false);
 
-  /** Le container serveur (à droite) : seule zone de dépôt valide. */
+  /** Le container serveur : seule zone de dépôt valide. */
   private readonly serverZone = viewChild.required<ElementRef<HTMLElement>>('serverZone');
 
-  private sidebarStartWidth = 0;
-  private paneStartHeight = 0;
+  /** Le terminal ne démarre qu'à la première activation de son panneau. */
+  protected readonly terminalReady = signal(false);
+
+  /** Libellés/icônes des panneaux (réouverture depuis la barre de statut). */
+  protected readonly panelMeta = PANEL_META;
 
   constructor() {
     void this.localFs.init();
     this.listenDragDrop();
+
+    effect(() => {
+      if (
+        this.dock.activePanels().has('terminal') &&
+        this.sftp.connected() &&
+        this.sftp.protocol() === 'sftp'
+      ) {
+        this.terminalReady.set(true);
+      }
+    });
   }
 
   /**
@@ -240,6 +258,14 @@ export class ExplorerPage {
       : { label: 'Télécharger', icon: 'download', action: () => void this.download(entry) };
     const items: ContextMenuItem[] = [first];
     if (!entry.isDir && this.sftp.protocol() === 'sftp') {
+      items.push({
+        label: 'Aperçu',
+        icon: 'file',
+        action: () => {
+          this.dock.openPanel('preview');
+          void this.preview.openFile(this.sftp.pathTo(entry.name), entry.name);
+        },
+      });
       if (this.sftp.protection() !== 'readonly') {
         items.push({
           label: 'Éditer (éditeur système)',
@@ -253,13 +279,23 @@ export class ExplorerPage {
         action: () => void this.followLog(entry),
       });
     }
+    items.push({
+      label: 'Copier le chemin',
+      icon: 'copy',
+      action: () => this.copyPath(this.sftp.pathTo(entry.name)),
+    });
     this.contextMenu.open(event, [...items, ...this.entryActions(this.sftp, entry)]);
   }
 
-  /** Ouvre le suivi de log dans l'onglet Logs du panneau inférieur. */
+  /** Ouvre le suivi de log dans le panneau Logs (rouvert au besoin). */
   private async followLog(entry: FileEntry): Promise<void> {
-    this.settings.update({ bottomPanelTab: 'logs', bottomPanelOpen: true });
+    this.dock.openPanel('logs');
     await this.logTail.open(this.sftp.pathTo(entry.name));
+  }
+
+  /** Copie un chemin dans le presse-papier. */
+  private copyPath(path: string): void {
+    void navigator.clipboard.writeText(path).catch(() => undefined);
   }
 
   protected openServerAreaMenu(event: MouseEvent): void {
@@ -270,7 +306,12 @@ export class ExplorerPage {
     const first: ContextMenuItem = entry.isDir
       ? { label: 'Ouvrir', icon: 'folder', action: () => void this.localFs.openDir(entry.name) }
       : { label: 'Envoyer vers le serveur', icon: 'upload', action: () => void this.upload(entry) };
-    this.contextMenu.open(event, [first, ...this.entryActions(this.localFs, entry)]);
+    const copy: ContextMenuItem = {
+      label: 'Copier le chemin',
+      icon: 'copy',
+      action: () => this.copyPath(this.localFs.pathTo(entry.name)),
+    };
+    this.contextMenu.open(event, [first, copy, ...this.entryActions(this.localFs, entry)]);
   }
 
   protected openLocalAreaMenu(event: MouseEvent): void {
@@ -381,24 +422,6 @@ export class ExplorerPage {
     if (name && isValidEntryName(name)) {
       await browser.mkdir(name);
     }
-  }
-
-  // --- Redimensionnement ---
-
-  protected beginSidebarResize(): void {
-    this.sidebarStartWidth = this.settings.sidebarWidth();
-  }
-
-  protected resizeSidebar(delta: number): void {
-    this.settings.update({ sidebarWidth: clamp(this.sidebarStartWidth + delta, 200, 480) });
-  }
-
-  protected beginPaneResize(): void {
-    this.paneStartHeight = this.settings.localPaneHeight();
-  }
-
-  protected resizePane(delta: number): void {
-    this.settings.update({ localPaneHeight: clamp(this.paneStartHeight + delta, 140, 700) });
   }
 
   private withoutHidden(entries: FileEntry[]): FileEntry[] {

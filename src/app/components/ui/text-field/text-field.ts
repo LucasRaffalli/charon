@@ -9,6 +9,10 @@ import { ChangeDetectionStrategy, Component, input, model } from '@angular/core'
 export class TextField {
   /** Libellé au-dessus du champ ; vide = champ seul (ligne de réglage). */
   readonly label = input('');
+  /** Nom accessible quand le libellé visuel est porté ailleurs (ligne de réglage). */
+  readonly ariaLabel = input('');
+  /** Prend le focus à l'apparition (ex. champ d'un dialogue). */
+  readonly autofocus = input(false);
   readonly type = input<'text' | 'password' | 'number'>('text');
   readonly name = input('');
   readonly placeholder = input('');

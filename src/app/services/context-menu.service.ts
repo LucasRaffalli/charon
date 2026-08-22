@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-import { IconName } from '@app/components/icon/icon';
+import { IconName } from '@app/components/ui/icon/icon';
 
 export interface ContextMenuItem {
   label: string;

@@ -1,4 +1,11 @@
-<button type="button" class="toggle" role="switch" [attr.aria-checked]="checked()" (click)="toggle()">
+<button
+  type="button"
+  class="toggle"
+  role="switch"
+  [attr.aria-checked]="checked()"
+  [attr.aria-label]="ariaLabel() || null"
+  (click)="toggle()"
+>
   @if (label()) {
     <span class="toggle__label">{{ label() }}</span>
   }

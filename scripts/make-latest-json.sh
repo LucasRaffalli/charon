@@ -27,26 +27,23 @@ VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.co
 SIGNATURE="$(cat "$ARCHIVE.sig")"
 NAME="$(basename "$ARCHIVE")"
 
-# --- Notes de version : générées depuis git (aucun fichier à maintenir). ---
-# Un commit = une feature (workflow du dépôt) → les sujets des commits depuis
-# le tag de la release précédente SONT le changelog. Affichées dans
+# --- Notes de version : depuis le changelog CURATÉ (src/assets/changelog.json,
+# rédigé à la main à chaque feature) — jamais depuis les messages de commit,
+# qui peuvent contenir des détails internes. Affichées dans
 # Réglages -> Mises à jour avant installation.
-CURRENT_TAG="v$VERSION"
-# Tag précédent : le plus récent (tri par version) qui n'est pas la version courante.
-PREV_TAG="$(git -C "$DIR" tag --list 'v*' --sort=-v:refname | grep -Fvx "$CURRENT_TAG" | head -1 || true)"
-if git -C "$DIR" rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
-  END="$CURRENT_TAG"   # release déjà taguée (npm run release) : borne exacte
-else
-  END="HEAD"
-fi
-if [ -n "$PREV_TAG" ]; then
-  RANGE="$PREV_TAG..$END"
-else
-  RANGE="$END"         # première release : tout l'historique
-fi
-NOTES="$(git -C "$DIR" log "$RANGE" --no-merges --pretty=format:'- %s' 2>/dev/null || true)"
+NOTES="$(CHANGELOG="$DIR/src/assets/changelog.json" VERSION="$VERSION" python3 - <<'PYEOF'
+import json
+import os
+
+entries = json.load(open(os.environ["CHANGELOG"], encoding="utf-8"))
+version = os.environ["VERSION"]
+entry = next((e for e in entries if e["version"] == version), None)
+if entry:
+    print("\n".join(f"- {n}" for n in entry["notes"]))
+PYEOF
+)"
 if [ -z "$NOTES" ]; then
-  echo "Attention : aucun commit dans $RANGE — notes vides." >&2
+  echo "Attention : aucune entrée '$VERSION' dans src/assets/changelog.json — notes vides." >&2
 fi
 
 NOTES="$NOTES" python3 - "$VERSION" "$SIGNATURE" "$BASE_URL/$NAME" <<'EOF'

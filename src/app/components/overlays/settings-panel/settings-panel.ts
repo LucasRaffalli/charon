@@ -4,7 +4,9 @@ import { Button } from '@app/components/ui/button/button';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { Toggle } from '@app/components/ui/toggle/toggle';
-import { CHANGELOG } from '@app/generated/changelog';
+import changelogData from '../../../../assets/changelog.json';
+
+import { ChangelogEntry } from '@app/interfaces';
 import { DialogService } from '@app/services/dialog.service';
 import { DockService } from '@app/services/dock.service';
 import { ModulesService } from '@app/services/modules.service';
@@ -40,8 +42,8 @@ export class SettingsPanel {
 
   protected readonly activeTab = signal<SettingsTab>('appearance');
 
-  /** Historique des versions embarqué au build (généré depuis les tags git). */
-  protected readonly changelog = CHANGELOG;
+  /** Changelog curaté (src/assets/changelog.json) — rédigé à chaque feature. */
+  protected readonly changelog: ChangelogEntry[] = changelogData;
 
   protected readonly tabs: readonly TabOption[] = [
     { id: 'appearance', icon: 'palette', label: 'Apparence' },

@@ -1,4 +1,5 @@
 export * from './activity';
+export * from './changelog';
 export * from './connection';
 export * from './dock';
 export * from './file-entry';

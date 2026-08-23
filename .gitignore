@@ -45,5 +45,5 @@ claude.md
 scripts/deploy.env
 latest.json
 
-# Généré depuis les tags git avant chaque start/build (npm run changelog)
-/src/app/generated/
+# Page de téléchargement générée à la release (make-site.sh)
+/site/index.html

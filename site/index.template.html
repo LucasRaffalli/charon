@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Charon — le passeur de fichiers</title>
+  <meta name="description" content="Client SFTP/FTPS/FTP pour macOS. Télécharger la version {{VERSION}}." />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <style>
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('Satoshi-400.woff2') format('woff2');
+      font-weight: 400;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('Satoshi-700.woff2') format('woff2');
+      font-weight: 700;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Satoshi';
+      src: url('Satoshi-900.woff2') format('woff2');
+      font-weight: 900;
+      font-display: swap;
+    }
+
+    :root {
+      --bg: #0c0e12;
+      --surface: #12151a;
+      --border: #1f242c;
+      --text: #e6e9ee;
+      --text-muted: #9aa3ad;
+      --text-faint: #5f6670;
+      --accent: #5b7fa6;
+      --accent-bright: #6c91b8;
+      --cover-text: #eaf1fb;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+
+    /* --- Hero plein écran, comme la cover de l'app --- */
+    .hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100svh;
+      overflow: hidden;
+      text-align: center;
+      color: var(--cover-text);
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Version au-dessus du logo — même style que la cover. */
+    .hero-version {
+      position: absolute;
+      top: 24px;
+      left: 0;
+      right: 0;
+      z-index: 2;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .hero-mark { width: 154px; height: 154px; }
+
+    /* Tagline sous le logo — même style que la version. */
+    .hero-tagline {
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    /* Bouton download, simple. */
+    .hero-download {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 36px;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    .btn:hover { background: var(--accent-bright); transform: translateY(-1px); }
+    .hero-meta {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.7;
+    }
+
+    /* --- Sous la ligne de flottaison --- */
+    .below { max-width: 640px; margin: 0 auto; padding: 56px 24px 0; }
+
+    .note {
+      padding: 18px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      font-size: 13.5px;
+      color: var(--text-muted);
+    }
+    .note strong { color: var(--text); }
+    .note code {
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: #171b21;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .section-title {
+      margin: 48px 0 16px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+    }
+    .release {
+      padding: 18px 20px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+    .release + .release { margin-top: 12px; }
+    .release-head { display: flex; align-items: baseline; gap: 10px; }
+    .release-version { font-size: 14px; font-weight: 700; }
+    .release-date { font-size: 11px; color: var(--text-faint); }
+    .release-latest {
+      padding: 1px 8px;
+      border-radius: 20px;
+      background: rgba(91, 127, 166, 0.16);
+      color: var(--accent-bright);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .release ul { margin: 10px 0 0; padding-left: 20px; }
+    .release li { font-size: 13px; color: var(--text-muted); }
+    .release li + li { margin-top: 3px; }
+
+    footer {
+      margin-top: 64px;
+      padding: 28px 24px 40px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    footer a { color: var(--text-muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <img class="hero-bg" src="web_bg.png" alt="" />
+    <p class="hero-version">v.{{VERSION}}</p>
+    <div class="hero-content">
+      <svg class="hero-mark" viewBox="0 0 154 154" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo Charon">
+        <path d="M0 150.391C0 152.384 1.61597 154 3.60938 154H150.391C152.384 154 154 152.384 154 150.391V114.207C154 111.535 151.202 109.797 148.847 111.058C131.409 120.398 115.858 132.801 102.914 147.548C101.452 149.213 98.8528 149.247 97.3482 147.621C85.7932 135.132 72.3173 124.445 57.3898 116.031C55.8837 115.183 55.1605 113.403 55.6468 111.744C64.9152 80.1252 64.361 45.8956 54.1745 14.5996C53.0553 11.1614 57.204 7.84425 60.3117 9.69265C87.4329 25.824 119.022 33.8462 150.602 32.6413C152.511 32.5684 154 30.9844 154 29.0738V3.60938C154 1.61597 152.384 0 150.391 0H3.60938C1.61597 0 0 1.61597 0 3.60938V150.391Z" fill="#E5EDF5"/>
+      </svg>
+      <p class="hero-tagline">Le passeur de fichiers</p>
+      <div class="hero-download">
+        <a class="btn" href="{{DMG_NAME}}" download>Télécharger pour macOS</a>
+        <p class="hero-meta">{{DATE}} · Apple Silicon · .dmg</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="below">
+    <div class="note">
+      <strong>Premier lancement :</strong> l'app n'est pas notarisée Apple —
+      macOS affichera un avertissement. Fais un <strong>clic droit sur
+      charon.app → Ouvrir → Ouvrir</strong> (une seule fois), ou en
+      terminal&nbsp;: <code>xattr -cr /Applications/charon.app</code>.
+      Les mises à jour suivantes s'installent automatiquement depuis l'app.
+    </div>
+
+    <h2 class="section-title">Historique des versions</h2>
+    {{CHANGELOG_HTML}}
+  </main>
+
+  <footer>
+    Charon — client SFTP privé pour macOS ·
+    <a href="https://lucasraffalli.com">lucasraffalli.com</a>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,26 @@
+[
+  {
+    "version": "1.1.0",
+    "date": "2026-08-23",
+    "notes": [
+      "Système de Modules : des extensions sandboxées peuvent ajouter des commandes, des tableaux de bord et réagir aux événements de l'app",
+      "Moniteur VPS inclus : espace disque, mémoire, charge et processus du serveur en un coup d'œil",
+      "Mises à jour automatiques : vérification en arrière-plan, indicateur discret et nouveautés affichées avant l'installation",
+      "Historique des versions consultable dans les réglages",
+      "Le bouton Débarquer a été éloigné des réglages et demande confirmation si des transferts sont en cours"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-08-22",
+    "notes": [
+      "Première version : client SFTP, FTPS et FTP pour macOS",
+      "Transferts fiables : reprise après interruption, file persistante, glisser-déposer",
+      "Terminal SSH intégré et suivi de logs en direct",
+      "Édition distante : un fichier serveur s'ouvre dans ton éditeur et se ré-envoie à chaque sauvegarde",
+      "Garde-fous de production : badge PROD, lecture seule, confirmation par nom d'hôte, diff avant écrasement",
+      "Profils multi-serveurs avec secrets dans le trousseau macOS",
+      "Espace de travail entièrement réorganisable (panneaux dockables), thèmes, palette de commandes"
+    ]
+  }
+]

@@ -29,8 +29,16 @@ ARCHIVE="$(ls "$BUNDLE"/*.app.tar.gz 2>/dev/null | head -1)"
 # 3. générer le manifeste (signature + url dedans)
 "$HERE/make-latest-json.sh" "$PUBLIC_URL" > "$ROOT/latest.json"
 
-# 4. envoyer manifeste + archive sur le VPS
+# 4. installeur .dmg pour les premières installations (lien à partager)
+DMG="$(ls "$ROOT/src-tauri/target/release/bundle/dmg"/*.dmg 2>/dev/null | head -1)"
+
+# 5. envoyer manifeste + archive (+ dmg) sur le VPS
 echo "Upload vers $VPS_HOST:$VPS_DIR …"
-scp -P "$VPS_PORT" "$ROOT/latest.json" "$ARCHIVE" "$VPS_HOST:$VPS_DIR/"
+scp -P "$VPS_PORT" "$ROOT/latest.json" "$ARCHIVE" ${DMG:+"$DMG"} "$VPS_HOST:$VPS_DIR/"
 
 echo "✓ Déployé : $PUBLIC_URL/latest.json"
+if [ -n "$DMG" ]; then
+  echo "✓ Installeur à partager : $PUBLIC_URL/$(basename "$DMG")"
+else
+  echo "(pas de .dmg produit — premières installations via l'archive .app.tar.gz)"
+fi

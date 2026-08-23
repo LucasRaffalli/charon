@@ -190,6 +190,39 @@
   }
 }
 
+// Engrenage : la pastille signale une mise à jour disponible.
+.explorer__status-gear {
+  position: relative;
+}
+
+.explorer__update-dot {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+  animation: update-dot-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes update-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__update-dot {
+    animation: none;
+  }
+}
+
 // --- Indicateur de chargement ---
 
 .explorer__progress {

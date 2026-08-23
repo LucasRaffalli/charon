@@ -27,17 +27,42 @@ VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.co
 SIGNATURE="$(cat "$ARCHIVE.sig")"
 NAME="$(basename "$ARCHIVE")"
 
-python3 - "$VERSION" "$SIGNATURE" "$BASE_URL/$NAME" <<'EOF'
+# --- Notes de version : générées depuis git (aucun fichier à maintenir). ---
+# Un commit = une feature (workflow du dépôt) → les sujets des commits depuis
+# le tag de la release précédente SONT le changelog. Affichées dans
+# Réglages -> Mises à jour avant installation.
+CURRENT_TAG="v$VERSION"
+# Tag précédent : le plus récent (tri par version) qui n'est pas la version courante.
+PREV_TAG="$(git -C "$DIR" tag --list 'v*' --sort=-v:refname | grep -Fvx "$CURRENT_TAG" | head -1 || true)"
+if git -C "$DIR" rev-parse "$CURRENT_TAG" >/dev/null 2>&1; then
+  END="$CURRENT_TAG"   # release déjà taguée (npm run release) : borne exacte
+else
+  END="HEAD"
+fi
+if [ -n "$PREV_TAG" ]; then
+  RANGE="$PREV_TAG..$END"
+else
+  RANGE="$END"         # première release : tout l'historique
+fi
+NOTES="$(git -C "$DIR" log "$RANGE" --no-merges --pretty=format:'- %s' 2>/dev/null || true)"
+if [ -z "$NOTES" ]; then
+  echo "Attention : aucun commit dans $RANGE — notes vides." >&2
+fi
+
+NOTES="$NOTES" python3 - "$VERSION" "$SIGNATURE" "$BASE_URL/$NAME" <<'EOF'
 import datetime
 import json
+import os
 import sys
 
 version, signature, url = sys.argv[1:4]
+notes = os.environ.get("NOTES", "")
+
 print(
     json.dumps(
         {
             "version": version,
-            "notes": "",
+            "notes": notes,
             "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),

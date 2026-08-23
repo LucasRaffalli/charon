@@ -26,6 +26,9 @@
             >
               <app-icon [name]="tab.icon" [size]="15" />
               {{ tab.label }}
+              @if (tab.id === 'updates' && updater.updateAvailable()) {
+                <span class="panel__nav-badge" aria-label="Mise à jour disponible"></span>
+              }
             </button>
           }
         </nav>
@@ -222,9 +225,20 @@
                 }
                 @case ('available') {
                   <p class="panel__update-status">
-                    Nouvelle version disponible — l'installation vérifie la signature
-                    avant d'appliquer quoi que ce soit.
+                    @if (updater.status(); as status) {
+                      @if (status.kind === 'available') {
+                        Version {{ status.version }} disponible —
+                      }
+                    }
+                    l'installation vérifie la signature avant d'appliquer quoi
+                    que ce soit.
                   </p>
+                  @if (updater.notes(); as notes) {
+                    <div class="panel__changelog">
+                      <span class="panel__changelog-title">Nouveautés</span>
+                      <pre class="panel__changelog-body">{{ notes }}</pre>
+                    </div>
+                  }
                   <app-button (click)="updater.install()">Installer et redémarrer</app-button>
                 }
                 @case ('downloading') {
@@ -258,6 +272,29 @@
                   <app-icon name="refresh" [size]="14" />
                   Vérifier les mises à jour
                 </app-button>
+              }
+
+              <!-- Historique embarqué au build : survit aux mises à jour. -->
+              @if (changelog.length > 0) {
+                <div class="panel__history">
+                  <span class="panel__history-title">Historique des versions</span>
+                  @for (entry of changelog; track entry.version) {
+                    <div class="panel__history-entry">
+                      <div class="panel__history-head">
+                        <span class="panel__history-version data">{{ entry.version }}</span>
+                        <span class="panel__history-date data">{{ entry.date }}</span>
+                        @if (entry.version === updater.currentVersion()) {
+                          <span class="panel__history-current">installée</span>
+                        }
+                      </div>
+                      <ul class="panel__history-notes">
+                        @for (note of entry.notes; track $index) {
+                          <li>{{ note }}</li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                </div>
               }
             }
           }

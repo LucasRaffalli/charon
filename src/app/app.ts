@@ -10,6 +10,7 @@ import { ExplorerPage } from '@app/features/explorer/explorer-page';
 import { SftpService } from '@app/services/sftp.service';
 import { ModuleHostService } from '@app/services/module-host.service';
 import { ThemeService } from '@app/services/theme.service';
+import { UpdaterService } from '@app/services/updater.service';
 
 @Component({
   selector: 'app-root',
@@ -34,4 +35,7 @@ export class App {
 
   // Démarre l'hôte des modules dès le lancement (charge les modules actifs).
   private readonly moduleHost = inject(ModuleHostService);
+
+  // Lance la vérification automatique des mises à jour dès le démarrage.
+  private readonly updater = inject(UpdaterService);
 }

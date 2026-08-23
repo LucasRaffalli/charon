@@ -29,4 +29,21 @@ if [ -z "$PWD_FROM_KEYCHAIN" ]; then
 fi
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PWD_FROM_KEYCHAIN"
 
-exec npx tauri build --config src-tauri/tauri.release.conf.json
+# Historique des versions embarqué dans le bundle (régénéré avant le build
+# pour inclure la version en cours de release). Committer le fichier généré.
+"$(dirname "$0")/make-changelog.sh"
+
+npx tauri build --config src-tauri/tauri.release.conf.json
+
+# Tag de release : borne le changelog généré par make-latest-json.sh
+# (notes = sujets des commits depuis le tag précédent). Local — pense à
+# pousser avec `git push --tags`.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.conf.json'))['version'])")"
+TAG="v$VERSION"
+if git -C "$DIR" rev-parse "$TAG" >/dev/null 2>&1; then
+  echo "Tag $TAG déjà présent (rebuild de la même version) — inchangé."
+else
+  git -C "$DIR" tag "$TAG"
+  echo "Tag $TAG créé — à pousser avec : git push --tags"
+fi

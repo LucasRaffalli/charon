@@ -39,6 +39,7 @@ import { RemoteEditService } from '@app/services/remote-edit.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { TransfersService } from '@app/services/transfers.service';
+import { UpdaterService } from '@app/services/updater.service';
 
 /** Nom d'entrée valide : pas de séparateur, pas de `.` / `..`. */
 const isValidEntryName = (name: string): boolean =>
@@ -78,6 +79,7 @@ export class ExplorerPage {
   protected readonly preview = inject(PreviewService);
   private readonly dialog = inject(DialogService);
   protected readonly dock = inject(DockService);
+  protected readonly updater = inject(UpdaterService);
 
   /** Taille max lue de chaque côté pour l'aperçu de diff (256 Kio). */
   private static readonly DIFF_MAX_BYTES = 256 * 1024;
@@ -476,5 +478,25 @@ export class ExplorerPage {
     return this.settings.showHidden()
       ? entries
       : entries.filter((entry) => !entry.name.startsWith('.'));
+  }
+
+  /** Ferme la connexion ; demande confirmation si des transferts sont actifs. */
+  protected async disconnect(): Promise<void> {
+    const active = this.transfers.activeCount();
+    if (active > 0) {
+      const confirmed = await this.dialog.confirm({
+        title: 'Débarquer ?',
+        message:
+          active === 1
+            ? 'Un transfert est en cours — il sera interrompu (reprise possible après reconnexion).'
+            : `${active} transferts sont en cours — ils seront interrompus (reprise possible après reconnexion).`,
+        confirmLabel: 'Débarquer',
+        danger: true,
+      });
+      if (!confirmed) {
+        return;
+      }
+    }
+    await this.sftp.disconnect();
   }
 }

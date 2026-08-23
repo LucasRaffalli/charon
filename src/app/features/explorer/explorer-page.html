@@ -204,6 +204,18 @@
       {{ sftp.connectionId() }}
     </span>
 
+    <!-- Accolé à l'identité de connexion (c'est elle qu'il ferme), loin des
+         boutons fréquents à droite — un clic raté ne débarque plus. -->
+    <button
+      type="button"
+      class="explorer__status-btn explorer__status-btn--danger"
+      title="Fermer la connexion"
+      (click)="disconnect()"
+    >
+      <app-icon name="log-out" [size]="13" />
+      Débarquer
+    </button>
+
     <span class="explorer__status-spacer"></span>
 
     @if (dock.closedPanels().length > 0) {
@@ -224,22 +236,15 @@
 
     <button
       type="button"
-      class="explorer__status-btn"
-      title="Réglages"
-      aria-label="Réglages"
+      class="explorer__status-btn explorer__status-gear"
+      [title]="updater.updateAvailable() ? 'Réglages — mise à jour disponible' : 'Réglages'"
+      [attr.aria-label]="updater.updateAvailable() ? 'Réglages — mise à jour disponible' : 'Réglages'"
       (click)="settings.openPanel()"
     >
       <app-icon name="settings" [size]="13" />
-    </button>
-
-    <button
-      type="button"
-      class="explorer__status-btn explorer__status-btn--danger"
-      title="Fermer la connexion"
-      (click)="sftp.disconnect()"
-    >
-      <app-icon name="log-out" [size]="13" />
-      Débarquer
+      @if (updater.updateAvailable()) {
+        <span class="explorer__update-dot" aria-hidden="true"></span>
+      }
     </button>
   </footer>
 

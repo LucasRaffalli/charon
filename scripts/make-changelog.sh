@@ -4,8 +4,10 @@
 # Si la version de tauri.conf.json n'est pas encore taguée, elle devient
 # l'entrée la plus récente (commits depuis le dernier tag).
 #
-# Appelé automatiquement par release.sh avant le build ; committer le fichier
-# généré (il fait partie du bundle : l'historique survit aux mises à jour).
+# Lancé automatiquement par les hooks npm prestart/prebuild (donc par
+# `npm run dev`, `npm run build` et les builds Tauri). Le fichier généré est
+# GITIGNORÉ — il fait partie du bundle (l'historique survit aux mises à jour)
+# mais jamais du dépôt. Regénération manuelle : `npm run changelog`.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"

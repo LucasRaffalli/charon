@@ -29,10 +29,9 @@ if [ -z "$PWD_FROM_KEYCHAIN" ]; then
 fi
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PWD_FROM_KEYCHAIN"
 
-# Historique des versions embarqué dans le bundle (régénéré avant le build
-# pour inclure la version en cours de release). Committer le fichier généré.
-"$(dirname "$0")/make-changelog.sh"
-
+# (l'historique des versions embarqué — src/app/generated/changelog.ts — est
+# régénéré automatiquement par le hook npm `prebuild`, déclenché par le
+# beforeBuildCommand de Tauri ; fichier gitignoré, jamais committé)
 npx tauri build --config src-tauri/tauri.release.conf.json
 
 # Tag de release : borne le changelog généré par make-latest-json.sh

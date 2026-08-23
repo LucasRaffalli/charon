@@ -44,3 +44,6 @@ claude.md
 # Config de déploiement locale (hôte/URL)
 scripts/deploy.env
 latest.json
+
+# Généré depuis les tags git avant chaque start/build (npm run changelog)
+/src/app/generated/

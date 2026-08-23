@@ -1,6 +1,6 @@
 [package]
 name = "charon"
-version = "1.0.0"
+version = "1.1.0"
 description = "Client SFTP/FTP privé pour macOS"
 authors = ["lucas"]
 edition = "2021"

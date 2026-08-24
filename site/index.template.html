@@ -118,6 +118,8 @@
       transition: background 0.15s ease, transform 0.15s ease;
     }
     .btn:hover { background: var(--accent-bright); transform: translateY(-1px); }
+    .btn-alt { background: rgba(255, 255, 255, 0.14); }
+    .btn-alt:hover { background: rgba(255, 255, 255, 0.22); }
     .hero-meta {
       font-size: 11px;
       font-weight: 700;
@@ -137,6 +139,7 @@
       font-size: 13.5px;
       color: var(--text-muted);
     }
+    .note + .note { margin-top: 12px; }
     .note strong { color: var(--text); }
     .note code {
       padding: 1px 6px;
@@ -203,12 +206,20 @@
       <p class="hero-tagline">Le passeur de fichiers</p>
       <div class="hero-download">
         <a class="btn" href="{{DMG_NAME}}" download>Télécharger pour macOS</a>
+        {{WINDOWS_BTN}}
         <p class="hero-meta">{{DATE}} · Apple Silicon · .dmg</p>
       </div>
     </div>
   </header>
 
   <main class="below">
+    <div class="note">
+      <strong>Installation recommandée — Homebrew&nbsp;:</strong>
+      <code>brew install --cask lucasraffalli/charon/charon</code> —
+      aucune manipulation ensuite, la quarantaine est levée automatiquement
+      à l'installation.
+    </div>
+
     <div class="note">
       <strong>« charon est endommagé et ne peut pas être ouvert » ?</strong>
       L'app n'est pas cassée : elle n'est pas notarisée Apple, et macOS bloque
@@ -219,6 +230,8 @@
       normalement. Les mises à jour suivantes s'installent automatiquement
       depuis l'app, sans refaire cette manipulation.
     </div>
+
+    {{WINDOWS_NOTE}}
 
     <h2 class="section-title">Historique des versions</h2>
     {{CHANGELOG_HTML}}

@@ -47,3 +47,6 @@ latest.json
 
 # Page de téléchargement générée à la release (make-site.sh)
 /site/index.html
+
+# Artefacts Windows téléchargés depuis la CI (workflow windows.yml)
+/dist-windows

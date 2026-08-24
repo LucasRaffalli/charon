@@ -32,8 +32,16 @@ ARCHIVE="$(ls "$BUNDLE"/*.app.tar.gz 2>/dev/null | head -1)"
 # 4. installeur .dmg pour les premières installations (lien à partager)
 DMG="$(ls "$ROOT/src-tauri/target/release/bundle/dmg"/*.dmg 2>/dev/null | head -1)"
 
-# 5. page de téléchargement (version + changelog curaté + lien du .dmg)
-"$HERE/make-site.sh" "${DMG:+$(basename "$DMG")}"
+# 4bis. installeur Windows (optionnel) : artefact CI dézippé dans dist-windows/
+# — make-latest-json.sh l'a déjà validé (signature + version) s'il est là.
+WIN_EXE="$(ls "$ROOT/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
+
+# 5. page de téléchargement (version + changelog curaté + liens .dmg/.exe)
+"$HERE/make-site.sh" "${DMG:+$(basename "$DMG")}" "${WIN_EXE:+$(basename "$WIN_EXE")}"
+
+# 5bis. cask Homebrew (tap séparé — version + sha256 du .dmg) ; le push du
+# tap reste manuel, le rappel est affiché en fin de script.
+"$HERE/make-cask.sh"
 
 # 6. envoyer manifeste + archive (+ dmg) + page + assets sur le VPS
 # (le fond et les fonts de la page viennent de src/assets — source unique)
@@ -45,7 +53,7 @@ scp -P "$VPS_PORT" \
   "$ROOT/src/assets/fonts/Satoshi-400.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-700.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-900.woff2" \
-  "$ARCHIVE" ${DMG:+"$DMG"} "$VPS_HOST:$VPS_DIR/"
+  "$ARCHIVE" ${DMG:+"$DMG"} ${WIN_EXE:+"$WIN_EXE"} "$VPS_HOST:$VPS_DIR/"
 
 # Favicon de la page (icônes de l'app, renommées à l'upload).
 scp -P "$VPS_PORT" "$ROOT/src-tauri/icons/32x32.png" "$VPS_HOST:$VPS_DIR/favicon.png"
@@ -58,3 +66,9 @@ if [ -n "$DMG" ]; then
 else
   echo "(pas de .dmg produit — premières installations via l'archive .app.tar.gz)"
 fi
+if [ -n "$WIN_EXE" ]; then
+  echo "✓ Installeur Windows : $PUBLIC_URL/$(basename "$WIN_EXE")"
+else
+  echo "(pas d'installeur Windows dans dist-windows/ — release macOS seule)"
+fi
+echo "→ Si la cask a changé : commit + push du tap Homebrew (rappel plus haut)."

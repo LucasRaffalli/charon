@@ -27,6 +27,23 @@ VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.co
 SIGNATURE="$(cat "$ARCHIVE.sig")"
 NAME="$(basename "$ARCHIVE")"
 
+# --- Windows (optionnel) : installeur NSIS + signature, produits par la CI
+# (workflow windows.yml) et dézippés dans dist-windows/. Absents = latest.json
+# macOS seul, comme avant.
+WIN_NAME=""
+WIN_SIGNATURE=""
+WIN_EXE="$(ls "$DIR/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
+if [ -n "$WIN_EXE" ]; then
+  if [ ! -f "$WIN_EXE.sig" ]; then
+    echo "Attention : signature absente ($WIN_EXE.sig) — Windows exclu de latest.json." >&2
+  elif ! basename "$WIN_EXE" | grep -qF "$VERSION"; then
+    echo "Attention : $(basename "$WIN_EXE") ne correspond pas à v$VERSION — Windows exclu de latest.json." >&2
+  else
+    WIN_NAME="$(basename "$WIN_EXE")"
+    WIN_SIGNATURE="$(cat "$WIN_EXE.sig")"
+  fi
+fi
+
 # --- Notes de version : depuis le changelog CURATÉ (src/assets/changelog.json,
 # rédigé à la main à chaque feature) — jamais depuis les messages de commit,
 # qui peuvent contenir des détails internes. Affichées dans
@@ -46,14 +63,26 @@ if [ -z "$NOTES" ]; then
   echo "Attention : aucune entrée '$VERSION' dans src/assets/changelog.json — notes vides." >&2
 fi
 
-NOTES="$NOTES" python3 - "$VERSION" "$SIGNATURE" "$BASE_URL/$NAME" <<'EOF'
+NOTES="$NOTES" WIN_NAME="$WIN_NAME" WIN_SIGNATURE="$WIN_SIGNATURE" \
+  python3 - "$VERSION" "$SIGNATURE" "$BASE_URL/$NAME" "$BASE_URL" <<'EOF'
 import datetime
 import json
 import os
 import sys
 
-version, signature, url = sys.argv[1:4]
+version, signature, url, base_url = sys.argv[1:5]
 notes = os.environ.get("NOTES", "")
+
+platforms = {
+    "darwin-aarch64": {"signature": signature, "url": url},
+    "darwin-x86_64": {"signature": signature, "url": url},
+}
+win_name = os.environ.get("WIN_NAME", "")
+if win_name:
+    platforms["windows-x86_64"] = {
+        "signature": os.environ["WIN_SIGNATURE"],
+        "url": f"{base_url}/{win_name}",
+    }
 
 print(
     json.dumps(
@@ -63,10 +92,7 @@ print(
             "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
-            "platforms": {
-                "darwin-aarch64": {"signature": signature, "url": url},
-                "darwin-x86_64": {"signature": signature, "url": url},
-            },
+            "platforms": platforms,
         },
         indent=2,
     )

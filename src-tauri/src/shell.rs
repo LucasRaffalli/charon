@@ -45,6 +45,7 @@ const SUDO_CANCELLED: &str = "CHARON_SUDO_CANCELLED";
 /// (osascript). Le mot de passe est saisi hors WebView (hors de portée d'un
 /// XSS), renvoyé uniquement au backend. `detail` décrit l'opération pour que
 /// l'utilisateur puisse refuser toute action inattendue.
+#[cfg(target_os = "macos")]
 async fn prompt_admin_password(detail: &str) -> Result<String, String> {
     let message = format!(
         "Cette action nécessite des droits administrateur (sudo) sur le serveur.\n\n{detail}\n\nMot de passe :"
@@ -87,6 +88,14 @@ async fn prompt_admin_password(detail: &str) -> Result<String, String> {
         password.pop();
     }
     Ok(password)
+}
+
+/// Hors macOS : pas encore d'invite native hors WebView (le mot de passe ne
+/// doit jamais transiter par la WebView). On renvoie l'annulation balisée —
+/// le front conserve alors l'erreur d'origine (permission denied).
+#[cfg(not(target_os = "macos"))]
+async fn prompt_admin_password(_detail: &str) -> Result<String, String> {
+    Err(SUDO_CANCELLED.to_string())
 }
 
 /// Réessaie une opération de fichier **échouée pour permission** en l'exécutant

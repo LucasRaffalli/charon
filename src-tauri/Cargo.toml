@@ -24,7 +24,6 @@ russh = "0.62.7"
 russh-sftp = "2"
 suppaftp = { version = "6", features = ["async-secure", "async-native-tls"] }
 futures-util = { version = "0.3", features = ["io"] }
-keyring = { version = "3", features = ["apple-native"] }
 tauri-plugin-store = "2"
 thiserror = "2"
 dirs = "5"
@@ -32,3 +31,10 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 base64 = "0.22"
 notify = "8"
+
+# Coffre à secrets natif : Keychain sur macOS, Credential Manager sur Windows.
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }

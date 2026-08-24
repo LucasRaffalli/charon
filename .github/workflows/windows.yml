@@ -1,0 +1,51 @@
+# Build Windows (NSIS + artefacts updater signés) — impossible de cross-compiler
+# un Tauri Windows depuis macOS, donc CI sur runner windows-latest.
+#
+# Secrets à créer une fois (Settings → Secrets and variables → Actions) :
+#   TAURI_SIGNING_PRIVATE_KEY          = contenu de ~/.tauri/charon-updater.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD = mot de passe de la clé (trousseau)
+#
+# Déclenché par le push d'un tag v* (git push --tags après release.sh) ou à la
+# main (workflow_dispatch). Récupération : artefact « charon-windows » du run,
+# à dézipper dans dist-windows/ avant npm run deploy.
+name: windows
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # L'overlay release active createUpdaterArtifacts ; --bundles nsis
+      # remplace ses targets macOS (app/dmg) pour ce runner.
+      - name: Build Tauri (NSIS)
+        run: npx tauri build --config src-tauri/tauri.release.conf.json --bundles nsis
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: charon-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.sig
+          if-no-files-found: error

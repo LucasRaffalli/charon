@@ -28,22 +28,33 @@ ARCHIVE="$(ls "$BUNDLE"/*.app.tar.gz 2>/dev/null | head -1)"
 
 # 2bis. installeur Windows (optionnel) : s'il n'est pas déjà dans
 # dist-windows/, on le récupère depuis la release GitHub du tag courant
-# (publiée par le workflow windows.yml). Absent = release macOS seule —
-# relancer le deploy quand la CI aura fini pour ajouter Windows.
+# (publiée par le workflow windows.yml, déclenché par le push du tag dans
+# release.sh). La CI prend ~20 min : on sonde toutes les 60 s jusqu'à 30 min
+# pour tout publier en un seul deploy. WAIT_WINDOWS=0 pour ne pas attendre
+# (deploy macOS seul, relançable plus tard pour ajouter Windows).
 VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/src-tauri/tauri.conf.json'))['version'])")"
 WIN_EXE="$(ls "$ROOT/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
 if [ -z "$WIN_EXE" ]; then
   WIN_NAME="charon_${VERSION}_x64-setup.exe"
   WIN_URL="https://github.com/LucasRaffalli/charon/releases/download/v$VERSION"
   mkdir -p "$ROOT/dist-windows"
-  if curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME" "$WIN_URL/$WIN_NAME" &&
-     curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME.sig" "$WIN_URL/$WIN_NAME.sig"; then
-    echo "Installeur Windows récupéré depuis la release GitHub v$VERSION."
-    WIN_EXE="$ROOT/dist-windows/$WIN_NAME"
-  else
+  DEADLINE=$(( $(date +%s) + 1800 ))
+  while :; do
+    if curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME" "$WIN_URL/$WIN_NAME" &&
+       curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME.sig" "$WIN_URL/$WIN_NAME.sig"; then
+      echo "Installeur Windows récupéré depuis la release GitHub v$VERSION."
+      WIN_EXE="$ROOT/dist-windows/$WIN_NAME"
+      break
+    fi
     rm -f "$ROOT/dist-windows/$WIN_NAME" "$ROOT/dist-windows/$WIN_NAME.sig"
-    echo "(pas d'installeur Windows : ni dist-windows/, ni release GitHub v$VERSION — deploy macOS seul)"
-  fi
+    if [ "${WAIT_WINDOWS:-1}" = "0" ] || [ "$(date +%s)" -ge "$DEADLINE" ]; then
+      echo "(pas d'installeur Windows dans la release v$VERSION — deploy macOS seul ;"
+      echo " vérifier l'onglet Actions, puis relancer npm run deploy pour ajouter Windows)"
+      break
+    fi
+    echo "CI Windows en cours (release v$VERSION)… nouvel essai dans 60 s [WAIT_WINDOWS=0 pour publier sans attendre]"
+    sleep 60
+  done
 fi
 
 # 3. générer le manifeste (signature + url dedans ; inclut Windows si présent)
@@ -55,9 +66,19 @@ DMG="$(ls "$ROOT/src-tauri/target/release/bundle/dmg"/*.dmg 2>/dev/null | head -
 # 5. page de téléchargement (version + changelog curaté + liens .dmg/.exe)
 "$HERE/make-site.sh" "${DMG:+$(basename "$DMG")}" "${WIN_EXE:+$(basename "$WIN_EXE")}"
 
-# 5bis. cask Homebrew (tap séparé — version + sha256 du .dmg) ; le push du
-# tap reste manuel, le rappel est affiché en fin de script.
+# 5bis. cask Homebrew (tap séparé — version + sha256 du .dmg), puis commit
+# et push automatiques du tap s'il a changé.
 "$HERE/make-cask.sh"
+TAP_DIR="${TAP_DIR:-$ROOT/../homebrew-charon}"
+if [ -d "$TAP_DIR/.git" ] && [ -n "$(git -C "$TAP_DIR" status --porcelain)" ]; then
+  git -C "$TAP_DIR" add -A
+  git -C "$TAP_DIR" commit -m "charon $VERSION"
+  if git -C "$TAP_DIR" push; then
+    echo "✓ Tap Homebrew poussé (charon $VERSION)."
+  else
+    echo "⚠ Push du tap impossible — à faire à la main : cd \"$TAP_DIR\" && git push" >&2
+  fi
+fi
 
 # 6. envoyer manifeste + archive (+ dmg) + page + assets sur le VPS
 # (le fond et les fonts de la page viennent de src/assets — source unique)
@@ -87,4 +108,3 @@ if [ -n "$WIN_EXE" ]; then
 else
   echo "(pas d'installeur Windows dans dist-windows/ — release macOS seule)"
 fi
-echo "→ Si la cask a changé : commit + push du tap Homebrew (rappel plus haut)."

@@ -26,15 +26,31 @@ BUNDLE="$ROOT/src-tauri/target/release/bundle/macos"
 ARCHIVE="$(ls "$BUNDLE"/*.app.tar.gz 2>/dev/null | head -1)"
 [ -n "$ARCHIVE" ] || { echo "Archive .app.tar.gz introuvable dans $BUNDLE" >&2; exit 1; }
 
-# 3. générer le manifeste (signature + url dedans)
+# 2bis. installeur Windows (optionnel) : s'il n'est pas déjà dans
+# dist-windows/, on le récupère depuis la release GitHub du tag courant
+# (publiée par le workflow windows.yml). Absent = release macOS seule —
+# relancer le deploy quand la CI aura fini pour ajouter Windows.
+VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/src-tauri/tauri.conf.json'))['version'])")"
+WIN_EXE="$(ls "$ROOT/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
+if [ -z "$WIN_EXE" ]; then
+  WIN_NAME="charon_${VERSION}_x64-setup.exe"
+  WIN_URL="https://github.com/LucasRaffalli/charon/releases/download/v$VERSION"
+  mkdir -p "$ROOT/dist-windows"
+  if curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME" "$WIN_URL/$WIN_NAME" &&
+     curl -fsSL -o "$ROOT/dist-windows/$WIN_NAME.sig" "$WIN_URL/$WIN_NAME.sig"; then
+    echo "Installeur Windows récupéré depuis la release GitHub v$VERSION."
+    WIN_EXE="$ROOT/dist-windows/$WIN_NAME"
+  else
+    rm -f "$ROOT/dist-windows/$WIN_NAME" "$ROOT/dist-windows/$WIN_NAME.sig"
+    echo "(pas d'installeur Windows : ni dist-windows/, ni release GitHub v$VERSION — deploy macOS seul)"
+  fi
+fi
+
+# 3. générer le manifeste (signature + url dedans ; inclut Windows si présent)
 "$HERE/make-latest-json.sh" "$PUBLIC_URL" > "$ROOT/latest.json"
 
 # 4. installeur .dmg pour les premières installations (lien à partager)
 DMG="$(ls "$ROOT/src-tauri/target/release/bundle/dmg"/*.dmg 2>/dev/null | head -1)"
-
-# 4bis. installeur Windows (optionnel) : artefact CI dézippé dans dist-windows/
-# — make-latest-json.sh l'a déjà validé (signature + version) s'il est là.
-WIN_EXE="$(ls "$ROOT/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
 
 # 5. page de téléchargement (version + changelog curaté + liens .dmg/.exe)
 "$HERE/make-site.sh" "${DMG:+$(basename "$DMG")}" "${WIN_EXE:+$(basename "$WIN_EXE")}"

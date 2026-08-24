@@ -31,15 +31,20 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PWD_FROM_KEYCHAIN"
 
 npx tauri build --config src-tauri/tauri.release.conf.json
 
-# Tag de release : borne le changelog généré par make-latest-json.sh
-# (notes = sujets des commits depuis le tag précédent). Local — pense à
-# pousser avec `git push --tags`.
+# Tag de release, créé puis poussé automatiquement (branche courante + tag) :
+# le push du tag déclenche le build Windows (workflow windows.yml) qui attache
+# l'installeur à la release GitHub — deploy.sh le récupérera tout seul.
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.conf.json'))['version'])")"
 TAG="v$VERSION"
 if git -C "$DIR" rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG déjà présent (rebuild de la même version) — inchangé."
+  echo "Tag $TAG déjà présent (rebuild de la même version)."
 else
   git -C "$DIR" tag "$TAG"
-  echo "Tag $TAG créé — à pousser avec : git push --tags"
+  echo "Tag $TAG créé."
+fi
+if git -C "$DIR" push origin HEAD "$TAG"; then
+  echo "Poussé : branche courante + $TAG → la CI Windows démarre (~20 min)."
+else
+  echo "⚠ Push impossible (hors-ligne ? remote ?) — à faire à la main : git push origin HEAD $TAG" >&2
 fi

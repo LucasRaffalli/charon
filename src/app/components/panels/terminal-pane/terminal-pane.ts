@@ -117,24 +117,50 @@ export class TerminalPane {
         this.started = true;
         void this.startShell(terminal);
       } else {
-        this.fit.fit();
-        const id = this.terminalId;
-        if (id) {
-          void invoke('shell_resize', {
-            terminalId: id,
-            cols: terminal.cols,
-            rows: terminal.rows,
-          }).catch(() => undefined);
-        }
+        this.refit();
       }
     });
     observer.observe(element);
     this.destroyRef.onDestroy(() => observer.disconnect());
 
+    // La police mono est une webfont : si xterm ouvre avant son chargement,
+    // il mesure ses cellules avec la police de secours → la grille déborde et
+    // la dernière ligne est rognée. Une fois les fontes prêtes, on force une
+    // re-mesure (toggle fontSize, xterm ignore une valeur inchangée) puis refit.
+    if (document.fonts.status !== 'loaded') {
+      void document.fonts.ready.then(() => {
+        const current = this.terminal;
+        if (!current) {
+          return;
+        }
+        const size = current.options.fontSize ?? 12;
+        current.options.fontSize = size + 1;
+        current.options.fontSize = size;
+        this.refit();
+      });
+    }
+
     // Cas où l'élément est déjà dimensionné au montage.
     if (!this.started && element.offsetHeight > 0 && element.offsetWidth > 0) {
       this.started = true;
       void this.startShell(terminal);
+    }
+  }
+
+  /** Recalcule la grille (fit) et pousse la nouvelle taille au PTY distant. */
+  private refit(): void {
+    const terminal = this.terminal;
+    if (!terminal) {
+      return;
+    }
+    this.fit.fit();
+    const id = this.terminalId;
+    if (id) {
+      void invoke('shell_resize', {
+        terminalId: id,
+        cols: terminal.cols,
+        rows: terminal.rows,
+      }).catch(() => undefined);
     }
   }
 

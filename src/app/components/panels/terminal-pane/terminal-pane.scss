@@ -1,9 +1,14 @@
+// Colonne flex : les notices prennent leur hauteur, le terminal le reste —
+// une notice insérée ne pousse plus la dernière ligne hors du panneau.
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
 }
 
 .notice {
+  flex: none;
   padding: var(--space-xs);
   font-size: 12px;
   color: var(--text-faint);
@@ -14,7 +19,8 @@
 }
 
 .term {
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   // xterm gère son propre fond ; on arrondit pour suivre le panneau.
   border-radius: var(--radius-sm);
   overflow: hidden;

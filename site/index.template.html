@@ -210,11 +210,14 @@
 
   <main class="below">
     <div class="note">
-      <strong>Premier lancement :</strong> l'app n'est pas notarisée Apple —
-      macOS affichera un avertissement. Fais un <strong>clic droit sur
-      charon.app → Ouvrir → Ouvrir</strong> (une seule fois), ou en
-      terminal&nbsp;: <code>xattr -cr /Applications/charon.app</code>.
-      Les mises à jour suivantes s'installent automatiquement depuis l'app.
+      <strong>« charon est endommagé et ne peut pas être ouvert » ?</strong>
+      L'app n'est pas cassée : elle n'est pas notarisée Apple, et macOS bloque
+      par défaut les apps téléchargées non notarisées (le clic droit → Ouvrir
+      ne suffit pas pour ce message). Après avoir glissé charon dans
+      Applications, lance une seule fois dans le Terminal&nbsp;:
+      <code>xattr -cr /Applications/charon.app</code> — puis ouvre l'app
+      normalement. Les mises à jour suivantes s'installent automatiquement
+      depuis l'app, sans refaire cette manipulation.
     </div>
 
     <h2 class="section-title">Historique des versions</h2>

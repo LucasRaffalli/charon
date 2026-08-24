@@ -28,7 +28,7 @@ const decode = (data: string): Uint8Array =>
 
 /**
  * Terminal SSH intégré (onglet du panneau inférieur) : un shell interactif
- * sur la session déjà authentifiée — SFTP uniquement. La session survit au
+ * sur la session déjà authentifiée, SFTP uniquement. La session survit au
  * changement d'onglet (le composant est masqué, pas détruit).
  */
 @Component({
@@ -117,6 +117,10 @@ export class TerminalPane {
         this.started = true;
         void this.startShell(terminal);
       } else {
+        if (this.needsFontRefit) {
+          this.needsFontRefit = false;
+          this.remeasureFont();
+        }
         this.refit();
       }
     });
@@ -125,18 +129,21 @@ export class TerminalPane {
 
     // La police mono est une webfont : si xterm ouvre avant son chargement,
     // il mesure ses cellules avec la police de secours → la grille déborde et
-    // la dernière ligne est rognée. Une fois les fontes prêtes, on force une
-    // re-mesure (toggle fontSize, xterm ignore une valeur inchangée) puis refit.
+    // la dernière ligne est rognée. Une fois les fontes prêtes, on re-mesure,
+    // mais UNIQUEMENT panneau visible : mesurer dans un conteneur masqué donne
+    // des cellules de hauteur 0 (terminal invisible). Sinon, on repousse la
+    // re-mesure au prochain passage visible du ResizeObserver.
     if (document.fonts.status !== 'loaded') {
       void document.fonts.ready.then(() => {
-        const current = this.terminal;
-        if (!current) {
+        if (!this.terminal) {
           return;
         }
-        const size = current.options.fontSize ?? 12;
-        current.options.fontSize = size + 1;
-        current.options.fontSize = size;
-        this.refit();
+        if (element.offsetHeight > 0 && element.offsetWidth > 0) {
+          this.remeasureFont();
+          this.refit();
+        } else {
+          this.needsFontRefit = true;
+        }
       });
     }
 
@@ -147,13 +154,51 @@ export class TerminalPane {
     }
   }
 
-  /** Recalcule la grille (fit) et pousse la nouvelle taille au PTY distant. */
+  /** Re-mesure des fontes en attente (le panneau était masqué à leur chargement). */
+  private needsFontRefit = false;
+
+  /** Force xterm à re-mesurer ses cellules (toggle fontSize, une valeur
+   *  inchangée est ignorée). À n'appeler que panneau VISIBLE. */
+  private remeasureFont(): void {
+    const terminal = this.terminal;
+    if (!terminal) {
+      return;
+    }
+    const size = terminal.options.fontSize ?? 12;
+    terminal.options.fontSize = size + 1;
+    terminal.options.fontSize = size;
+  }
+
+  /** Ajuste la grille au conteneur, puis vérifie la hauteur RÉELLEMENT rendue :
+   *  si la grille déborde (mesure de police approximative, arrondi), on retire
+   *  ce qu'il faut de lignes. La dernière ligne ne peut plus être cachée. */
+  private fitAndClamp(): void {
+    const terminal = this.terminal;
+    const element = this.host()?.nativeElement;
+    if (!terminal || !element) {
+      return;
+    }
+    this.fit.fit();
+    const screen = element.querySelector<HTMLElement>('.xterm-screen');
+    const rendered = screen?.getBoundingClientRect().height ?? 0;
+    const available = element.clientHeight;
+    if (rendered > available + 1 && terminal.rows > 2) {
+      // Hauteur de cellule constatée à l'écran (fonte réelle incluse).
+      const cell = rendered / terminal.rows;
+      const rows = Math.max(2, Math.floor(available / cell));
+      if (rows < terminal.rows) {
+        terminal.resize(terminal.cols, rows);
+      }
+    }
+  }
+
+  /** fitAndClamp + propage la nouvelle taille au PTY distant. */
   private refit(): void {
     const terminal = this.terminal;
     if (!terminal) {
       return;
     }
-    this.fit.fit();
+    this.fitAndClamp();
     const id = this.terminalId;
     if (id) {
       void invoke('shell_resize', {
@@ -170,7 +215,7 @@ export class TerminalPane {
     if (!connectionId) {
       return;
     }
-    this.fit.fit();
+    this.fitAndClamp();
     try {
       const id = await invoke<string>('shell_open', {
         connectionId,

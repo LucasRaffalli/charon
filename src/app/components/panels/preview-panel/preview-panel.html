@@ -32,11 +32,11 @@
   @case ('text') {
     @if (preview.truncated()) {
       <p class="notice notice--warn">
-        Fichier volumineux — aperçu tronqué, édition désactivée pour ne pas
+        Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas
         écraser le reste.
       </p>
     } @else if (preview.readonly()) {
-      <p class="notice">Serveur en lecture seule — édition désactivée.</p>
+      <p class="notice">Serveur en lecture seule : édition désactivée.</p>
     }
     <textarea
       class="editor"
@@ -54,7 +54,7 @@
   }
   @case ('binary') {
     <p class="notice">
-      Fichier binaire — aperçu indisponible. Utilise « Télécharger » ou
+      Fichier binaire : aperçu indisponible. Utilise « Télécharger » ou
       « Éditer dans l'éditeur système ».
     </p>
   }

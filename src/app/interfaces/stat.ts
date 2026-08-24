@@ -1,4 +1,4 @@
-/** Métadonnées d'un fichier (local ou distant) — détection de conflit. */
+/** Métadonnées d'un fichier (local ou distant) : détection de conflit. */
 export interface StatInfo {
   exists: boolean;
   isDir: boolean;

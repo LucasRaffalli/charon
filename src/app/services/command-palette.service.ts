@@ -27,7 +27,7 @@ const isValidEntryName = (name: string): boolean =>
   !/[/\\]/.test(name) && name !== '.' && name !== '..';
 
 /**
- * Command palette (Cmd+K) : tout Charon au clavier — connexion aux profils,
+ * Command palette (Cmd+K) : tout Charon au clavier, connexion aux profils,
  * actions de session, navigation, panneau inférieur, thèmes, réglages.
  */
 @Injectable({ providedIn: 'root' })

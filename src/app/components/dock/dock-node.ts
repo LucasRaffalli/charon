@@ -126,7 +126,7 @@ export class DockNodeView {
   private pending: { panel: DockPanelId; groupId: string; x: number; y: number } | null = null;
   private draggingTab = false;
   /** Rects figés au début du drag (le layout ne bouge pas pendant) :
-   *  hit-test purement géométrique — elementsFromPoint n'est pas fiable
+   *  hit-test purement géométrique : elementsFromPoint n'est pas fiable
    *  au-dessus des contenus scrollables dans WKWebView. */
   private dockRect: DOMRect | null = null;
   private groupRects: { id: string; rect: DOMRect }[] = [];

@@ -87,6 +87,7 @@ scp -P "$VPS_PORT" \
   "$ROOT/latest.json" \
   "$ROOT/site/index.html" \
   "$ROOT/src/assets/png/web_bg.png" \
+  "$ROOT/src/assets/png/web_bg_effect.png" \
   "$ROOT/src/assets/fonts/Satoshi-400.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-700.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-900.woff2" \

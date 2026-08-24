@@ -227,7 +227,7 @@
                   <p class="panel__update-status">
                     @if (updater.status(); as status) {
                       @if (status.kind === 'available') {
-                        Version {{ status.version }} disponible —
+                        Version {{ status.version }} disponible :
                       }
                     }
                     l'installation vérifie la signature avant d'appliquer quoi
@@ -252,7 +252,7 @@
                   </p>
                 }
                 @case ('ready') {
-                  <p class="panel__update-status">Installée — redémarrage…</p>
+                  <p class="panel__update-status">Installée, redémarrage…</p>
                 }
                 @case ('error') {
                   @if (updater.status(); as status) {

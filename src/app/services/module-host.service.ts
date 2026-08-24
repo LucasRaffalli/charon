@@ -53,7 +53,7 @@ const STORAGE_PREFIX = 'charon:mod:';
 
 /**
  * Hôte d'exécution des modules : chaque module actif tourne dans un **Web
- * Worker** (aucun DOM, aucun réseau — CSP). Le seul canal est postMessage ;
+ * Worker** (aucun DOM, aucun réseau, CSP oblige). Le seul canal est postMessage ;
  * chaque appel d'API est vérifié contre les permissions déclarées du module
  * (refus par défaut). Voir docs/modules.md.
  */

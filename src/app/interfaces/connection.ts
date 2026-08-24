@@ -18,6 +18,6 @@ export interface ConnectionParams {
   keyPath?: string | null;
   keyPassphrase?: string | null;
   /** Si présent, le backend lit la passphrase du profil dans le trousseau
-   *  macOS — le secret ne transite jamais par la WebView. */
+   *  macOS : le secret ne transite jamais par la WebView. */
   profileId?: string | null;
 }

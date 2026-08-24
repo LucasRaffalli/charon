@@ -43,7 +43,7 @@ export class SftpService extends FileBrowserState {
   /** Refus central en lecture seule : couvre menus, palette, drag & drop. */
   private guardWritable(action: string, target: string): void {
     if (this._protection() === 'readonly') {
-      const message = 'Serveur en lecture seule — action refusée.';
+      const message = 'Serveur en lecture seule : action refusée.';
       this.activity.log('error', 'remote', target, `${action} : lecture seule`, false);
       throw message;
     }
@@ -320,7 +320,7 @@ export class SftpService extends FileBrowserState {
   /**
    * Exécute `run` ; si ça échoue **pour permission** (SFTP uniquement), rejoue
    * l'opération whitelistée via `sudo`. Le mot de passe est demandé par une
-   * invite macOS **native** côté backend — il ne transite jamais par la
+   * invite macOS **native** côté backend : il ne transite jamais par la
    * WebView. Annulation de l'invite = on remonte l'erreur d'origine.
    */
   private async escalateOnDenied(

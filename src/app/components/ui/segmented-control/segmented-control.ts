@@ -27,7 +27,7 @@ export class SegmentedControl {
   /** Libellé accessible du groupe radio. */
   readonly ariaLabel = input('');
 
-  /** Index du segment actif — pilote la position de la pastille. */
+  /** Index du segment actif : pilote la position de la pastille. */
   protected readonly activeIndex = computed(() =>
     Math.max(
       0,

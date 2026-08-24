@@ -8,7 +8,7 @@ import { ModuleHostService } from '@app/services/module-host.service';
  * Rendu natif des vues déclaratives émises par les modules (`charon.ui.render`).
  * Un module ne dessine jamais de HTML : il fournit une structure
  * (sections / stats / tables) que ce composant affiche. Aucune injection
- * possible — les chaînes sont interpolées, jamais évaluées.
+ * possible : les chaînes sont interpolées, jamais évaluées.
  *
  * Chaque vue de module est **repliable** (clic sur son en-tête) pour dégager
  * de la place quand plusieurs modules affichent un panneau.

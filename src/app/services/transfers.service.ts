@@ -109,7 +109,7 @@ export class TransfersService {
       return false;
     }
     if (direction === 'upload' && this.sftp.protection() === 'readonly') {
-      this.sftp.reportError('Serveur en lecture seule — envoi refusé.');
+      this.sftp.reportError('Serveur en lecture seule : envoi refusé.');
       this.activity.log('error', 'remote', remotePath, 'upload : lecture seule', false);
       return false;
     }

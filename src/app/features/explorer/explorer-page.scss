@@ -281,7 +281,7 @@
   overflow: hidden;
 
   // Onglet inactif : [hidden] doit gagner même contre une classe qui pose
-  // un display (ex. .explorer__main en flex) — même piège que feu BottomPanel.
+  // un display (ex. .explorer__main en flex), même piège que feu BottomPanel.
   &[hidden] {
     display: none;
   }

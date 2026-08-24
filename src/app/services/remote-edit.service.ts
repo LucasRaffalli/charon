@@ -21,7 +21,7 @@ export interface EditSession {
   /** Dernière synchronisation réussie (epoch ms), null si aucune. */
   lastSync: number | null;
   error: string | null;
-  /** Dernière activité (ouverture / sync / erreur) — pilote l'auto-masquage. */
+  /** Dernière activité (ouverture / sync / erreur) : pilote l'auto-masquage. */
   lastActivity: number;
 }
 
@@ -60,7 +60,7 @@ export class RemoteEditService {
       return;
     }
     if (this.sftp.protection() === 'readonly') {
-      this.sftp.reportError('Serveur en lecture seule — édition refusée.');
+      this.sftp.reportError('Serveur en lecture seule : édition refusée.');
       return;
     }
     // Déjà en cours d'édition : ne pas rouvrir une seconde session.

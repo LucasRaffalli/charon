@@ -125,7 +125,7 @@ export class PreviewService {
     if (this.sftp.protection() === 'confirm') {
       const host = this.sftp.host();
       const typed = await this.dialog.prompt({
-        title: `Serveur protégé — enregistrer « ${this._name()} » ?`,
+        title: `Serveur protégé : enregistrer « ${this._name()} » ?`,
         message: `Tape « ${host} » pour confirmer l'écriture sur le serveur.`,
         placeholder: host,
         confirmLabel: 'Enregistrer',

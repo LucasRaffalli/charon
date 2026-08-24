@@ -6,7 +6,7 @@ import { SftpService } from '@app/services/sftp.service';
 
 /**
  * Flux de connexion partagé (page de connexion, command palette) :
- * connexion avec TOFU explicite — si le serveur est inconnu, montre son
+ * connexion avec TOFU explicite : si le serveur est inconnu, montre son
  * empreinte et ne relance la connexion qu'après accord de l'utilisateur.
  */
 @Injectable({ providedIn: 'root' })
@@ -38,7 +38,7 @@ export class ConnectionFlowService {
       if (this.sftp.pendingKey()) {
         this.sftp.clearPendingKey();
         this.sftp.reportError(
-          'La clé du serveur a changé entre deux tentatives — connexion abandonnée par prudence.',
+          'La clé du serveur a changé entre deux tentatives : connexion abandonnée par prudence.',
         );
       }
     }

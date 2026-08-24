@@ -16,7 +16,7 @@ import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/dock.service
  * Racine du dock : rend l'arbre (splits + groupes), affiche le fantôme
  * pendant un glissement d'onglet, et surtout **place les panneaux** : les
  * contenus vivent dans un hangar caché ([data-dock-panel] côté explorateur)
- * et sont déplacés dans les slots des groupes après chaque rendu — le DOM
+ * et sont déplacés dans les slots des groupes après chaque rendu : le DOM
  * n'est jamais détruit, l'état (terminal, logs, scroll…) survit aux
  * réagencements.
  */
@@ -68,7 +68,7 @@ export class Dock {
   /**
    * Références des éléments de panneau, capturées au premier placement.
    * Indispensable : quand une mutation de l'arbre détruit un slot, le
-   * panneau qu'il contenait est DÉTACHÉ du document — document.querySelector
+   * panneau qu'il contenait est DÉTACHÉ du document : document.querySelector
    * ne le trouverait plus, mais la référence reste valide et appendChild
    * le raccroche.
    */

@@ -14,7 +14,7 @@
           <app-icon name="alert-circle" [size]="14" />
           <span>
             La version sur le serveur est <strong>plus récente</strong> que votre copie
-            locale — vous risquez d'écraser des changements faits ailleurs.
+            locale : vous risquez d'écraser des changements faits ailleurs.
           </span>
         </p>
       }
@@ -26,7 +26,7 @@
 
       <div class="dialog__meta">
         <div class="meta meta--server">
-          <span class="meta__label"><app-icon name="server" [size]="12" /> Serveur — version actuelle (sera remplacée)</span>
+          <span class="meta__label"><app-icon name="server" [size]="12" /> Serveur : version actuelle (sera remplacée)</span>
           <span class="meta__val data">{{ request.remote.size | fileSize }}</span>
           <span class="meta__val" [class.meta__val--warn]="request.remoteNewer">
             @if (ms(request.remote.mtime); as t) {
@@ -37,7 +37,7 @@
           </span>
         </div>
         <div class="meta meta--local">
-          <span class="meta__label"><app-icon name="monitor" [size]="12" /> Local — ce que tu envoies</span>
+          <span class="meta__label"><app-icon name="monitor" [size]="12" /> Local : ce que tu envoies</span>
           <span class="meta__val data">{{ request.local.size | fileSize }}</span>
           <span class="meta__val">
             @if (ms(request.local.mtime); as t) {

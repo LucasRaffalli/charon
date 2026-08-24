@@ -21,7 +21,7 @@ export class ProfilesService {
   /**
    * `secret` : chaîne pour l'enregistrer, '' pour l'effacer, null pour ne rien changer.
    * `migrateSecretFrom` : id d'un ancien profil dont le secret doit être recopié
-   * (édition avec changement d'identifiant) — la copie se fait côté Rust.
+   * (édition avec changement d'identifiant) : la copie se fait côté Rust.
    */
   async save(
     profile: ServerProfile,

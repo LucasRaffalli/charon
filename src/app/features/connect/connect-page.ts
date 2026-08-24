@@ -60,7 +60,7 @@ export class ConnectPage {
     { value: 'staging', label: 'Staging' },
     { value: 'prod', label: 'Prod', tone: 'danger' },
   ];
-  /** Clé (chaîne) attendue par le SegmentedControl — null devient ''. */
+  /** Clé (chaîne) attendue par le SegmentedControl : null devient ''. */
   protected readonly environmentKey = computed(() => this.environment() ?? '');
 
   protected readonly protection = signal<ServerProtection | null>(null);
@@ -314,7 +314,7 @@ export class ConnectPage {
     await this.flow.connectProfile(profile);
   }
 
-  /** Connexion avec TOFU explicite — flux partagé avec la command palette. */
+  /** Connexion avec TOFU explicite, flux partagé avec la command palette. */
   private connectWithTrust(params: ConnectionParams): Promise<void> {
     return this.flow.connectWithTrust(params);
   }

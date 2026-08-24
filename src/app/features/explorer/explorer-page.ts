@@ -150,7 +150,7 @@ export class ExplorerPage {
       return;
     }
     if (this.sftp.protection() === 'readonly') {
-      this.sftp.reportError('Serveur en lecture seule — dépôt refusé.');
+      this.sftp.reportError('Serveur en lecture seule : dépôt refusé.');
       return;
     }
     // Séquentiel : un seul dialogue « écraser ? » à la fois.
@@ -413,7 +413,7 @@ export class ExplorerPage {
     if (browser === this.sftp && this.sftp.protection() === 'confirm') {
       const host = this.sftp.host();
       const typed = await this.dialog.prompt({
-        title: `Serveur protégé — supprimer « ${entry.name} » ?`,
+        title: `Serveur protégé : supprimer « ${entry.name} » ?`,
         message:
           (entry.isDir
             ? 'Le dossier et tout son contenu seront supprimés définitivement. '
@@ -441,7 +441,7 @@ export class ExplorerPage {
       return;
     }
 
-    // Suppression récursive : confirmation renforcée — taper le nom du dossier.
+    // Suppression récursive : confirmation renforcée, taper le nom du dossier.
     const typed = await this.dialog.prompt({
       title: `Supprimer « ${entry.name} » et tout son contenu ?`,
       message:
@@ -488,8 +488,8 @@ export class ExplorerPage {
         title: 'Débarquer ?',
         message:
           active === 1
-            ? 'Un transfert est en cours — il sera interrompu (reprise possible après reconnexion).'
-            : `${active} transferts sont en cours — ils seront interrompus (reprise possible après reconnexion).`,
+            ? 'Un transfert est en cours : il sera interrompu (reprise possible après reconnexion).'
+            : `${active} transferts sont en cours : ils seront interrompus (reprise possible après reconnexion).`,
         confirmLabel: 'Débarquer',
         danger: true,
       });

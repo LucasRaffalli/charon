@@ -5,7 +5,7 @@ import { ModuleSummary } from '@app/interfaces';
 
 /**
  * Gestion des modules (extensions tierces) : découverte, activation, ouverture
- * du dossier, suppression. N'exécute AUCUN code de module — ce service ne fait
+ * du dossier, suppression. N'exécute AUCUN code de module : ce service ne fait
  * que piloter le backend (fichiers) et exposer l'état à l'UI. L'exécution
  * sandboxée viendra séparément (voir docs/modules.md).
  */

@@ -44,7 +44,7 @@ export class ActivityLogService {
       .map((entry) => {
         const when = new Date(entry.at).toISOString();
         const state = entry.ok ? 'ok' : 'échec';
-        const detail = entry.detail ? ` — ${entry.detail}` : '';
+        const detail = entry.detail ? ` · ${entry.detail}` : '';
         return `${when}\t${entry.kind}\t${entry.scope}\t${state}\t${entry.target}${detail}`;
       })
       .join('\n');

@@ -1,4 +1,4 @@
-// Satoshi (Fontshare) — bundlé en local (CSP stricte + app hors-ligne).
+// Satoshi (Fontshare), bundlé en local (CSP stricte + app hors-ligne).
 // Fichiers : src/assets/fonts/ → servis sous /assets/fonts/.
 
 @font-face {
@@ -33,7 +33,7 @@
   font-display: swap;
 }
 
-// JetBrains Mono — police des données techniques (dissocie 0/O, 1/l/I).
+// JetBrains Mono : police des données techniques (dissocie 0/O, 1/l/I).
 @font-face {
   font-family: 'JetBrains Mono';
   src: url('/assets/fonts/JetBrainsMono-400.woff2') format('woff2');

@@ -92,7 +92,7 @@
             >
               <app-icon class="entry__icon" [name]="entry.isDir ? 'folder' : 'file'" [size]="17" />
               <span class="entry__name">{{ entry.name }}</span>
-              <span class="entry__size data">{{ entry.isDir ? '—' : (entry.size | fileSize) }}</span>
+              <span class="entry__size data">{{ entry.isDir ? '–' : (entry.size | fileSize) }}</span>
             </button>
             @if (!entry.isDir) {
               <button
@@ -178,7 +178,7 @@
         class="explorer__guard"
         [title]="
           protection === 'readonly'
-            ? 'Garde-fou : lecture seule — aucune écriture possible'
+            ? 'Garde-fou : lecture seule : aucune écriture possible'
             : 'Garde-fou : suppression confirmée par le nom d’hôte'
         "
       >
@@ -205,7 +205,7 @@
     </span>
 
     <!-- Accolé à l'identité de connexion (c'est elle qu'il ferme), loin des
-         boutons fréquents à droite — un clic raté ne débarque plus. -->
+         boutons fréquents à droite : un clic raté ne débarque plus. -->
     <button
       type="button"
       class="explorer__status-btn explorer__status-btn--danger"
@@ -237,8 +237,8 @@
     <button
       type="button"
       class="explorer__status-btn explorer__status-gear"
-      [title]="updater.updateAvailable() ? 'Réglages — mise à jour disponible' : 'Réglages'"
-      [attr.aria-label]="updater.updateAvailable() ? 'Réglages — mise à jour disponible' : 'Réglages'"
+      [title]="updater.updateAvailable() ? 'Réglages : mise à jour disponible' : 'Réglages'"
+      [attr.aria-label]="updater.updateAvailable() ? 'Réglages : mise à jour disponible' : 'Réglages'"
       (click)="settings.openPanel()"
     >
       <app-icon name="settings" [size]="13" />

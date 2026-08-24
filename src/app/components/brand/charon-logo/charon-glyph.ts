@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /**
- * Glyphe Charon (154×154) inliné — même dessin que src/assets/charon-logo.svg
+ * Glyphe Charon (154×154) inliné, même dessin que src/assets/charon-logo.svg
  * mais inséré dans le DOM pour que l'inner-shadow (filtre SVG) soit rendu à la
  * résolution de l'écran (net sur retina, contrairement à un <img> qui rasterise
  * le filtre à la taille CSS puis l'agrandit).

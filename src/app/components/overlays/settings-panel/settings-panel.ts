@@ -42,7 +42,7 @@ export class SettingsPanel {
 
   protected readonly activeTab = signal<SettingsTab>('appearance');
 
-  /** Changelog curaté (src/assets/changelog.json) — rédigé à chaque feature. */
+  /** Changelog curaté (src/assets/changelog.json), rédigé à chaque feature. */
   protected readonly changelog: ChangelogEntry[] = changelogData;
 
   protected readonly tabs: readonly TabOption[] = [

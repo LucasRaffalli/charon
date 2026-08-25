@@ -24,6 +24,16 @@
 
   --focus-ring: #9ecbff;
 
+  // Coloration syntaxique (aperçu de code), palette GitHub Dark High Contrast.
+  --code-comment: #a5a5a5;
+  --code-punct: #e0e0e0;
+  --code-keyword: #ff9492;
+  --code-string: #addcff;
+  --code-number: #91cbff;
+  --code-function: #dbb7ff;
+  --code-tag: #72f088;
+  --code-attr: #ffb757;
+
   --shadow-sm: none;
   --shadow-md: none;
 }

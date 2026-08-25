@@ -1,0 +1,77 @@
+// Coloration syntaxique (Prism) : les tokens sont injectés via innerHTML,
+// hors de l'encapsulation Angular, donc stylés globalement. Les couleurs
+// viennent des variables --code-* définies par chaque thème.
+
+.token {
+  &.comment,
+  &.prolog,
+  &.cdata,
+  &.doctype {
+    color: var(--code-comment);
+    font-style: italic;
+  }
+
+  &.punctuation,
+  &.operator,
+  &.combinator {
+    color: var(--code-punct);
+  }
+
+  &.keyword,
+  &.atrule,
+  &.rule,
+  &.important {
+    color: var(--code-keyword);
+  }
+
+  &.string,
+  &.char,
+  &.attr-value,
+  &.url,
+  &.regex,
+  &.inserted {
+    color: var(--code-string);
+  }
+
+  &.number,
+  &.boolean,
+  &.constant,
+  &.symbol,
+  &.unit {
+    color: var(--code-number);
+  }
+
+  &.function,
+  &.function-name,
+  &.method {
+    color: var(--code-function);
+  }
+
+  &.tag,
+  &.selector,
+  &.class-name,
+  &.namespace,
+  &.title {
+    color: var(--code-tag);
+  }
+
+  &.attr-name,
+  &.property,
+  &.variable,
+  &.builtin,
+  &.parameter {
+    color: var(--code-attr);
+  }
+
+  &.deleted {
+    color: var(--danger);
+  }
+
+  &.bold {
+    font-weight: 600;
+  }
+
+  &.italic {
+    font-style: italic;
+  }
+}

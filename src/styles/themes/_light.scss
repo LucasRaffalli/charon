@@ -24,6 +24,16 @@
 
   --focus-ring: #44688f;
 
+  // Coloration syntaxique (aperçu de code), palette GitHub Light.
+  --code-comment: #6e7781;
+  --code-punct: #57606a;
+  --code-keyword: #cf222e;
+  --code-string: #0a3069;
+  --code-number: #0550ae;
+  --code-function: #8250df;
+  --code-tag: #116329;
+  --code-attr: #953800;
+
   --shadow-sm: 0 1px 2px rgba(23, 26, 32, 0.06);
   --shadow-md: 0 10px 32px rgba(23, 26, 32, 0.1);
 }

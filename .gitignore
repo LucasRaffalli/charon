@@ -50,3 +50,6 @@ latest.json
 
 # Artefacts Windows téléchargés depuis la CI (workflow windows.yml)
 /dist-windows
+
+# Fichiers d'exemple pour tester la coloration syntaxique de l'aperçu
+/samples

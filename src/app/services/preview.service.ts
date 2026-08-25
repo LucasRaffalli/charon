@@ -2,13 +2,33 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
 import { ActivityLogService } from '@app/services/activity-log.service';
+import { highlightCode, languageFor } from '@app/services/code-highlight';
 import { DialogService } from '@app/services/dialog.service';
+import { fileIconFor } from '@app/services/file-icon';
+import { renderMarkdown } from '@app/services/markdown';
 import { SftpService } from '@app/services/sftp.service';
 
 export type PreviewKind = 'loading' | 'text' | 'image' | 'binary' | 'error';
 
 /** Taille max lue pour l'aperçu/édition (au-delà : aperçu tronqué en lecture seule). */
 const PREVIEW_MAX = 512 * 1024;
+
+/** Plafond dur : au-delà, aucune coloration (une passe Prism serait trop lourde). */
+const HIGHLIGHT_MAX = 200_000;
+
+/**
+ * La coloration est recalculée à chaque frappe : si la passe d'ouverture
+ * dépasse ce budget (ms), le fichier est trop lourd pour rester fluide et on
+ * repasse en textarea nu plutôt que de faire ramer la saisie.
+ */
+const HIGHLIGHT_BUDGET_MS = 40;
+
+/**
+ * En dessous de cette taille, Prism est de toute façon rapide : on ne
+ * chronomètre pas, pour qu'un hoquet ponctuel (GC) ne prive pas un petit
+ * fichier de couleurs pour toute la session d'édition.
+ */
+const HIGHLIGHT_MEASURE_MIN = 20_000;
 
 const IMAGE_MIME: Record<string, string> = {
   png: 'image/png',
@@ -44,6 +64,12 @@ export class PreviewService {
   private readonly _truncated = signal(false);
   private readonly _saving = signal(false);
   private readonly _error = signal<string | null>(null);
+  private readonly _highlighted = signal<string | null>(null);
+  private readonly _isMarkdown = signal(false);
+  private readonly _markdownView = signal(false);
+
+  /** Grammaire Prism du fichier ouvert (`null` = aucune coloration). */
+  private language: string | null = null;
 
   readonly open = this._open.asReadonly();
   readonly name = this._name.asReadonly();
@@ -54,6 +80,22 @@ export class PreviewService {
   readonly truncated = this._truncated.asReadonly();
   readonly saving = this._saving.asReadonly();
   readonly error = this._error.asReadonly();
+
+  /** HTML Prism du contenu courant (`null` = textarea nu : langage inconnu ou fichier lourd). */
+  readonly highlighted = this._highlighted.asReadonly();
+
+  /** Icône du fichier ouvert, d'après son type. */
+  readonly icon = computed(() => fileIconFor(this._name()));
+
+  /** Le fichier ouvert est du markdown : la bascule Code/Aperçu est proposée. */
+  readonly isMarkdown = this._isMarkdown.asReadonly();
+  /** Aperçu markdown affiché à la place de l'éditeur. */
+  readonly markdownView = this._markdownView.asReadonly();
+
+  /** Markdown rendu, recalculé au fil des modifications. */
+  readonly renderedMarkdown = computed(() =>
+    this._isMarkdown() && this._markdownView() ? renderMarkdown(this._content()) : '',
+  );
 
   readonly dirty = computed(() => this._content() !== this._original());
   readonly canSave = computed(
@@ -75,6 +117,11 @@ export class PreviewService {
     this._readonly.set(false);
     this._truncated.set(false);
     this._error.set(null);
+    this._highlighted.set(null);
+    this.language = languageFor(name);
+    this._isMarkdown.set(this.language === 'markdown');
+    // Un .md s'ouvre sur son rendu : c'est ce qu'on veut voir en premier.
+    this._markdownView.set(this.language === 'markdown');
 
     const ext = name.split('.').pop()?.toLowerCase() ?? '';
     const mime = IMAGE_MIME[ext];
@@ -111,10 +158,39 @@ export class PreviewService {
     this._truncated.set(truncated);
     this._readonly.set(truncated || this.sftp.protection() === 'readonly');
     this._kind.set('text');
+    this.refreshHighlight(text, true);
   }
 
   setContent(value: string): void {
     this._content.set(value);
+    this.refreshHighlight(value, false);
+  }
+
+  /** Bascule entre l'éditeur et le rendu (fichiers markdown seulement). */
+  setMarkdownView(rendered: boolean): void {
+    this._markdownView.set(rendered);
+  }
+
+  /**
+   * Recolorise le contenu (appelé à l'ouverture puis à chaque frappe, la
+   * coloration devant rester synchrone avec la saisie : le texte visible EST
+   * la couche Prism). `measure` chronomètre la passe d'ouverture et abandonne
+   * la coloration si le fichier est trop lourd pour tenir la cadence.
+   */
+  private refreshHighlight(text: string, measure: boolean): void {
+    if (!this.language || text.length > HIGHLIGHT_MAX) {
+      this._highlighted.set(null);
+      return;
+    }
+    const timed = measure && text.length > HIGHLIGHT_MEASURE_MIN;
+    const started = timed ? performance.now() : 0;
+    const html = highlightCode(text, this.language);
+    if (timed && performance.now() - started > HIGHLIGHT_BUDGET_MS) {
+      this.language = null;
+      this._highlighted.set(null);
+      return;
+    }
+    this._highlighted.set(html);
   }
 
   /** Enregistre le texte sur le serveur (confirmation renforcée si protégé). */

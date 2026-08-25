@@ -1,8 +1,18 @@
 <header class="head">
-  <app-icon class="head__icon" name="file" [size]="15" />
+  <app-icon class="head__icon" [name]="preview.icon()" [size]="15" />
   <span class="head__name" [title]="preview.name()">{{ preview.name() }}</span>
   @if (preview.dirty() && !preview.readonly()) {
     <span class="head__dirty" title="Modifications non enregistrées"></span>
+  }
+
+  @if (preview.kind() === 'text' && preview.isMarkdown()) {
+    <app-segmented-control
+      class="head__views"
+      ariaLabel="Affichage du markdown"
+      [options]="markdownViews"
+      [value]="preview.markdownView() ? 'rendered' : 'source'"
+      (valueChange)="onMarkdownView($event)"
+    />
   }
 
   @if (preview.kind() === 'text' && !preview.readonly()) {
@@ -35,17 +45,32 @@
         Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas
         écraser le reste.
       </p>
-    } @else if (preview.readonly()) {
+    } @else if (preview.readonly() && !preview.markdownView()) {
       <p class="notice">Serveur en lecture seule : édition désactivée.</p>
     }
-    <textarea
-      class="editor"
-      spellcheck="false"
-      wrap="off"
-      [readonly]="preview.readonly()"
-      [value]="preview.content()"
-      (input)="preview.setContent($any($event.target).value)"
-    ></textarea>
+
+    @if (preview.markdownView()) {
+      <div
+        class="rendered"
+        [innerHTML]="preview.renderedMarkdown()"
+        (click)="onRenderedClick($event)"
+      ></div>
+    } @else {
+      <div class="editor" [class.editor--plain]="preview.highlighted() === null">
+        @if (preview.highlighted(); as html) {
+          <pre class="editor__highlight" aria-hidden="true" #hl><code [innerHTML]="html"></code></pre>
+        }
+        <textarea
+          class="editor__input"
+          spellcheck="false"
+          wrap="off"
+          [readonly]="preview.readonly()"
+          [value]="preview.content()"
+          (input)="preview.setContent($any($event.target).value)"
+          (scroll)="syncScroll($event)"
+        ></textarea>
+      </div>
+    }
   }
   @case ('image') {
     <div class="image">

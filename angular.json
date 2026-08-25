@@ -41,7 +41,10 @@
               "includePaths": [
                 "src/styles"
               ]
-            }
+            },
+            "allowedCommonJsDependencies": [
+              "prismjs"
+            ]
           },
           "configurations": {
             "production": {

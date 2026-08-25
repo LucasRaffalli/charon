@@ -25,6 +25,16 @@
 
   --focus-ring: #7da3cc;
 
+  // Coloration syntaxique (aperçu de code), palette One Dark.
+  --code-comment: #5c6370;
+  --code-punct: #abb2bf;
+  --code-keyword: #c678dd;
+  --code-string: #98c379;
+  --code-number: #d19a66;
+  --code-function: #61afef;
+  --code-tag: #e06c75;
+  --code-attr: #e5c07b;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.45);
 }

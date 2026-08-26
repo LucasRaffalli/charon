@@ -318,7 +318,3 @@ npm run deploy       # release + latest.json + upload scp vers le VPS
 | Typographie | Satoshi (UI) · JetBrains Mono (données) — embarquées |
 | Mises à jour | tauri-plugin-updater (signature ed25519/minisign) |
 
----
-
-Projet privé — © Lucas. Conçu, durci et audité en continu ; voir
-`CLAUDE.md` pour l'état détaillé du chantier.

@@ -33,9 +33,15 @@ ARCHIVE="$(ls "$BUNDLE"/*.app.tar.gz 2>/dev/null | head -1)"
 # pour tout publier en un seul deploy. WAIT_WINDOWS=0 pour ne pas attendre
 # (deploy macOS seul, relançable plus tard pour ajouter Windows).
 VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/src-tauri/tauri.conf.json'))['version'])")"
-WIN_EXE="$(ls "$ROOT/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
+# On cherche l'installeur DE CETTE VERSION précisément : un reliquat d'une
+# release précédente dans dist-windows/ ferait croire que Windows est prêt, on
+# sauterait le téléchargement, et le manifeste sortirait sans Windows.
+WIN_NAME="charon_${VERSION}_x64-setup.exe"
+WIN_EXE=""
+if [ -f "$ROOT/dist-windows/$WIN_NAME" ]; then
+  WIN_EXE="$ROOT/dist-windows/$WIN_NAME"
+fi
 if [ -z "$WIN_EXE" ]; then
-  WIN_NAME="charon_${VERSION}_x64-setup.exe"
   WIN_URL="https://github.com/LucasRaffalli/charon/releases/download/v$VERSION"
   mkdir -p "$ROOT/dist-windows"
   DEADLINE=$(( $(date +%s) + 1800 ))

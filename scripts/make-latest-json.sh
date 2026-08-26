@@ -30,18 +30,21 @@ NAME="$(basename "$ARCHIVE")"
 # --- Windows (optionnel) : installeur NSIS + signature, produits par la CI
 # (workflow windows.yml) et dézippés dans dist-windows/. Absents = latest.json
 # macOS seul, comme avant.
+# On vise le nom exact de la version courante : un installeur d'une release
+# précédente qui traîne dans dist-windows/ est ignoré au lieu d'être publié
+# ou de faire échouer la génération.
 WIN_NAME=""
 WIN_SIGNATURE=""
-WIN_EXE="$(ls "$DIR/dist-windows"/*-setup.exe 2>/dev/null | head -1 || true)"
-if [ -n "$WIN_EXE" ]; then
+WIN_EXE="$DIR/dist-windows/charon_${VERSION}_x64-setup.exe"
+if [ -f "$WIN_EXE" ]; then
   if [ ! -f "$WIN_EXE.sig" ]; then
     echo "Attention : signature absente ($WIN_EXE.sig) — Windows exclu de latest.json." >&2
-  elif ! basename "$WIN_EXE" | grep -qF "$VERSION"; then
-    echo "Attention : $(basename "$WIN_EXE") ne correspond pas à v$VERSION — Windows exclu de latest.json." >&2
   else
     WIN_NAME="$(basename "$WIN_EXE")"
     WIN_SIGNATURE="$(cat "$WIN_EXE.sig")"
   fi
+else
+  echo "Attention : aucun installeur Windows v$VERSION dans dist-windows/ — latest.json macOS seul." >&2
 fi
 
 # --- Notes de version : depuis le changelog CURATÉ (src/assets/changelog.json,

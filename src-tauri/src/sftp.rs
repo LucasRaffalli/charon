@@ -389,6 +389,9 @@ pub async fn sftp_connect(
     key_passphrase: Option<String>,
     accept_new_key: Option<String>,
     profile_id: Option<String>,
+    // « key » (défaut) ou « password » : dit si le secret est une passphrase de
+    // clé ou un mot de passe de compte.
+    auth_method: Option<String>,
 ) -> Result<String, String> {
     // Keepalive : détecte les connexions mortes (~90 s sans réponse) au lieu
     // de laisser des sessions zombies dans le pool.
@@ -420,36 +423,75 @@ pub async fn sftp_connect(
             e => format!("Connexion impossible : {e}"),
         })?;
 
-    // Passphrase : celle fournie explicitement, sinon celle du profil, lue
-    // dans le trousseau côté Rust — le secret ne traverse jamais la WebView.
-    let passphrase = match key_passphrase.filter(|p| !p.is_empty()) {
-        Some(p) => Some(p),
-        None => match &profile_id {
-            Some(id) => crate::profiles::keychain_secret(id)?,
-            None => None,
-        },
+    // Méthode d'authentification choisie côté UI. Absente = comportement
+    // historique (clé d'abord, mot de passe en repli).
+    let by_password = auth_method.as_deref() == Some("password");
+
+    // Secret du profil, lu dans le trousseau côté Rust : il ne traverse jamais
+    // la WebView. Selon la méthode, c'est une passphrase de clé OU un mot de
+    // passe de compte, d'où l'aiguillage.
+    let stored = match &profile_id {
+        Some(id) => crate::profiles::keychain_secret(id)?,
+        None => None,
     };
 
-    // Auth : clé d'abord, mot de passe en fallback
-    let mut authenticated = false;
+    let passphrase = if by_password {
+        None
+    } else {
+        key_passphrase.filter(|p| !p.is_empty()).or(stored.clone())
+    };
 
-    if let Ok(key_file) = resolve_key_path(key_path) {
-        let key = load_secret_key(&key_file, passphrase.as_deref())
-            .map_err(|e| format!("Lecture de la clé {} impossible : {e}", key_file.display()))?;
-        let hash_alg = session
-            .best_supported_rsa_hash()
-            .await
-            .map_err(|e| format!("Négociation d'algorithme impossible : {e}"))?
-            .flatten();
-        authenticated = session
-            .authenticate_publickey(&user, PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg))
-            .await
-            .map_err(|e| format!("Erreur d'authentification par clé : {e}"))?
-            .success();
+    let password = if by_password {
+        password.filter(|p| !p.is_empty()).or(stored)
+    } else {
+        password
+    };
+
+    // Auth : clé d'abord, mot de passe en repli. En mode « password » explicite,
+    // la clé n'est pas essayée du tout.
+    let mut authenticated = false;
+    let mut key_error: Option<String> = None;
+
+    if !by_password {
+        // L'échec de résolution est retenu lui aussi : « aucune clé dans
+        // ~/.ssh » est bien plus parlant qu'un refus générique.
+        let resolved = resolve_key_path(key_path);
+        if let Err(e) = &resolved {
+            key_error = Some(e.clone());
+        }
+        if let Ok(key_file) = resolved {
+            match load_secret_key(&key_file, passphrase.as_deref()) {
+                Ok(key) => {
+                    let hash_alg = session
+                        .best_supported_rsa_hash()
+                        .await
+                        .map_err(|e| format!("Négociation d'algorithme impossible : {e}"))?
+                        .flatten();
+                    authenticated = session
+                        .authenticate_publickey(
+                            &user,
+                            PrivateKeyWithHashAlg::new(Arc::new(key), hash_alg),
+                        )
+                        .await
+                        .map_err(|e| format!("Erreur d'authentification par clé : {e}"))?
+                        .success();
+                }
+                // Clé illisible (chiffrée sans passphrase, ou passphrase fausse) :
+                // on garde l'erreur mais on NE s'arrête pas, sinon une clé
+                // trouvée dans ~/.ssh empêcherait toute connexion par mot de
+                // passe sur un serveur qui l'accepte.
+                Err(e) => {
+                    key_error =
+                        Some(format!("Lecture de la clé {} impossible : {e}", key_file.display()));
+                }
+            }
+        }
     }
 
+    let mut password_tried = false;
     if !authenticated {
         if let Some(pw) = password.filter(|p| !p.is_empty()) {
+            password_tried = true;
             authenticated = session
                 .authenticate_password(&user, &pw)
                 .await
@@ -459,7 +501,13 @@ pub async fn sftp_connect(
     }
 
     if !authenticated {
-        return Err("Authentification refusée (clé et mot de passe)".into());
+        // Si la clé n'a même pas pu être lue et qu'aucun mot de passe n'a été
+        // tenté, c'est cette erreur-là qui est utile, pas un refus générique.
+        return Err(match key_error {
+            Some(e) if !password_tried => e,
+            _ if by_password => "Authentification refusée (mot de passe)".into(),
+            _ => "Authentification refusée (clé et mot de passe)".into(),
+        });
     }
 
     // Session SFTP

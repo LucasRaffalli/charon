@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.1.1",
+    "date": "2026-08-26",
+    "notes": [
+      "Connexion SFTP par mot de passe : un sélecteur Clé SSH / Mot de passe dit enfin ce que le champ attend",
+      "Correction : une clé illisible dans ~/.ssh n'empêche plus de se connecter avec un mot de passe",
+      "Messages d'erreur de connexion plus précis, notamment quand aucune clé n'est trouvée",
+      "FTPS retiré du sélecteur, trop souvent confondu avec SFTP (les profils existants continuent de fonctionner)",
+      "Les actions du formulaire de connexion restent visibles quand les champs défilent",
+      "Mise à jour de l'application accessible depuis l'écran de connexion",
+      "Aperçu de fichiers : coloration syntaxique, rendu markdown et icônes par type"
+    ]
+  },
+  {
     "version": "1.1.0",
     "date": "2026-08-23",
     "notes": [

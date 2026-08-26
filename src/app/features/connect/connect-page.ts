@@ -8,6 +8,7 @@ import { Icon } from '@app/components/ui/icon/icon';
 import { SegmentedControl, SegmentedOption } from '@app/components/ui/segmented-control/segmented-control';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import {
+  AuthMethod,
   ConnectionParams,
   RemoteProtocol,
   ServerEnvironment,
@@ -19,6 +20,7 @@ import { ContextMenuService } from '@app/services/context-menu.service';
 import { DialogService } from '@app/services/dialog.service';
 import { ProfilesService } from '@app/services/profiles.service';
 import { SftpService } from '@app/services/sftp.service';
+import { UpdaterService } from '@app/services/updater.service';
 
 const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
 
@@ -35,6 +37,9 @@ type Panel = 'form' | 'servers';
 export class ConnectPage {
   protected readonly sftp = inject(SftpService);
   protected readonly profiles = inject(ProfilesService);
+  // Mise à jour accessible sans être connecté : si la connexion échoue, c'est
+  // souvent la première chose qu'on veut tenter.
+  protected readonly updater = inject(UpdaterService);
   protected readonly contextMenu = inject(ContextMenuService);
   private readonly dialog = inject(DialogService);
   private readonly flow = inject(ConnectionFlowService);
@@ -47,11 +52,25 @@ export class ConnectPage {
   protected readonly keyPath = signal('');
   protected readonly password = signal('');
 
-  protected readonly protocolOptions: readonly SegmentedOption[] = [
-    { value: 'sftp', label: 'SFTP' },
-    { value: 'ftps', label: 'FTPS' },
-    { value: 'ftp', label: 'FTP' },
+  /** Comment on s'authentifie en SFTP. Explicite : le champ dit ce qu'il attend. */
+  protected readonly authMethod = signal<AuthMethod>('key');
+  protected readonly authOptions: readonly SegmentedOption[] = [
+    { value: 'key', label: 'Clé SSH' },
+    { value: 'password', label: 'Mot de passe' },
   ];
+
+  /**
+   * FTPS a été retiré du sélecteur : trop souvent confondu avec SFTP, alors que
+   * les deux n'ont rien à voir. Le backend le gère toujours, et un profil FTPS
+   * existant continue de fonctionner (l'option réapparaît si on l'édite).
+   */
+  protected readonly protocolOptions = computed<readonly SegmentedOption[]>(() => {
+    const base: SegmentedOption[] = [
+      { value: 'sftp', label: 'SFTP' },
+      { value: 'ftp', label: 'FTP' },
+    ];
+    return this.protocol() === 'ftps' ? [base[0], { value: 'ftps', label: 'FTPS' }, base[1]] : base;
+  });
 
   protected readonly environment = signal<ServerEnvironment | null>(null);
   protected readonly environmentOptions: readonly SegmentedOption[] = [
@@ -100,6 +119,12 @@ export class ConnectPage {
     () => this.host().trim() !== '' && this.user().trim() !== '',
   );
 
+  /** Une opération de mise à jour est en cours : relancer n'aurait pas de sens. */
+  protected readonly updateBusy = computed(() => {
+    const kind = this.updater.status().kind;
+    return kind === 'checking' || kind === 'downloading' || kind === 'ready';
+  });
+
   /** Formulaire visible ? (nouvelle connexion, ou édition d'un profil). */
   protected readonly showForm = computed(
     () => this.panel() === 'form' || this.editingId() !== null,
@@ -146,9 +171,40 @@ export class ConnectPage {
     this.protection.set((value || null) as ServerProtection | null);
   }
 
-  /** Le secret saisi : passphrase de clé (SFTP) ou mot de passe (FTP/FTPS). */
+  /** Change de méthode d'authentification et vide l'autre champ, pour qu'un
+   *  secret tapé dans le mauvais mode ne parte jamais au serveur. */
+  protected onAuthMethod(value: string): void {
+    const next = value as AuthMethod;
+    this.authMethod.set(next);
+    if (next === 'key') {
+      this.password.set('');
+    } else {
+      this.passphrase.set('');
+    }
+  }
+
+  /**
+   * Le secret saisi. En SFTP il dépend de la méthode choisie : passphrase de
+   * clé ou mot de passe de compte. Ailleurs c'est toujours le mot de passe.
+   */
   private currentSecret(): string {
-    return this.protocol() === 'sftp' ? this.passphrase() : this.password();
+    if (this.protocol() !== 'sftp') {
+      return this.password();
+    }
+    return this.authMethod() === 'password' ? this.password() : this.passphrase();
+  }
+
+  /** Méthode d'authentification envoyée au backend (SFTP uniquement). */
+  private currentAuthMethod(): AuthMethod | null {
+    return this.protocol() === 'sftp' ? this.authMethod() : null;
+  }
+
+  /** Le chemin de clé n'a de sens qu'en SFTP et en authentification par clé. */
+  private currentKeyPath(): string | null {
+    if (this.protocol() !== 'sftp' || this.authMethod() !== 'key') {
+      return null;
+    }
+    return this.keyPath().trim() || null;
   }
 
   /** Soumission du formulaire (Entrée / bouton principal). */
@@ -171,7 +227,7 @@ export class ConnectPage {
     const host = this.host().trim();
     const user = this.user().trim();
     const port = Number(this.port()) || DEFAULT_PORTS[protocol];
-    const keyPath = protocol === 'sftp' ? this.keyPath().trim() || null : null;
+    const keyPath = this.currentKeyPath();
     const secret = this.currentSecret();
 
     // Secret laissé vide : le backend relit celui du profil dans le trousseau via profileId.
@@ -183,8 +239,9 @@ export class ConnectPage {
       port,
       user,
       keyPath,
-      keyPassphrase: protocol === 'sftp' ? secret || null : null,
-      password: protocol === 'sftp' ? null : secret || null,
+      keyPassphrase: protocol === 'sftp' && this.authMethod() === 'key' ? secret || null : null,
+      password: protocol !== 'sftp' || this.authMethod() === 'password' ? secret || null : null,
+      authMethod: this.currentAuthMethod(),
       profileId: secret ? null : this.editingId(),
     });
     if (!this.sftp.connected()) {
@@ -214,7 +271,7 @@ export class ConnectPage {
     const host = this.host().trim();
     const user = this.user().trim();
     const port = Number(this.port()) || DEFAULT_PORTS[protocol];
-    const keyPath = protocol === 'sftp' ? this.keyPath().trim() || null : null;
+    const keyPath = this.currentKeyPath();
     const secret = this.currentSecret();
     const id =
       protocol === 'sftp' ? `${user}@${host}:${port}` : `${protocol}://${user}@${host}:${port}`;
@@ -237,6 +294,9 @@ export class ConnectPage {
         protocol,
         environment: this.environment(),
         protection: this.protection(),
+        // Indispensable : sans ça, le backend relirait un mot de passe stocké
+        // comme s'il s'agissait d'une passphrase de clé.
+        authMethod: this.currentAuthMethod(),
       },
       secret || null,
       migrateFrom,
@@ -262,6 +322,7 @@ export class ConnectPage {
   /** Réinitialise tous les champs du formulaire. */
   private resetForm(): void {
     this.protocol.set('sftp');
+    this.authMethod.set('key');
     this.host.set('');
     this.port.set(String(DEFAULT_PORTS.sftp));
     this.user.set('');
@@ -289,6 +350,7 @@ export class ConnectPage {
   /** Précharge un profil dans le formulaire pour le modifier. */
   protected editProfile(profile: ServerProfile): void {
     this.protocol.set(profile.protocol ?? 'sftp');
+    this.authMethod.set(profile.authMethod ?? 'key');
     this.environment.set(profile.environment ?? null);
     this.protection.set(profile.protection ?? null);
     this.host.set(profile.host);

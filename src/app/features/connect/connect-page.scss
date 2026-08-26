@@ -122,16 +122,14 @@
   padding: var(--space-md) var(--space-md) var(--space-sm);
 }
 
+// Ne défile plus lui-même : ce sont les champs qui défilent, pour que le pied
+// (engrenage + bouton principal) reste collé en bas et toujours visible.
 .connect__panel-body {
   flex: 1;
   min-height: 0;
-  padding: 0 var(--space-md) var(--space-md);
-  overflow-y: auto; // filet de sécurité : invisible tant que le contenu tient
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .connect__panel-alert {
@@ -143,16 +141,27 @@
 // --- Formulaire (flux naturel : le bouton suit le dernier champ) ---
 
 .connect__form {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
 }
 
 // Sections du formulaire : label fin + filet, groupes aérés.
+// C'est cette zone-ci qui défile, jamais le pied.
 .connect__fields {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  padding: 0 var(--space-md) var(--space-md);
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .connect__section {
@@ -181,11 +190,16 @@
 }
 
 // Pied : engrenage (options avancées) + action principale.
+// Barre d'actions détachée des champs par un filet : elle ne défile pas, donc
+// l'engrenage et le bouton principal restent atteignables en permanence.
 .connect__foot {
+  flex-shrink: 0;
   display: flex;
   align-items: stretch;
   gap: 10px;
-  padding-top: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .connect__row {
@@ -234,8 +248,11 @@
 }
 
 // Liste des serveurs : seule zone qui peut défiler (si beaucoup de profils).
+// La vue Serveurs garde la gouttière que le panneau ne fournit plus.
 .connect__list {
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--space-md) var(--space-md);
   overflow-y: auto;
   scrollbar-width: none;
 
@@ -319,6 +336,23 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+// Mise à jour depuis l'écran de connexion : un filet la détache des réglages
+// de session, avec lesquels elle n'a rien à voir.
+.connect__update {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.connect__update-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

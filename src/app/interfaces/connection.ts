@@ -1,7 +1,7 @@
 /** Protocoles de connexion supportés. */
 export type RemoteProtocol = 'sftp' | 'ftps' | 'ftp';
 
-import { ServerEnvironment, ServerProtection } from './profile';
+import { AuthMethod, ServerEnvironment, ServerProtection } from './profile';
 
 /** Paramètres d'ouverture d'une connexion distante. */
 export interface ConnectionParams {
@@ -20,4 +20,6 @@ export interface ConnectionParams {
   /** Si présent, le backend lit la passphrase du profil dans le trousseau
    *  macOS : le secret ne transite jamais par la WebView. */
   profileId?: string | null;
+  /** SFTP : 'key' (défaut) ou 'password'. Dit au backend ce qu'est le secret. */
+  authMethod?: AuthMethod | null;
 }

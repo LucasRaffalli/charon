@@ -34,6 +34,10 @@ pub struct Profile {
     /// « confirm » ou « readonly » — garde-fou côté UI.
     #[serde(default)]
     pub protection: Option<String>,
+    /// « key » (défaut) ou « password » : dit ce qu'est le secret rangé au
+    /// trousseau, une passphrase de clé ou un mot de passe de compte.
+    #[serde(default)]
+    pub auth_method: Option<String>,
 }
 
 // ---------- Helpers ----------

@@ -53,3 +53,6 @@ latest.json
 
 # Fichiers d'exemple pour tester la coloration syntaxique de l'aperçu
 /samples
+
+# Maquettes de travail (visuels de conception, non distribués)
+/docs/mockups

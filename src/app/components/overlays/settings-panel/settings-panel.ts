@@ -89,6 +89,12 @@ export class SettingsPanel {
 
   protected readonly themeOptions = THEME_OPTIONS;
 
+  /** Une opération de mise à jour est en cours : relancer n'aurait pas de sens. */
+  protected readonly updateBusy = computed(() => {
+    const kind = this.updater.status().kind;
+    return kind === 'checking' || kind === 'downloading' || kind === 'ready';
+  });
+
   /** Pourcentage du téléchargement de mise à jour (0 si taille inconnue). */
   protected downloadPercent(transferred: number, total: number): number {
     return total > 0 ? Math.min(100, Math.round((transferred / total) * 100)) : 0;

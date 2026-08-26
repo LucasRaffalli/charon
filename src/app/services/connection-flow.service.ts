@@ -55,6 +55,8 @@ export class ConnectionFlowService {
       user: profile.user,
       keyPath: profile.keyPath ?? null,
       profileId: profile.id,
+      // Dit au backend ce qu'est le secret du trousseau : passphrase ou mot de passe.
+      authMethod: profile.authMethod ?? null,
     });
   }
 }

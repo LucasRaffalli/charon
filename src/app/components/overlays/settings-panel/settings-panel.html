@@ -263,16 +263,19 @@
                 }
               }
 
-              @if (
-                updater.status().kind === 'idle' ||
-                updater.status().kind === 'upToDate' ||
-                updater.status().kind === 'error'
-              ) {
-                <app-button class="panel__check" variant="ghost" (click)="updater.checkForUpdates()">
-                  <app-icon name="refresh" [size]="14" />
-                  Vérifier les mises à jour
-                </app-button>
-              }
+              <!-- Toujours présent : quel que soit l'état, on doit pouvoir
+                   relancer une vérification. Seules les opérations en cours le
+                   désactivent, pour ne pas en lancer deux à la fois. -->
+              <app-button
+                class="panel__check"
+                variant="ghost"
+                [disabled]="updateBusy()"
+                [loading]="updater.status().kind === 'checking'"
+                (click)="updater.checkForUpdates()"
+              >
+                <app-icon name="refresh" [size]="14" />
+                Vérifier les mises à jour
+              </app-button>
 
               <!-- Historique embarqué au build : survit aux mises à jour. -->
               @if (changelog.length > 0) {

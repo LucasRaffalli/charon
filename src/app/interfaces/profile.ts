@@ -21,4 +21,13 @@ export interface ServerProfile {
   environment?: ServerEnvironment | null;
   /** Garde-fou ; absent = aucun. */
   protection?: ServerProtection | null;
+  /** Ce qu'est le secret au trousseau ; absent sur les anciens profils = 'key'. */
+  authMethod?: AuthMethod | null;
 }
+
+/**
+ * Authentification SFTP : par clé (le secret est la passphrase de la clé) ou
+ * par mot de passe de compte. Le choix est explicite, parce qu'un même champ
+ * pour les deux ne dit pas ce qu'on est en train de taper.
+ */
+export type AuthMethod = 'key' | 'password';

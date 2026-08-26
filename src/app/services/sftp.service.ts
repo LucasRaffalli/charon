@@ -155,6 +155,7 @@ export class SftpService extends FileBrowserState {
             keyPassphrase: params.keyPassphrase ?? null,
             acceptNewKey: acceptNewKey ?? null,
             profileId: params.profileId ?? null,
+            authMethod: params.authMethod ?? null,
           })
         : invoke<string>('ftp_connect', {
             host: params.host,

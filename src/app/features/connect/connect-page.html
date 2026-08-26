@@ -45,7 +45,7 @@
 
                 <app-segmented-control
                   ariaLabel="Protocole"
-                  [options]="protocolOptions"
+                  [options]="protocolOptions()"
                   [value]="protocol()"
                   (valueChange)="onProtocol($event)"
                 />
@@ -78,14 +78,32 @@
                 <span class="connect__section-label">Authentification</span>
 
                 @if (protocol() === 'sftp') {
-                  <app-text-field
-                    label="Passphrase de la clé"
-                    name="passphrase"
-                    type="password"
-                    placeholder="••••••••"
-                    hint="Vide si la clé n'est pas chiffrée"
-                    [(value)]="passphrase"
+                  <app-segmented-control
+                    ariaLabel="Méthode d'authentification"
+                    [options]="authOptions"
+                    [value]="authMethod()"
+                    (valueChange)="onAuthMethod($event)"
                   />
+
+                  @if (authMethod() === 'key') {
+                    <app-text-field
+                      label="Passphrase de la clé"
+                      name="passphrase"
+                      type="password"
+                      placeholder="••••••••"
+                      hint="Vide si la clé n'est pas chiffrée"
+                      [(value)]="passphrase"
+                    />
+                  } @else {
+                    <app-text-field
+                      label="Mot de passe du compte"
+                      name="sftp-password"
+                      type="password"
+                      placeholder="••••••••"
+                      hint="Le mot de passe SSH de l'utilisateur, pas une passphrase"
+                      [(value)]="password"
+                    />
+                  }
                 } @else {
                   <app-text-field
                     label="Mot de passe"
@@ -124,7 +142,9 @@
                 class="connect__gear"
                 title="Options avancées"
                 aria-label="Options avancées"
-                [class.connect__gear--set]="environment() || protection() || keyPath()"
+                [class.connect__gear--set]="
+                  environment() || protection() || (authMethod() === 'key' && keyPath())
+                "
                 (click)="showAdvanced.set(true)"
               >
                 <app-icon name="settings" [size]="15" />
@@ -239,7 +259,7 @@
             </button>
           </div>
           <div class="connect__sheet-body">
-            @if (protocol() === 'sftp') {
+            @if (protocol() === 'sftp' && authMethod() === 'key') {
               <app-text-field
                 label="Clé SSH"
                 name="key-path"
@@ -264,6 +284,59 @@
               [value]="protectionKey()"
               (valueChange)="onProtection($event)"
             />
+
+            <div class="connect__update">
+              <span class="connect__update-text">
+                @switch (updater.status().kind) {
+                  @case ('checking') {
+                    Vérification en cours…
+                  }
+                  @case ('upToDate') {
+                    Charon est à jour.
+                  }
+                  @case ('available') {
+                    @if (updater.status(); as status) {
+                      @if (status.kind === 'available') {
+                        Version {{ status.version }} disponible.
+                      }
+                    }
+                  }
+                  @case ('downloading') {
+                    Téléchargement…
+                  }
+                  @case ('ready') {
+                    Installée, redémarrage…
+                  }
+                  @case ('error') {
+                    @if (updater.status(); as status) {
+                      @if (status.kind === 'error') {
+                        {{ status.message }}
+                      }
+                    }
+                  }
+                  @default {
+                    Mise à jour de l'application.
+                  }
+                }
+              </span>
+
+              @if (updater.status().kind === 'available') {
+                <app-button type="button" (click)="updater.install()">
+                  Installer et redémarrer
+                </app-button>
+              } @else {
+                <app-button
+                  variant="ghost"
+                  type="button"
+                  [disabled]="updateBusy()"
+                  [loading]="updater.status().kind === 'checking'"
+                  (click)="updater.checkForUpdates()"
+                >
+                  <app-icon name="refresh" [size]="14" />
+                  Vérifier
+                </app-button>
+              }
+            </div>
           </div>
         </div>
       }

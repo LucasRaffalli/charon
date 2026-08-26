@@ -114,7 +114,14 @@ thème, disposition du dock. Clés inconnues purgées au chargement.
 
 ## Non implémenté
 
-Synchronisation de dossiers, déploiement avec rollback, recherche récursive,
+Trois chantiers ont leur conception écrite :
+**recherche** ([search.md](search.md)),
+**dossier initial à la connexion** ([initial-folder.md](initial-folder.md)),
+**système de design** ([design-system.md](design-system.md) : surfaces, accents,
+dégradés, mode design).
+
+Le reste n'est pas commencé :
+synchronisation de dossiers, déploiement avec rollback,
 transferts serveur à serveur (interface mono-connexion), recettes exec
 prédéfinies, génération et copie de clés SSH, runbook par profil, export/import
 de profils, notifications Slack/webhook, tâches planifiées, limite de bande

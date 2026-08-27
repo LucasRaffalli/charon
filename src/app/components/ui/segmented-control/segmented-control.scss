@@ -18,16 +18,19 @@
   border-radius: var(--radius-md);
 }
 
+// Position et largeur mesurées sur le segment actif : les variantes à largeur
+// de contenu n'ont pas des segments égaux.
 .seg__pill {
   position: absolute;
   top: 3px;
   bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / var(--seg-count, 3)); // segments à parts égales
+  left: 0;
   background: var(--surface);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
-  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 220ms cubic-bezier(0.4, 0, 0.2, 1);
 
   @media (prefers-reduced-motion: reduce) {
     transition: none;
@@ -64,5 +67,50 @@
     &.seg__option--active {
       color: var(--danger);
     }
+  }
+}
+
+// --- Variantes à largeur de contenu ---------------------------------------
+// Pas de pastille glissante ici : les segments n'ont pas la même largeur, donc
+// c'est le segment actif lui-même qui porte l'aplat.
+
+:host(.seg--solid) {
+  .seg {
+    padding: 3px;
+    background: var(--elev-1);
+    border: 1px solid var(--border);
+  }
+
+  // C'est la pastille qui porte l'aplat, pour qu'elle glisse d'un segment à
+  // l'autre au lieu de sauter.
+  .seg__pill {
+    background: var(--text);
+    box-shadow: none;
+  }
+
+  .seg__option {
+    flex: 0 0 auto;
+    padding: 5.5px 13px;
+    font-size: calc(11px * var(--text-scale));
+    transition: color 160ms ease;
+
+    &--active {
+      color: var(--text-inverse);
+    }
+  }
+}
+
+:host(.seg--chip) {
+  .seg {
+    gap: 3px;
+    padding: 2.5px;
+    border-radius: var(--radius-sm);
+  }
+
+  .seg__option {
+    padding: 3.5px 10px;
+    font-size: calc(9.5px * var(--text-scale));
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 }

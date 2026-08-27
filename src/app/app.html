@@ -2,7 +2,7 @@
      manipulée. Un clic malheureux sur un fichier ne doit rien déclencher, et
      le clavier ne doit pas non plus s'y perdre. -->
 <div class="app__stage" [attr.inert]="design.open() ? '' : null">
-  @if (sftp.connected()) {
+  @if (sftp.settled()) {
     <app-explorer-page />
   } @else {
     <app-connect-page />

@@ -40,6 +40,7 @@ pub fn run() {
         .manage(ConnectionPool::default())
         .manage(FtpPool::default())
         .manage(TransferRegistry::default())
+        .manage(sftp::ConnectRegistry::default())
         .manage(IdleConfig::default())
         .manage(ShellRegistry::default())
         .manage(TailRegistry::default())
@@ -82,6 +83,7 @@ pub fn run() {
             shell::tail_close,
             edit::edit_open,
             edit::edit_stop,
+            sftp::connect_cancel,
             fs::local_home_dir,
             fs::local_export_config,
             fs::local_list_dir,

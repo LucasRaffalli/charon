@@ -1,24 +1,33 @@
-<div class="connect">
-  <div class="connect__frame">
-    <!-- Illustration (gauche) : image de fond (+ glyphe) + texte HTML par-dessus -->
-    <aside class="connect__aside">
-      <img class="connect__cover-bg" src="/assets/png/cover.png" alt="" />
+<div class="connect" [attr.data-phase]="phase()">
+  <!-- Les lueurs sont le fond par défaut du login. Si un dégradé a été choisi
+       dans le mode design, c'est lui qui parle : il est déjà peint derrière
+       l'app, inutile d'ajouter une seconde couche de lumière par-dessus. -->
+  @if (appearance.gradient() === 'none') {
+    <app-aurora-sky [lit]="phase() !== 'dark'" />
+  }
 
-      <div class="connect__cover">
-        @if (version(); as v) {
-          <p class="connect__cover-top">v.{{ v }}</p>
-        }
-        <div class="connect__cover-group">
-          <app-charon-glyph class="connect__cover-mark" />
-          <p class="connect__cover-tagline">Le passeur de fichiers</p>
-        </div>
+  <!-- L'ouverture : le salut, puis le glyphe rejoint l'en-tête -->
+  @if (!introDone()) {
+    <div class="intro" aria-hidden="true">
+      <span class="intro__glyph" #introGlyph><app-charon-glyph /></span>
+      <div class="intro__greet">
+        <span class="intro__hello">{{ greeting() }}</span>
+        <span class="intro__sub">{{ greetingSub() }}</span>
       </div>
-    </aside>
+    </div>
+  }
 
-    <!-- Panneau switchable (droite) : hauteur fixe, sans scroll -->
-    <section class="connect__panel">
-      <div class="connect__panel-switch">
+  <div class="stage">
+    <section class="panel" [class.panel--gone]="traversing()">
+      <div class="hdr">
+        <span class="hdr__mark" #headerGlyph><app-charon-glyph /></span>
+        <div class="hdr__id">
+          <span class="hdr__name">Charon</span>
+          <span class="hdr__tag">Le passeur de fichiers</span>
+        </div>
         <app-segmented-control
+          class="hdr__switch"
+          variant="solid"
           ariaLabel="Afficher"
           [options]="panelOptions()"
           [value]="panel()"
@@ -26,320 +35,223 @@
         />
       </div>
 
-      <div class="connect__panel-body">
-        @if (showForm()) {
-          <form class="connect__form" (submit)="submitForm($event)">
-            @if (editingId()) {
-              <div class="connect__edit-head">
-                <button type="button" class="connect__back" (click)="cancelEdit()">
-                  <app-icon class="connect__back-caret" name="chevron-right" [size]="15" />
-                  Retour
-                </button>
-                <span class="connect__edit-title">Modifier ce serveur</span>
-              </div>
-            }
-
-            <div class="connect__fields">
-              <div class="connect__section">
-                <span class="connect__section-label">Serveur</span>
-
-                <app-segmented-control
-                  ariaLabel="Protocole"
-                  [options]="protocolOptions()"
-                  [value]="protocol()"
-                  (valueChange)="onProtocol($event)"
-                />
-
-                <app-text-field
-                  label="Hôte"
-                  name="host"
-                  placeholder="styx.exemple.net"
-                  [(value)]="host"
-                />
-
-                <div class="connect__row">
-                  <app-text-field
-                    label="Utilisateur"
-                    name="user"
-                    placeholder="nocher"
-                    [(value)]="user"
-                  />
-                  <app-text-field
-                    label="Port"
-                    name="port"
-                    type="number"
-                    placeholder="22"
-                    [(value)]="port"
-                  />
-                </div>
-              </div>
-
-              <div class="connect__section">
-                <span class="connect__section-label">Authentification</span>
-
-                @if (protocol() === 'sftp') {
-                  <app-segmented-control
-                    ariaLabel="Méthode d'authentification"
-                    [options]="authOptions"
-                    [value]="authMethod()"
-                    (valueChange)="onAuthMethod($event)"
-                  />
-
-                  @if (authMethod() === 'key') {
-                    <app-text-field
-                      label="Passphrase de la clé"
-                      name="passphrase"
-                      type="password"
-                      placeholder="••••••••"
-                      hint="Vide si la clé n'est pas chiffrée"
-                      [(value)]="passphrase"
-                    />
-                  } @else {
-                    <app-text-field
-                      label="Mot de passe du compte"
-                      name="sftp-password"
-                      type="password"
-                      placeholder="••••••••"
-                      hint="Le mot de passe SSH de l'utilisateur, pas une passphrase"
-                      [(value)]="password"
-                    />
-                  }
-                } @else {
-                  <app-text-field
-                    label="Mot de passe"
-                    name="ftp-password"
-                    type="password"
-                    placeholder="••••••••"
-                    hint="Vide = connexion anonyme"
-                    [(value)]="password"
-                  />
-
-                  @if (protocol() === 'ftp') {
-                    <p class="connect__warn">
-                      FTP transmet identifiants et fichiers <strong>en clair</strong> :
-                      préfère FTPS ou SFTP dès que possible.
-                    </p>
-                  }
-                }
-              </div>
-
-              <div class="connect__section">
-                <span class="connect__section-label">Profil</span>
-
-                <app-text-field
-                  label="Nom (optionnel)"
-                  name="profile-name"
-                  placeholder="Mon VPS"
-                  hint="Vide = connexion sans l'enregistrer"
-                  [(value)]="profileName"
-                />
-              </div>
-            </div>
-
-            <div class="connect__foot">
-              <button
-                type="button"
-                class="connect__gear"
-                title="Options avancées"
-                aria-label="Options avancées"
-                [class.connect__gear--set]="
-                  environment() || protection() || (authMethod() === 'key' && keyPath())
-                "
-                (click)="showAdvanced.set(true)"
-              >
-                <app-icon name="settings" [size]="15" />
+      <!-- Les deux vues sont empilées : passer de l'une à l'autre ne change
+           jamais la taille du panneau. -->
+      <div class="views" [class.views--switch]="switching()">
+        <form class="form" [class.viewhide]="!showForm()" (submit)="submitForm($event)">
+          @if (editingId()) {
+            <div class="edit-head st" style="--d: 0s">
+              <button type="button" class="edit-head__back" (click)="cancelEdit()">
+                <app-icon name="chevron-right" [size]="14" />
+                Retour
               </button>
+              <span class="edit-head__title">Modifier ce serveur</span>
+            </div>
+          }
 
-              @if (editingId()) {
-                <div class="connect__actions">
-                  <app-button
-                    variant="ghost"
-                    type="button"
-                    [disabled]="!canSubmit()"
-                    [loading]="sftp.loading()"
-                    (click)="connect()"
-                  >
-                    Se connecter
-                  </app-button>
-                  <app-button type="submit" [disabled]="!canSubmit()">
-                    Enregistrer
-                  </app-button>
-                </div>
-              } @else {
-                <app-button
-                  class="connect__submit"
-                  type="submit"
-                  [disabled]="!canSubmit()"
-                  [loading]="sftp.loading()"
-                >
-                  {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
-                </app-button>
+          <div class="sect st" style="--d: 0.07s">
+            <div class="sect__lab">
+              <span>Serveur</span>
+              <app-segmented-control
+                variant="chip"
+                ariaLabel="Protocole"
+                [options]="protocolOptions()"
+                [value]="protocol()"
+                (valueChange)="onProtocol($event)"
+              />
+            </div>
+
+            <app-text-field label="Hôte" name="host" placeholder="styx.exemple.net" [(value)]="host" />
+
+            <div class="row2">
+              <app-text-field label="Utilisateur" name="user" placeholder="nocher" [(value)]="user" />
+              <app-text-field
+                label="Port"
+                name="port"
+                type="number"
+                placeholder="22"
+                [(value)]="port"
+              />
+            </div>
+          </div>
+
+          <div class="sect st" style="--d: 0.14s">
+            <div class="sect__lab">
+              <span>Authentification</span>
+              @if (protocol() === 'sftp') {
+                <app-segmented-control
+                  variant="chip"
+                  ariaLabel="Méthode d'authentification"
+                  [options]="authOptions"
+                  [value]="authMethod()"
+                  (valueChange)="onAuthMethod($event)"
+                />
               }
             </div>
-          </form>
-        } @else {
-          <div class="connect__list">
-            @if (profiles.profiles().length > 0) {
-              <ul class="connect__profiles">
-                @for (profile of profiles.profiles(); track profile.id) {
-                  <li class="connect__profile-row" (contextmenu)="openProfileMenu($event, profile)">
-                    <button
-                      type="button"
-                      class="profile"
-                      [title]="profile.name"
-                      [disabled]="sftp.loading()"
-                      (click)="connectProfile(profile)"
-                    >
-                      <span class="profile__icon"><app-icon name="server" [size]="16" /></span>
-                      <span class="profile__name">{{ profile.name }}</span>
-                      @if (profile.environment; as env) {
-                        <span
-                          class="profile__env profile__env--{{ env }}"
-                          [title]="'Environnement : ' + env"
-                        ></span>
-                      }
-                      <app-icon class="profile__go" name="chevron-right" [size]="15" />
-                    </button>
-                    <button
-                      type="button"
-                      class="profile__edit"
-                      title="Modifier ce profil"
-                      [attr.aria-label]="'Modifier le profil ' + profile.name"
-                      (click)="editProfile(profile)"
-                    >
-                      <app-icon name="edit" [size]="14" />
-                    </button>
-                    <button
-                      type="button"
-                      class="profile__delete"
-                      title="Supprimer ce profil"
-                      [attr.aria-label]="'Supprimer le profil ' + profile.name"
-                      (click)="removeProfile(profile)"
-                    >
-                      <app-icon name="trash" [size]="14" />
-                    </button>
-                  </li>
-                }
-              </ul>
+
+            @if (protocol() === 'sftp') {
+              @if (authMethod() === 'key') {
+                <app-text-field
+                  label="Passphrase de la clé"
+                  name="passphrase"
+                  type="password"
+                  placeholder="••••••••"
+                  hint="Vide si la clé n'est pas chiffrée"
+                  [(value)]="passphrase"
+                />
+              } @else {
+                <app-text-field
+                  label="Mot de passe du compte"
+                  name="sftp-password"
+                  type="password"
+                  placeholder="••••••••"
+                  hint="Le mot de passe SSH de l'utilisateur, pas une passphrase"
+                  [(value)]="password"
+                />
+              }
             } @else {
-              <div class="connect__servers-empty">
-                <span class="connect__servers-empty-icon"><app-icon name="server" [size]="22" /></span>
-                <p class="connect__servers-empty-title">Aucun serveur enregistré</p>
-                <p class="connect__servers-empty-hint">
-                  Donne un nom à un serveur lors d'une connexion pour le retrouver ici.
+              <app-text-field
+                label="Mot de passe"
+                name="ftp-password"
+                type="password"
+                placeholder="••••••••"
+                hint="Vide = connexion anonyme"
+                [(value)]="password"
+              />
+              @if (protocol() === 'ftp') {
+                <p class="warn">
+                  FTP transmet identifiants et fichiers <strong>en clair</strong> : préfère SFTP dès
+                  que possible.
                 </p>
-                <app-button variant="ghost" (click)="setPanel('form')">Nouvelle connexion</app-button>
+              }
+            }
+          </div>
+
+          <!-- Enregistrer est un choix, pas un champ de plus : le nom n'apparaît
+               que si on le demande. La hauteur est réservée pour ne rien décaler. -->
+          <div class="slot st" style="--d: 0.21s">
+            @if (namePrompted()) {
+              <app-text-field
+                label="Nom du profil"
+                name="profile-name"
+                placeholder="Mon VPS"
+                [(value)]="profileName"
+              />
+            } @else {
+              <button type="button" class="savelink" (click)="promptName()">
+                ＋ Enregistrer comme profil
+              </button>
+            }
+          </div>
+
+          @if (editingId()) {
+            <div class="actions st" style="--d: 0.28s">
+              <app-button
+                variant="ghost"
+                type="button"
+                [disabled]="!canSubmit()"
+                [loading]="sftp.loading()"
+                (click)="connect()"
+              >
+                Se connecter
+              </app-button>
+              <app-button type="submit" [disabled]="!canSubmit()">Enregistrer</app-button>
+            </div>
+          } @else {
+            <button
+              class="go st"
+              style="--d: 0.28s"
+              type="submit"
+              [disabled]="!canSubmit() || sftp.loading()"
+            >
+              {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
+              @if (!sftp.loading()) {
+                <span class="go__kbd">↵</span>
+              }
+            </button>
+          }
+        </form>
+
+        <div class="servers st" style="--d: 0.07s" [class.viewhide]="showForm()">
+          @if (profiles.profiles().length > 0) {
+            @for (profile of profiles.profiles(); track profile.id) {
+              <div class="srv-row" (contextmenu)="openProfileMenu($event, profile)">
+                <button
+                  type="button"
+                  class="srv"
+                  [title]="profile.name"
+                  [disabled]="sftp.loading()"
+                  (click)="connectProfile(profile)"
+                >
+                  <span class="srv__ava">{{ initial(profile) }}</span>
+                  <span class="srv__txt">
+                    <span class="srv__name">{{ profile.name }}</span>
+                    <span class="srv__meta">{{ meta(profile) }}</span>
+                  </span>
+                  @if (profile.environment; as env) {
+                    <span class="srv__env srv__env--{{ env }}">{{ env }}</span>
+                  }
+                  <app-icon class="srv__chev" name="chevron-right" [size]="15" />
+                </button>
+
+                <button
+                  type="button"
+                  class="srv__act"
+                  title="Modifier ce profil"
+                  [attr.aria-label]="'Modifier le profil ' + profile.name"
+                  (click)="editProfile(profile)"
+                >
+                  <app-icon name="edit" [size]="13" />
+                </button>
+                <button
+                  type="button"
+                  class="srv__act srv__act--del"
+                  title="Supprimer ce profil"
+                  [attr.aria-label]="'Supprimer le profil ' + profile.name"
+                  (click)="removeProfile(profile)"
+                >
+                  <app-icon name="trash" [size]="13" />
+                </button>
               </div>
             }
-          </div>
-        }
-      </div>
-
-      @if (sftp.error() ?? profiles.error(); as error) {
-        <app-alert class="connect__panel-alert" variant="error">{{ error }}</app-alert>
-      }
-
-      <!-- Bottom-sheet : options avancées (couche par-dessus, n'agrandit rien) -->
-      @if (showForm()) {
-        <div
-          class="connect__sheet-backdrop"
-          [class.connect__sheet-backdrop--show]="showAdvanced()"
-          (click)="showAdvanced.set(false)"
-        ></div>
-        <div class="connect__sheet" [class.connect__sheet--open]="showAdvanced()">
-          <div class="connect__sheet-head">
-            <span class="connect__sheet-title">Options avancées</span>
-            <button
-              type="button"
-              class="connect__sheet-close"
-              aria-label="Fermer"
-              (click)="showAdvanced.set(false)"
-            >
-              <app-icon name="close" [size]="16" />
-            </button>
-          </div>
-          <div class="connect__sheet-body">
-            @if (protocol() === 'sftp' && authMethod() === 'key') {
-              <app-text-field
-                label="Clé SSH"
-                name="key-path"
-                placeholder="~/.ssh/id_ed25519"
-                hint="Vide = détection automatique (~/.ssh). À préciser si tu as plusieurs clés."
-                [(value)]="keyPath"
-              />
-            }
-
-            <app-segmented-control
-              label="Environnement"
-              ariaLabel="Environnement"
-              [options]="environmentOptions"
-              [value]="environmentKey()"
-              (valueChange)="onEnvironment($event)"
-            />
-
-            <app-segmented-control
-              label="Garde-fou"
-              ariaLabel="Garde-fou"
-              [options]="protectionOptions"
-              [value]="protectionKey()"
-              (valueChange)="onProtection($event)"
-            />
-
-            <div class="connect__update">
-              <span class="connect__update-text">
-                @switch (updater.status().kind) {
-                  @case ('checking') {
-                    Vérification en cours…
-                  }
-                  @case ('upToDate') {
-                    Charon est à jour.
-                  }
-                  @case ('available') {
-                    @if (updater.status(); as status) {
-                      @if (status.kind === 'available') {
-                        Version {{ status.version }} disponible.
-                      }
-                    }
-                  }
-                  @case ('downloading') {
-                    Téléchargement…
-                  }
-                  @case ('ready') {
-                    Installée, redémarrage…
-                  }
-                  @case ('error') {
-                    @if (updater.status(); as status) {
-                      @if (status.kind === 'error') {
-                        {{ status.message }}
-                      }
-                    }
-                  }
-                  @default {
-                    Mise à jour de l'application.
-                  }
-                }
-              </span>
-
-              @if (updater.status().kind === 'available') {
-                <app-button type="button" (click)="updater.install()">
-                  Installer et redémarrer
-                </app-button>
-              } @else {
-                <app-button
-                  variant="ghost"
-                  type="button"
-                  [disabled]="updateBusy()"
-                  [loading]="updater.status().kind === 'checking'"
-                  (click)="updater.checkForUpdates()"
-                >
-                  <app-icon name="refresh" [size]="14" />
-                  Vérifier
-                </app-button>
-              }
+            <span class="servers__hint">Un clic embarque directement.</span>
+          } @else {
+            <div class="servers__empty">
+              <app-icon name="server" [size]="22" />
+              <p class="servers__empty-title">Aucun serveur enregistré</p>
+              <p class="servers__empty-hint">
+                Donne un nom à un serveur lors d'une connexion pour le retrouver ici.
+              </p>
+              <app-button variant="ghost" (click)="setPanel('form')">Nouvelle connexion</app-button>
             </div>
-          </div>
+          }
         </div>
-      }
+      </div>
     </section>
+
+    <!-- La traversée : le panneau s'efface, il ne reste que le trajet -->
+    <app-traversal
+      [active]="traversing()"
+      [landed]="sftp.connected()"
+      [destination]="destination()"
+      (cancel)="cancelConnect()"
+    />
   </div>
+
+  <span class="connect__version">Charon · v.{{ version() }}</span>
+
+  <app-error-toast [message]="visibleError()" (dismiss)="dismissError(visibleError() ?? '')" />
+
+  <app-update-toast [visible]="introDone()" />
+
+  @if (showForm() && !sftp.loading() && introDone()) {
+    <app-advanced-options
+      [showKeyField]="protocol() === 'sftp' && authMethod() === 'key'"
+      [(keyPath)]="keyPath"
+      [environment]="environmentKey()"
+      [protection]="protectionKey()"
+      (environmentChange)="onEnvironment($event)"
+      (protectionChange)="onProtection($event)"
+    />
+  }
 </div>

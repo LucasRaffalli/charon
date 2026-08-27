@@ -13,7 +13,9 @@
 .field__input {
   width: 100%;
   padding: 9px 12px;
-  background: var(--bg);
+  // Surchargeable par le contexte : sur un panneau le champ se creuse
+  // (élévation en dessous), à nu sur le fond il doit au contraire se lever.
+  background: var(--field-bg, var(--bg));
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);

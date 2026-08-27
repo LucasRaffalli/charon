@@ -19,6 +19,8 @@
   --text: #1b222b;
   --text-muted: #59636f;
   --text-faint: #8b95a2;
+  // Texte posé sur un aplat de --text (segment actif, badges pleins).
+  --text-inverse: #ffffff;
 
   // Accent par défaut (Charon). Un `data-accent` prend le relais.
   --accent: #44688f;
@@ -26,8 +28,15 @@
   --accent-solid-hover: #4d7099;
   --on-accent: #ffffff;
 
+  // Statuts, assombris pour rester lisibles sur du blanc.
   --danger: #b3362c;
   --danger-bg: rgba(179, 54, 44, 0.08);
+  --success: #2e7d52;
+  --success-bg: rgba(46, 125, 82, 0.1);
+  --warning: #8a5a00;
+  --warning-bg: rgba(138, 90, 0, 0.1);
+  --pending: #5a4fa3;
+  --pending-bg: rgba(90, 79, 163, 0.1);
 
   --focus-ring: #44688f;
 

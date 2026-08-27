@@ -2,19 +2,16 @@
   <span class="seg__label">{{ label() }}</span>
 }
 
-<div
-  class="seg"
-  role="radiogroup"
-  [attr.aria-label]="ariaLabel() || null"
-  [style.--seg-count]="options().length"
->
+<div #track class="seg" role="radiogroup" [attr.aria-label]="ariaLabel() || null">
   <span
     class="seg__pill"
     aria-hidden="true"
-    [style.transform]="'translateX(' + activeIndex() * 100 + '%)'"
+    [style.transform]="'translateX(' + pill().left + 'px)'"
+    [style.width.px]="pill().width"
   ></span>
   @for (option of options(); track option.value) {
     <button
+      #segment
       type="button"
       class="seg__option"
       role="radio"

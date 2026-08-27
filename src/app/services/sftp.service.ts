@@ -19,6 +19,12 @@ type SudoOp = 'mkdir' | 'touch' | 'rm_file' | 'rm_dir' | 'rename';
 /** Balise émise par le backend quand la clé d'un hôte inconnu attend confirmation. */
 const UNKNOWN_KEY_TAG = 'CHARON_UNKNOWN_KEY:';
 
+/** Durée de l'annonce d'arrivée avant de laisser la place à l'explorateur. */
+const LANDING_MS = 900;
+
+/** Même balise que celle des transferts, côté Rust. */
+const CANCELLED_TAG = 'CHARON_CANCELLED';
+
 /** Navigation et transferts sur le serveur distant, via le backend Rust. */
 @Injectable({ providedIn: 'root' })
 export class SftpService extends FileBrowserState {
@@ -32,6 +38,17 @@ export class SftpService extends FileBrowserState {
 
   readonly connectionId = this._connectionId.asReadonly();
   readonly connected = computed(() => this._connectionId() !== null);
+
+  /**
+   * Connecté ET la traversée annoncée. L'écran de connexion reste à l'écran ce
+   * court instant pour dire « Bonne traversée. » : sans lui, la connexion
+   * réussie ferait disparaître la page avant qu'elle ait pu le montrer.
+   *
+   * C'est cette valeur, et non `connected`, qui décide d'afficher
+   * l'explorateur.
+   */
+  private readonly _settled = signal(false);
+  readonly settled = this._settled.asReadonly();
   readonly protocol = this._protocol.asReadonly();
   /** Environnement du serveur connecté (badge PROD permanent si « prod »). */
   readonly environment = this._environment.asReadonly();
@@ -66,6 +83,7 @@ export class SftpService extends FileBrowserState {
         return;
       }
       this._connectionId.set(null);
+      this._settled.set(false);
       this._currentPath.set('/');
       this._entries.set([]);
       this._error.set('Session fermée pour inactivité.');
@@ -140,9 +158,29 @@ export class SftpService extends FileBrowserState {
     }
   }
 
+  /**
+   * Annule une connexion en cours.
+   *
+   * C'est une vraie annulation, pas une connexion suivie d'une fermeture : le
+   * backend abandonne le futur d'ouverture, ce qui interrompt la poignée de
+   * main là où elle en est. Rien ne s'ouvre côté serveur.
+   */
+  cancelConnect(): void {
+    const attempt = this.attemptId;
+    if (!attempt) {
+      return;
+    }
+    void invoke('connect_cancel', { attemptId: attempt }).catch(() => undefined);
+  }
+
+  /** Identifiant de la tentative en cours, pour pouvoir l'annuler. */
+  private attemptId: string | null = null;
+
   async connect(params: ConnectionParams, acceptNewKey?: string): Promise<void> {
     this._pendingKey.set(null);
     const protocol = params.protocol ?? 'sftp';
+    const attempt = `connect-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.attemptId = attempt;
 
     const id = await this.run(() =>
       protocol === 'sftp'
@@ -156,6 +194,7 @@ export class SftpService extends FileBrowserState {
             acceptNewKey: acceptNewKey ?? null,
             profileId: params.profileId ?? null,
             authMethod: params.authMethod ?? null,
+            attemptId: attempt,
           })
         : invoke<string>('ftp_connect', {
             host: params.host,
@@ -166,6 +205,15 @@ export class SftpService extends FileBrowserState {
             profileId: params.profileId ?? null,
           }),
     );
+    this.attemptId = null;
+
+    // Annulation demandée : le backend a rendu la main sans rien ouvrir, il
+    // n'y a ni erreur à montrer ni session à ranger.
+    if (this._error() === CANCELLED_TAG) {
+      this._error.set(null);
+      return;
+    }
+
     if (id === undefined) {
       // Hôte inconnu : le backend renvoie l'empreinte à faire confirmer,
       // ce n'est pas une erreur à afficher telle quelle.
@@ -183,6 +231,7 @@ export class SftpService extends FileBrowserState {
     this._host.set(params.host);
     this._connectionId.set(id);
     this.activity.log('connect', 'remote', id);
+    setTimeout(() => this._settled.set(true), LANDING_MS);
 
     if (protocol === 'sftp') {
       // Dossier personnel si possible, racine sinon.
@@ -215,6 +264,7 @@ export class SftpService extends FileBrowserState {
     await this.run(() => invoke(this.commandFor('disconnect'), { connectionId: id }));
     this.activity.log('disconnect', 'remote', id);
     this._connectionId.set(null);
+    this._settled.set(false);
     this._protocol.set('sftp');
     this._environment.set(null);
     this._protection.set(null);

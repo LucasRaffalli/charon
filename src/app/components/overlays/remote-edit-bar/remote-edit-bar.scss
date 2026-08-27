@@ -1,3 +1,10 @@
+// Son unique enfant est en position fixe : l'hôte n'a rien à faire dans le
+// flux. Sans ça il compte comme élément de la colonne de l'explorateur, et le
+// `gap` de celle-ci décolle le pied de page du bas de la fenêtre.
+:host {
+  display: contents;
+}
+
 .bar {
   position: fixed;
   left: var(--space-lg);

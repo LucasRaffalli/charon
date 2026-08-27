@@ -1,0 +1,104 @@
+<button
+  type="button"
+  class="fab"
+  title="Options avancées"
+  aria-label="Options avancées"
+  [class.fab--set]="hasOptions()"
+  [class.fab--update]="updater.updateAvailable()"
+  (click)="open.set(!open())"
+>
+  <app-icon name="settings" [size]="17" />
+</button>
+
+@if (open()) {
+  <div class="sheet__veil" (click)="open.set(false)"></div>
+
+  <div class="sheet" role="dialog" aria-label="Options avancées">
+    <div class="sheet__head">
+      <span class="sheet__title">Options avancées</span>
+      <button type="button" class="sheet__close" aria-label="Fermer" (click)="open.set(false)">
+        <app-icon name="close" [size]="14" />
+      </button>
+    </div>
+
+    @if (showKeyField()) {
+      <app-text-field
+        label="Clé SSH"
+        name="key-path"
+        placeholder="~/.ssh/id_ed25519"
+        hint="Vide = détection automatique (~/.ssh)"
+        [(value)]="keyPath"
+      />
+    }
+
+    <app-segmented-control
+      label="Environnement"
+      ariaLabel="Environnement"
+      [options]="environmentOptions"
+      [value]="environment()"
+      (valueChange)="environmentChange.emit($event)"
+    />
+
+    <app-segmented-control
+      label="Garde-fou"
+      ariaLabel="Garde-fou"
+      [options]="protectionOptions"
+      [value]="protection()"
+      (valueChange)="protectionChange.emit($event)"
+    />
+
+    <div class="sheet__update">
+      <div class="sheet__update-txt">
+        <span class="sheet__update-title">
+          @switch (updater.status().kind) {
+            @case ('checking') {
+              Vérification en cours…
+            }
+            @case ('upToDate') {
+              <i class="sheet__dot sheet__dot--ok"></i>Charon est à jour.
+            }
+            @case ('available') {
+              <i class="sheet__dot sheet__dot--new"></i>
+              @if (availableVersion(); as v) {
+                Version {{ v }} disponible
+              }
+            }
+            @case ('downloading') {
+              <i class="sheet__dot sheet__dot--busy"></i>Téléchargement…
+            }
+            @case ('ready') {
+              <i class="sheet__dot sheet__dot--busy"></i>Installée, redémarrage…
+            }
+            @case ('error') {
+              <i class="sheet__dot sheet__dot--err"></i>Vérification impossible
+            }
+            @default {
+              Mise à jour de l'application
+            }
+          }
+        </span>
+        <span class="sheet__update-sub">La signature est vérifiée avant l'installation</span>
+
+        @if (downloadPercent(); as percent) {
+          <div class="sheet__bar" role="progressbar" [attr.aria-valuenow]="percent">
+            <i [style.width.%]="percent"></i>
+          </div>
+        }
+      </div>
+
+      @if (updater.status().kind === 'available') {
+        <app-button type="button" (click)="updater.install()">Installer</app-button>
+      } @else {
+        <app-button
+          variant="ghost"
+          type="button"
+          [disabled]="updateBusy()"
+          [loading]="updater.status().kind === 'checking'"
+          (click)="updater.checkForUpdates()"
+        >
+          Vérifier
+        </app-button>
+      }
+    </div>
+  </div>
+}

@@ -16,6 +16,31 @@
   margin: 0 var(--space-2xs);
 }
 
+// L'arrivée à bord : le contenu monte et se pose, le pied juste après. C'est
+// autant une intro qu'un raccord avec l'écran de traversée, qui disparaît sans
+// transition possible (les deux écrans ne coexistent jamais).
+.explorer__body {
+  animation: explorer-in 0.46s cubic-bezier(0.2, 1, 0.4, 1) backwards;
+}
+
+.explorer__status {
+  animation: explorer-in 0.4s cubic-bezier(0.2, 1, 0.4, 1) 0.1s backwards;
+}
+
+@keyframes explorer-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__body,
+  .explorer__status {
+    animation: none;
+  }
+}
+
 // --- En-tête du panneau serveur : bouton parent + fil d'Ariane ---
 
 .explorer__server-head {
@@ -267,7 +292,10 @@
   display: flex;
   flex: 1;
   min-height: 0;
-  padding: 0 var(--space-xs) var(--space-2xs);
+  // Au-dessus il n'y a que la barre de progression (2 px) et la gouttière de
+  // la colonne : les panneaux arrivaient quasiment au ras de la fenêtre, ce que
+  // leurs angles arrondis rendaient encore plus serré.
+  padding: var(--space-2xs) var(--space-xs) var(--space-2xs);
 }
 
 // Hangar : ne contient les panneaux qu'avant leur placement dans le dock.

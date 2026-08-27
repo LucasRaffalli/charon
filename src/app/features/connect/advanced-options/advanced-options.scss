@@ -1,0 +1,203 @@
+// Engrenage flottant : les options avancées ne prennent plus de place dans le
+// formulaire, elles attendent dans un coin.
+// L'hôte disparaît du flux : ses deux enfants se placent par rapport à la
+// fenêtre, pas à lui.
+:host {
+  display: contents;
+}
+
+.fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--elev-1) 92%, transparent);
+  backdrop-filter: blur(14px);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease;
+  animation: fab-in 0.4s ease backwards;
+
+  &:hover {
+    transform: rotate(24deg);
+    color: var(--text);
+  }
+}
+
+// Pastille : options actives, ou mise à jour en attente. La mise à jour prime.
+.fab--set::after,
+.fab--update::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  border: 2px solid var(--elev-1);
+}
+
+.fab--set::after {
+  background: var(--accent);
+}
+
+.fab--update::after {
+  background: var(--warning);
+}
+
+.sheet__veil {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  background: rgba(6, 8, 11, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: min(330px, calc(100% - 40px));
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  background: var(--elev-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transform-origin: calc(100% - 24px) calc(100% + 40px);
+  animation: sheet-pop 0.24s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes fab-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet__title {
+  flex: 1;
+  font-size: calc(12.5px * var(--text-scale));
+  font-weight: 700;
+}
+
+.sheet__close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+}
+
+.sheet__update {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.sheet__update-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sheet__update-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: 700;
+}
+
+// La progression est une attente, pas un succès : elle en a la couleur.
+.sheet__bar {
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: var(--elev-3);
+  overflow: hidden;
+}
+
+.sheet__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--pending);
+  transition: width var(--transition-base);
+}
+
+.sheet__update-sub {
+  font-size: calc(9.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+// Pastille d'état de la mise à jour : carrée, comme partout ailleurs.
+.sheet__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 2px;
+
+  &--ok {
+    background: var(--success);
+  }
+
+  &--new {
+    background: var(--warning);
+  }
+
+  &--busy {
+    background: var(--pending);
+  }
+
+  &--err {
+    background: var(--danger);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab,
+  .sheet {
+    animation: none;
+    transition: none;
+  }
+}

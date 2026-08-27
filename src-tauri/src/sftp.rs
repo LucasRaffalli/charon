@@ -147,6 +147,12 @@ pub struct ConnectionPool(pub Mutex<HashMap<String, Arc<ActiveConnection>>>);
 #[derive(Default)]
 pub struct TransferRegistry(pub StdMutex<HashMap<String, Arc<AtomicBool>>>);
 
+/// Tentatives de connexion en cours, par identifiant. Notifier abandonne le
+/// futur d'ouverture, ce qui interrompt vraiment la poignée de main : c'est
+/// une annulation, pas une connexion suivie d'une fermeture.
+#[derive(Default)]
+pub struct ConnectRegistry(pub StdMutex<HashMap<String, Arc<tokio::sync::Notify>>>);
+
 // ---------- Types ----------
 
 #[derive(Serialize)]
@@ -336,6 +342,34 @@ pub(crate) fn unregister_transfer(registry: &State<'_, TransferRegistry>, transf
     registry.inner().0.lock().unwrap().remove(transfer_id);
 }
 
+pub(crate) fn register_connect(
+    registry: &State<'_, ConnectRegistry>,
+    attempt_id: &str,
+) -> Arc<tokio::sync::Notify> {
+    let notify = Arc::new(tokio::sync::Notify::new());
+    registry
+        .inner()
+        .0
+        .lock()
+        .unwrap()
+        .insert(attempt_id.to_string(), Arc::clone(&notify));
+    notify
+}
+
+pub(crate) fn unregister_connect(registry: &State<'_, ConnectRegistry>, attempt_id: &str) {
+    registry.inner().0.lock().unwrap().remove(attempt_id);
+}
+
+/// Annule une tentative de connexion en cours (SFTP ou FTP).
+#[tauri::command]
+pub fn connect_cancel(registry: State<'_, ConnectRegistry>, attempt_id: String) {
+    // `notify_one` et non `notify_waiters` : si l'annulation arrive avant que
+    // le select ne s'installe, le permis est gardé et prend effet ensuite.
+    if let Some(notify) = registry.inner().0.lock().unwrap().get(&attempt_id) {
+        notify.notify_one();
+    }
+}
+
 pub(crate) fn emit_progress(app: &AppHandle, id: &str, transferred: u64, total: u64) {
     let _ = app.emit(
         "transfer:progress",
@@ -381,6 +415,7 @@ pub(crate) fn shellexpand_tilde(p: &str) -> String {
 #[tauri::command]
 pub async fn sftp_connect(
     pool: State<'_, ConnectionPool>,
+    cancels: State<'_, ConnectRegistry>,
     host: String,
     port: u16,
     user: String,
@@ -391,6 +426,51 @@ pub async fn sftp_connect(
     profile_id: Option<String>,
     // « key » (défaut) ou « password » : dit si le secret est une passphrase de
     // clé ou un mot de passe de compte.
+    auth_method: Option<String>,
+    // Identifiant de la tentative, pour pouvoir l'annuler en cours de route.
+    attempt_id: Option<String>,
+) -> Result<String, String> {
+    let work = open_sftp_session(
+        pool.inner(),
+        host,
+        port,
+        user,
+        password,
+        key_path,
+        key_passphrase,
+        accept_new_key,
+        profile_id,
+        auth_method,
+    );
+
+    // Sans identifiant de tentative, comportement inchangé.
+    let Some(id) = attempt_id else {
+        return work.await;
+    };
+
+    // Une vraie annulation : abandonner le futur interrompt la poignée de main
+    // là où elle en est. Rien ne s'ouvre côté serveur, donc rien à refermer.
+    let notify = register_connect(&cancels, &id);
+    let out = tokio::select! {
+        _ = notify.notified() => Err(CANCELLED_TAG.to_string()),
+        result = work => result,
+    };
+    unregister_connect(&cancels, &id);
+    out
+}
+
+/// Le travail réel d'ouverture, séparé pour pouvoir être abandonné en vol.
+#[allow(clippy::too_many_arguments)]
+async fn open_sftp_session(
+    pool: &ConnectionPool,
+    host: String,
+    port: u16,
+    user: String,
+    password: Option<String>,
+    key_path: Option<String>,
+    key_passphrase: Option<String>,
+    accept_new_key: Option<String>,
+    profile_id: Option<String>,
     auth_method: Option<String>,
 ) -> Result<String, String> {
     // Keepalive : détecte les connexions mortes (~90 s sans réponse) au lieu
@@ -525,7 +605,7 @@ pub async fn sftp_connect(
 
     // Stockage dans le pool
     let connection_id = format!("{user}@{host}:{port}");
-    pool.inner().0.lock().await.insert(
+    pool.0.lock().await.insert(
         connection_id.clone(),
         Arc::new(ActiveConnection {
             _handle: session,

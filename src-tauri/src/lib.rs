@@ -83,6 +83,7 @@ pub fn run() {
             edit::edit_open,
             edit::edit_stop,
             fs::local_home_dir,
+            fs::local_export_config,
             fs::local_list_dir,
             fs::local_stat,
             fs::local_read_text,

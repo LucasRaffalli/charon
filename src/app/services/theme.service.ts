@@ -17,6 +17,8 @@ export interface AccentOption {
   label: string;
   /** Couleur montrée dans la pastille du sélecteur (le fond plein). */
   swatch: string;
+  /** Les deux teintes que reprend le dégradé quand il suit l'accent. */
+  glow: { from: string; to: string };
   /** Un accent secret n'est jamais listé : il ne s'obtient qu'en tapant son nom. */
   secret?: boolean;
 }
@@ -30,10 +32,16 @@ export const THEME_OPTIONS: readonly ThemeOption[] = [
 
 /** Liste unique des accents. Le secret est filtré tant qu'il dort. */
 export const ACCENT_OPTIONS: readonly AccentOption[] = [
-  { value: 'charon', label: 'Charon', swatch: '#5b7fa6' },
-  { value: 'unloved', label: 'Unloved', swatch: '#d81e4a' },
-  { value: 'jade', label: 'Jade', swatch: '#2f9e6e' },
-  { value: 'unicorn', label: 'Unicorn', swatch: '#e0559f', secret: true },
+  { value: 'charon', label: 'Charon', swatch: '#5b7fa6', glow: { from: '#5b7fa6', to: '#7da3cc' } },
+  { value: 'unloved', label: 'Unloved', swatch: '#d81e4a', glow: { from: '#d81e4a', to: '#ff7f9d' } },
+  { value: 'jade', label: 'Jade', swatch: '#2f9e6e', glow: { from: '#2f9e6e', to: '#5fc79b' } },
+  {
+    value: 'unicorn',
+    label: 'Unicorn',
+    swatch: '#e0559f',
+    glow: { from: '#e0559f', to: '#c19bff' },
+    secret: true,
+  },
 ];
 
 @Injectable({ providedIn: 'root' })
@@ -56,20 +64,36 @@ export class ThemeService {
     return ACCENT_OPTIONS.filter((option) => !option.secret || option.value === current);
   });
 
+  /**
+   * Le mode design applique tout de suite pour qu'on voie, mais n'enregistre
+   * rien tant qu'on n'a pas confirmé. Tant que c'est faux, l'effet pose bien
+   * l'attribut mais n'écrit pas dans le stockage ; au retour à vrai, il écrit
+   * ce qui est alors courant, donc l'état retenu après un abandon.
+   */
+  private readonly persisting = signal(true);
+
   constructor() {
     this.restore();
 
     effect(() => {
       const theme = this._theme();
       this.document.documentElement.dataset['theme'] = theme;
-      localStorage.setItem(THEME_KEY, theme);
+      if (this.persisting()) {
+        localStorage.setItem(THEME_KEY, theme);
+      }
     });
 
     effect(() => {
       const accent = this._accent();
       this.document.documentElement.dataset['accent'] = accent;
-      localStorage.setItem(ACCENT_KEY, accent);
+      if (this.persisting()) {
+        localStorage.setItem(ACCENT_KEY, accent);
+      }
     });
+  }
+
+  setPersisting(on: boolean): void {
+    this.persisting.set(on);
   }
 
   select(theme: Theme): void {
@@ -87,6 +111,15 @@ export class ThemeService {
   /** Seule porte d'entrée de l'accent caché : le code tapé dans l'app. */
   activateSecretAccent(): void {
     this._accent.set('unicorn');
+  }
+
+  /**
+   * Repose un accent sans passer par le filtre du secret. Réservé au retour en
+   * arrière du mode design : abandonner doit rendre l'état d'avant, y compris
+   * quand cet état était l'accent caché.
+   */
+  restoreAccent(accent: Accent): void {
+    this._accent.set(accent);
   }
 
   private restore(): void {

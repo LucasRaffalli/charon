@@ -7,6 +7,8 @@ import { Toggle } from '@app/components/ui/toggle/toggle';
 import changelogData from '../../../../assets/changelog.json';
 
 import { ChangelogEntry } from '@app/interfaces';
+import { ConfigExportService } from '@app/services/config-export.service';
+import { DesignService } from '@app/services/design.service';
 import { DialogService } from '@app/services/dialog.service';
 import { DockService } from '@app/services/dock.service';
 import { ModulesService } from '@app/services/modules.service';
@@ -14,7 +16,7 @@ import { SettingsService } from '@app/services/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
 import { UpdaterService } from '@app/services/updater.service';
 
-type SettingsTab = 'appearance' | 'files' | 'connection' | 'modules' | 'updates';
+type SettingsTab = 'design' | 'files' | 'connection' | 'data' | 'modules' | 'updates';
 
 interface TabOption {
   id: SettingsTab;
@@ -38,17 +40,20 @@ export class SettingsPanel {
   protected readonly updater = inject(UpdaterService);
   protected readonly dock = inject(DockService);
   protected readonly modules = inject(ModulesService);
+  protected readonly exporter = inject(ConfigExportService);
   private readonly dialog = inject(DialogService);
+  private readonly design = inject(DesignService);
 
-  protected readonly activeTab = signal<SettingsTab>('appearance');
+  protected readonly activeTab = signal<SettingsTab>('files');
 
   /** Changelog curaté (src/assets/changelog.json), rédigé à chaque feature. */
   protected readonly changelog: ChangelogEntry[] = changelogData;
 
   protected readonly tabs: readonly TabOption[] = [
-    { id: 'appearance', icon: 'palette', label: 'Apparence' },
+    { id: 'design', icon: 'palette', label: 'Design' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
     { id: 'connection', icon: 'server', label: 'Connexion' },
+    { id: 'data', icon: 'file', label: 'Données' },
     { id: 'modules', icon: 'layout-grid', label: 'Modules' },
     { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
   ];
@@ -107,6 +112,19 @@ export class SettingsPanel {
   protected setIdleMinutes(raw: string): void {
     const minutes = Math.max(0, Math.min(240, Math.round(Number(raw)) || 0));
     this.settings.update({ idleMinutes: minutes });
+  }
+
+  /**
+   * « Design » ne remplit pas la modale : il la referme et rend l'application
+   * visible, pour qu'on règle en voyant le résultat sur la vraie interface.
+   */
+  protected selectTab(id: SettingsTab): void {
+    if (id === 'design') {
+      this.settings.closePanel();
+      this.design.start();
+      return;
+    }
+    this.activeTab.set(id);
   }
 
   protected close(): void {

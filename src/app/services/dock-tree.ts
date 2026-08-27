@@ -62,6 +62,58 @@ export const defaultTree = (): DockNode =>
     [0.74, 0.26],
   );
 
+/** Une disposition toute faite, proposée dans le mode design. */
+export interface DockLayout {
+  label: string;
+  hint: string;
+  build: () => DockNode;
+}
+
+const BOTTOM: DockPanelId[] = ['transfers', 'journal', 'logs', 'terminal'];
+
+/**
+ * Les dispositions proposées. Un panneau absent d'une disposition n'est pas
+ * perdu : il rejoint les panneaux fermés, et se rouvre depuis la barre de
+ * statut.
+ */
+export const DOCK_LAYOUTS: readonly DockLayout[] = [
+  {
+    label: 'Classique',
+    hint: 'Local et arborescence à gauche, serveur au centre, aperçu à droite.',
+    build: defaultTree,
+  },
+  {
+    label: 'Deux colonnes',
+    hint: 'Local et serveur côte à côte, comme un client FTP classique.',
+    build: () =>
+      split('column', [split('row', [group(['local']), group(['server'])], [0.5, 0.5]), group(BOTTOM)], [0.72, 0.28]),
+  },
+  {
+    label: 'Serveur',
+    hint: 'Le distant en grand, sans zone basse.',
+    build: () =>
+      split('row', [group(['tree']), group(['server']), group(['preview'])], [0.2, 0.56, 0.24]),
+  },
+  {
+    label: 'Terminal',
+    hint: 'Serveur à gauche, terminal en grand à droite.',
+    build: () =>
+      split(
+        'column',
+        [
+          split('row', [group(['server']), group(['terminal'])], [0.45, 0.55]),
+          group(['transfers', 'journal', 'logs']),
+        ],
+        [0.78, 0.22],
+      ),
+  },
+  {
+    label: 'Épuré',
+    hint: 'Local et serveur, rien d\'autre.',
+    build: () => split('row', [group(['local']), group(['server'])], [0.5, 0.5]),
+  },
+];
+
 export const collectGroups = (node: DockNode, out: DockGroup[] = []): DockGroup[] => {
   if (node.kind === 'group') {
     out.push(node);

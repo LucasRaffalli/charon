@@ -9,7 +9,6 @@ const DEFAULT_SETTINGS: Settings = {
   showHidden: false,
   idleMinutes: 15,
   editorApp: '',
-  logoBackground: false,
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -24,7 +23,6 @@ export class SettingsService {
   readonly showHidden = computed(() => this._settings().showHidden);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly editorApp = computed(() => this._settings().editorApp);
-  readonly logoBackground = computed(() => this._settings().logoBackground);
 
   constructor() {
     effect(() => {
@@ -62,7 +60,6 @@ export class SettingsService {
         showHidden: parsed.showHidden ?? DEFAULT_SETTINGS.showHidden,
         idleMinutes: parsed.idleMinutes ?? DEFAULT_SETTINGS.idleMinutes,
         editorApp: parsed.editorApp ?? DEFAULT_SETTINGS.editorApp,
-        logoBackground: parsed.logoBackground ?? DEFAULT_SETTINGS.logoBackground,
       };
     } catch {
       return DEFAULT_SETTINGS;

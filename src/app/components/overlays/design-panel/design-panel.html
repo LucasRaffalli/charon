@@ -1,0 +1,278 @@
+@if (side() === 'base') {
+  <!-- Panneau de gauche : l'identité (thèmes, couleurs, formes) -->
+  <header
+    class="design__head"
+    (pointerdown)="onDragStart($event)"
+    (pointermove)="onDragMove($event)"
+    (pointerup)="onDragEnd($event)"
+    (pointercancel)="onDragEnd($event)"
+  >
+    <span class="design__title">Design</span>
+    <button
+      type="button"
+      class="design__icon"
+      [attr.aria-label]="design.collapsed().base ? 'Déplier' : 'Réduire'"
+      (click)="design.toggleCollapsed('base')"
+    >
+      {{ design.collapsed().base ? '+' : '–' }}
+    </button>
+    <button type="button" class="design__icon" aria-label="Fermer" (click)="design.requestClose()">
+      ✕
+    </button>
+  </header>
+
+  @if (!design.collapsed().base) {
+  <div class="design__body">
+    <div class="design__group">
+      <span class="design__label">Thèmes tout faits</span>
+      <div class="design__templates" role="group" aria-label="Thèmes tout faits">
+        @for (template of design.templates; track template.label) {
+          <button
+            type="button"
+            class="design__template"
+            [title]="template.hint"
+            (click)="applyTemplate(template)"
+          >
+            {{ template.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Thème</span>
+      <app-segmented-control
+        ariaLabel="Thème"
+        [options]="themeOptions"
+        [value]="themeService.theme()"
+        (valueChange)="setTheme($event)"
+      />
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Accent</span>
+      <div class="design__swatches" role="group" aria-label="Accent">
+        @for (option of themeService.visibleAccents(); track option.value) {
+          <button
+            type="button"
+            class="design__swatch"
+            [class.design__swatch--on]="themeService.accent() === option.value"
+            [style.background]="option.swatch"
+            [style.color]="option.swatch"
+            [attr.aria-label]="option.label"
+            [attr.aria-pressed]="themeService.accent() === option.value"
+            [title]="option.label"
+            (click)="themeService.selectAccent(option.value)"
+          ></button>
+        }
+      </div>
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Rayon des angles</span>
+      <app-segmented-control
+        ariaLabel="Rayon des angles"
+        [options]="radiusOptions"
+        [value]="appearance.radius()"
+        (valueChange)="setRadius($event)"
+      />
+      <span class="design__note">
+        Les marges intérieures suivent, pour que le contenu ne touche jamais l'arc.
+      </span>
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Taille du texte</span>
+      <app-segmented-control
+        ariaLabel="Taille du texte"
+        [options]="textOptions"
+        [value]="appearance.text()"
+        (valueChange)="setText($event)"
+      />
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Filigrane du logo</span>
+      <app-segmented-control
+        ariaLabel="Filigrane du logo"
+        [options]="watermarkOptions"
+        [value]="appearance.watermark() ? 'on' : 'off'"
+        (valueChange)="setWatermark($event)"
+      />
+    </div>
+  </div>
+
+  <footer class="design__foot">
+    <span class="design__state" [class.design__state--dirty]="design.dirty()">
+      {{ design.dirty() ? 'Non enregistré' : 'Aucun changement' }}
+    </span>
+    <button type="button" class="design__done" (click)="design.save()">Terminé</button>
+  </footer>
+  }
+} @else {
+  <!-- Panneau de droite : le fond et la disposition -->
+  <header
+    class="design__head"
+    (pointerdown)="onDragStart($event)"
+    (pointermove)="onDragMove($event)"
+    (pointerup)="onDragEnd($event)"
+    (pointercancel)="onDragEnd($event)"
+  >
+    <span class="design__title">Fond et panneaux</span>
+    <button
+      type="button"
+      class="design__icon"
+      [attr.aria-label]="design.collapsed().gradient ? 'Déplier' : 'Réduire'"
+      (click)="design.toggleCollapsed('gradient')"
+    >
+      {{ design.collapsed().gradient ? '+' : '–' }}
+    </button>
+  </header>
+
+  @if (!design.collapsed().gradient) {
+  <div class="design__body">
+    <div class="design__group">
+      <span class="design__label">Motif du dégradé</span>
+      <div class="design__grads" role="group" aria-label="Motif du dégradé">
+        @for (option of gradientOptions; track option.value) {
+          <button
+            type="button"
+            class="design__grad"
+            [class.design__grad--on]="appearance.gradient() === option.value"
+            [attr.aria-pressed]="appearance.gradient() === option.value"
+            (click)="setGradient(option.value)"
+          >
+            <span class="design__grad-preview" [attr.data-motif]="option.value"></span>
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (appearance.gradient() !== 'none') {
+      <div class="design__group">
+        <span class="design__label">Couleurs</span>
+        <div class="design__colors">
+          <input
+            type="color"
+            aria-label="Première couleur"
+            [value]="appearance.effectiveColors().from"
+            (input)="setColor('from', $event)"
+          />
+          <input
+            type="color"
+            aria-label="Seconde couleur"
+            [value]="appearance.effectiveColors().to"
+            (input)="setColor('to', $event)"
+          />
+          <button
+            type="button"
+            class="design__follow"
+            [disabled]="followsAccent()"
+            (click)="followAccent()"
+          >
+            {{ followsAccent() ? 'Suit l\'accent' : 'Suivre l\'accent' }}
+          </button>
+        </div>
+        <div class="design__presets" role="group" aria-label="Préréglages de couleurs">
+          @for (preset of presets; track preset.label) {
+            <button
+              type="button"
+              class="design__preset"
+              [style.background]="'linear-gradient(120deg, ' + preset.from + ', ' + preset.to + ')'"
+              [attr.aria-label]="preset.label"
+              [title]="preset.label"
+              (click)="applyPreset(preset)"
+            ></button>
+          }
+        </div>
+      </div>
+
+      <div class="design__group">
+        <span class="design__label">Intensité</span>
+        <div class="slider">
+          <div class="slider__track">
+            <div class="slider__fill" [style.width.%]="appearance.intensity()"></div>
+            <div class="slider__thumb" [style.left.%]="appearance.intensity()"></div>
+          </div>
+          <input
+            class="slider__input"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            aria-label="Intensité du dégradé, en pourcentage"
+            [value]="appearance.intensity()"
+            (input)="setIntensity($event)"
+          />
+        </div>
+        <div class="slider__legend">
+          <span>Doux</span>
+          <span class="slider__value">{{ appearance.intensity() }} %</span>
+          <span>Marqué</span>
+        </div>
+      </div>
+    }
+
+    <div class="design__group">
+      <span class="design__label">Panneaux</span>
+      <app-segmented-control
+        ariaLabel="Opacité des panneaux"
+        [options]="panelOptions"
+        [value]="appearance.panels()"
+        (valueChange)="setPanels($event)"
+      />
+      @if (hiddenByPanels()) {
+        <span class="design__note">
+          Les gouttières ne font que 4 px : passe les panneaux en translucides pour voir le dégradé.
+        </span>
+      }
+      @if (translucencyIgnored()) {
+        <span class="design__note">
+          En contraste élevé, la lisibilité prime : les panneaux restent opaques.
+        </span>
+      }
+    </div>
+
+    <div class="design__group">
+      <span class="design__label">Disposition des panneaux</span>
+      <div class="design__templates" role="group" aria-label="Disposition des panneaux">
+        @for (layout of dock.layouts; track layout.label) {
+          <button
+            type="button"
+            class="design__template"
+            [title]="layout.hint"
+            (click)="applyLayout(layout)"
+          >
+            {{ layout.label }}
+          </button>
+        }
+      </div>
+      <button type="button" class="design__wide" (click)="resetDock()">
+        Réinitialiser les panneaux
+      </button>
+      <span class="design__note">
+        Un panneau absent d'une disposition n'est pas perdu : il se rouvre depuis la barre de statut.
+      </span>
+    </div>
+  </div>
+  }
+}
+
+<!-- La question de fermeture n'existe qu'une fois, portée par le panneau de gauche. -->
+@if (side() === 'base' && design.asking()) {
+  <div class="ask" role="dialog" aria-modal="true" aria-label="Enregistrer ce thème ?">
+    <div class="ask__box">
+      <span class="ask__title">Enregistrer ce thème ?</span>
+      <p class="ask__text">
+        Les changements sont appliqués pour que tu voies le résultat, mais ils ne sont pas encore
+        enregistrés. Abandonner remettra l'apparence d'avant.
+      </p>
+      <div class="ask__actions">
+        <button type="button" (click)="design.discard()">Abandonner</button>
+        <button type="button" (click)="design.keepEditing()">Continuer</button>
+        <button type="button" class="ask__primary" (click)="design.save()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,150 @@
+// Réglages d'apparence pilotés par le mode design : dégradé de fond, bento
+// translucides, rayon des angles et taille du texte. Posés par `data-*` sur la
+// racine, comme le thème et l'accent.
+//
+// Défauts volontairement sobres : aucun dégradé, panneaux opaques, rayon
+// « doux ». Tout le reste se découvre.
+
+:root {
+  // Opacité du calque de dégradé, posée par le service d'apparence depuis le
+  // curseur d'intensité. 0 = éteint, et c'est le défaut tant qu'aucun motif
+  // n'est choisi.
+  --grad: 0;
+
+  // Opacité des panneaux du dock, en pourcentage pour `color-mix`.
+  --panel-alpha: 100%;
+
+  // Multiplicateur de la taille du texte.
+  --text-scale: 1;
+
+  // Les deux couleurs du dégradé. Le service d'apparence les réécrit, soit
+  // depuis l'accent courant, soit depuis les couleurs choisies à la main.
+  // L'alpha est fixe ici, c'est l'intensité qui pilote la force de l'effet.
+  --glow: rgba(91, 127, 166, 0.62);
+  --glow2: rgba(125, 163, 204, 0.45);
+}
+
+// --- Le calque de dégradé --------------------------------------------------
+// Il vit sur un pseudo-élément du corps, jamais sur les panneaux : le dock
+// redimensionne beaucoup, et plusieurs dégradés repeints à chaque glissement
+// de séparateur coûteraient cher.
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grad);
+  transition: opacity var(--transition-base);
+}
+
+app-root {
+  position: relative;
+  z-index: 1;
+}
+
+// Le motif dit COMMENT les deux couleurs sont posées. L'intensité, elle, est
+// un réglage séparé : « lequel » et « combien » ne se mélangent pas.
+
+// Halo : deux foyers en diagonale, le plus discret.
+:root[data-gradient='halo'] body::before {
+  background:
+    radial-gradient(62% 46% at 10% -4%, var(--glow), transparent 68%),
+    radial-gradient(54% 42% at 96% 104%, var(--glow2), transparent 68%);
+}
+
+// Aube : une montée de lumière depuis le bas, comme un lever de jour.
+:root[data-gradient='aube'] body::before {
+  background:
+    linear-gradient(to top, var(--glow) -18%, transparent 52%),
+    radial-gradient(80% 30% at 50% 108%, var(--glow2), transparent 72%);
+}
+
+// Aurore : une écharpe oblique qui traverse l'écran, le plus graphique.
+:root[data-gradient='aurore'] body::before {
+  background: linear-gradient(
+    112deg,
+    transparent 14%,
+    var(--glow) 42%,
+    var(--glow2) 58%,
+    transparent 84%
+  );
+}
+
+// Maille : quatre foyers décalés en deux teintes, le plus riche.
+:root[data-gradient='maille'] body::before {
+  background:
+    radial-gradient(42% 38% at 6% 8%, var(--glow), transparent 62%),
+    radial-gradient(38% 34% at 88% 14%, var(--glow2), transparent 62%),
+    radial-gradient(46% 40% at 74% 92%, var(--glow), transparent 64%),
+    radial-gradient(36% 32% at 24% 88%, var(--glow2), transparent 62%);
+}
+
+// Voûte : bords assombris, respiration au centre.
+:root[data-gradient='voute'] body::before {
+  background:
+    radial-gradient(78% 70% at 50% 42%, var(--glow), transparent 66%),
+    radial-gradient(120% 100% at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.55));
+}
+
+// --- Les bento translucides ------------------------------------------------
+// Les gouttières du dock font 4 px : un dégradé posé sur le fond n'apparaîtrait
+// que dans des filets invisibles. C'est la translucidité des panneaux qui fait
+// exister l'effet sur toute la surface.
+
+// 80 % ne suffisait pas : à travers un panneau qui ne laisse passer que 20 %,
+// un dégradé déjà discret arrivait à 4 % de couleur, donc invisible. Les deux
+// étages se multiplient, il faut ouvrir les deux.
+:root[data-panels='translucide'] {
+  --panel-alpha: 66%;
+}
+
+// En thème contraste, la lisibilité prime : les panneaux restent opaques quoi
+// qu'il arrive. Sélecteur plus spécifique, donc il gagne.
+:root[data-theme='contrast'][data-panels] {
+  --panel-alpha: 100%;
+}
+
+// --- Le rayon des angles ---------------------------------------------------
+// Trois crans, jamais de plein arrondi.
+
+:root[data-radius='net'] {
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 7px;
+
+  // Des angles nets rendent le coin utilisable : le contenu peut s'approcher
+  // du bord sans avoir l'air à l'étroit.
+  --space-xs: 7px;
+  --space-sm: 10px;
+  --space-md: 14px;
+  --space-lg: 21px;
+}
+
+:root[data-radius='rond'] {
+  --radius-sm: 9px;
+  --radius-md: 15px;
+  --radius-lg: 24px;
+
+  // À l'inverse, un grand arrondi mange le coin : sans rentrer le contenu, il
+  // vient toucher l'arc. La gouttière du dock (--space-2xs) ne bouge pas, elle,
+  // c'est elle qui laisse voir le dégradé entre les panneaux.
+  --space-xs: 10px;
+  --space-sm: 15px;
+  --space-md: 20px;
+  --space-lg: 29px;
+}
+
+// --- La taille du texte ----------------------------------------------------
+// Les tailles sont écrites en pixels partout dans l'app : elles passent par
+// `calc(… * var(--text-scale))`. Amplitude volontairement courte (0,9 à 1,12),
+// les gabarits étant à hauteur fixe par endroits.
+
+:root[data-text='petit'] {
+  --text-scale: 0.9;
+}
+
+:root[data-text='grand'] {
+  --text-scale: 1.12;
+}

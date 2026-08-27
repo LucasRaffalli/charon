@@ -10,7 +10,7 @@
 .notice {
   flex: none;
   padding: var(--space-xs);
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   color: var(--text-faint);
 
   &--error {

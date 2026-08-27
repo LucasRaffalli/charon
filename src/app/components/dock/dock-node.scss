@@ -56,14 +56,20 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--surface);
+  // Le plus translucide des deux gagne : le réglage général des panneaux, ou
+  // le voile local du filigrane (voir plus bas).
+  background: color-mix(
+    in srgb,
+    var(--surface) min(var(--panel-alpha), var(--panel-alpha-local, 100%)),
+    transparent
+  );
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
 
-// Filigrane : seul le groupe qui contient la vue serveur devient translucide.
+// Filigrane : seul le groupe qui contient la vue serveur laisse voir à travers.
 :host-context(.explorer--logo) .group--server {
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  --panel-alpha-local: 88%;
 }
 
 .group__tabs {
@@ -106,7 +112,7 @@
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--text-scale));
   font-weight: 600;
   cursor: pointer;
   transition:

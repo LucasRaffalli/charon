@@ -8,7 +8,7 @@
   border: none;
   background: none;
   color: var(--text);
-  font-size: 13px;
+  font-size: calc(13px * var(--text-scale));
   text-align: left;
   cursor: pointer;
 }
@@ -19,7 +19,7 @@
   width: 36px;
   height: 21px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--surface-active);
   transition:
     background var(--transition-fast),
@@ -42,7 +42,7 @@
   left: 2px;
   width: 15px;
   height: 15px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   background: var(--text-muted);
   transition:
     transform var(--transition-fast),

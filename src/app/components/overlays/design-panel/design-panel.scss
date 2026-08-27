@@ -1,0 +1,495 @@
+// Deux petites cartes flottantes plutôt que des colonnes : la vue garde sa
+// taille réelle, la seule à laquelle on puisse juger une interface de bureau.
+// Ce qu'une carte cache se dégage en la poussant ou en la repliant.
+
+:host {
+  position: fixed;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  width: 244px;
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  background: var(--elev-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  animation: design-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes design-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host {
+    animation: none;
+  }
+}
+
+// Ancrages par défaut, tant qu'on ne les a pas déplacées : dans les deux coins
+// bas, là où l'interface a le moins de contenu.
+:host(.design--anchored.design--base) {
+  right: 12px;
+  bottom: 12px;
+}
+
+:host(.design--anchored.design--gradient) {
+  left: 12px;
+  bottom: 12px;
+}
+
+.design__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex-shrink: 0;
+  padding: 7px 8px 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.design__title {
+  flex: 1;
+}
+
+.design__icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-size: calc(11px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+}
+
+.design__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-height: 0;
+  padding: var(--space-sm) var(--space-sm) var(--space-xs);
+  overflow-y: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.design__group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.design__label {
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.design__note {
+  font-size: calc(10px * var(--text-scale));
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+// --- Thèmes tout faits ---
+
+.design__templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.design__template {
+  flex: 1 1 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+// Bouton large occupant la ligne (réinitialisation de la disposition).
+.design__wide {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+}
+
+// --- Accent ---
+
+.design__swatches {
+  display: flex;
+  gap: 6px;
+}
+
+.design__swatch {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &--on {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px currentColor;
+  }
+}
+
+// --- Dégradé ---
+
+.design__grads {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.design__grad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+
+  &--on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+}
+
+// Vignettes : le motif réel, en miniature, avec les couleurs courantes.
+.design__grad-preview {
+  width: 100%;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--elev-2);
+
+  &[data-motif='halo'] {
+    background:
+      radial-gradient(62% 46% at 10% -4%, var(--glow), transparent 68%),
+      radial-gradient(54% 42% at 96% 104%, var(--glow2), transparent 68%),
+      var(--elev-2);
+  }
+
+  &[data-motif='aube'] {
+    background:
+      linear-gradient(to top, var(--glow) -18%, transparent 52%),
+      radial-gradient(80% 30% at 50% 108%, var(--glow2), transparent 72%),
+      var(--elev-2);
+  }
+
+  &[data-motif='aurore'] {
+    background:
+      linear-gradient(112deg, transparent 14%, var(--glow) 42%, var(--glow2) 58%, transparent 84%),
+      var(--elev-2);
+  }
+
+  &[data-motif='maille'] {
+    background:
+      radial-gradient(42% 38% at 6% 8%, var(--glow), transparent 62%),
+      radial-gradient(38% 34% at 88% 14%, var(--glow2), transparent 62%),
+      radial-gradient(46% 40% at 74% 92%, var(--glow), transparent 64%),
+      radial-gradient(36% 32% at 24% 88%, var(--glow2), transparent 62%),
+      var(--elev-2);
+  }
+
+  &[data-motif='voute'] {
+    background:
+      radial-gradient(78% 70% at 50% 42%, var(--glow), transparent 66%),
+      radial-gradient(120% 100% at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.55)),
+      var(--elev-2);
+  }
+}
+
+// --- Couleurs libres ---
+
+.design__colors {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  input[type='color'] {
+    width: 30px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: none;
+    cursor: pointer;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 2px;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: 3px;
+    }
+  }
+}
+
+.design__follow {
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &:disabled {
+    color: var(--text-faint);
+    cursor: default;
+  }
+}
+
+.design__presets {
+  display: flex;
+  gap: 5px;
+}
+
+.design__preset {
+  flex: 1;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+// --- Curseur d'intensité ---
+// Piste et poignée dessinées à la main, l'input natif reste dessus mais
+// invisible : il garde le clavier, le clic et le nom accessible.
+
+.slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 18px;
+}
+
+.slider__track {
+  position: relative;
+  width: 100%;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--elev-3);
+}
+
+.slider__fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.slider__thumb {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 15px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.slider__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+
+}
+
+// L'input est APRÈS la piste dans le DOM : aucun combinateur ne remonte,
+// d'où le :has() sur le conteneur.
+.slider:has(.slider__input:focus-visible) .slider__track {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.slider__legend {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: calc(9.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.slider__value {
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+// --- Pied ---
+
+.design__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+  padding: 7px 10px 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.design__state {
+  flex: 1;
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+
+  &--dirty {
+    color: var(--accent);
+  }
+}
+
+.design__done {
+  padding: 5px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--accent-solid-hover);
+  }
+}
+
+// --- La question de fermeture ---
+
+.ask {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.ask__box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(380px, 100%);
+  padding: var(--space-md);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.ask__title {
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 700;
+}
+
+.ask__text {
+  margin: 0;
+  font-size: calc(12px * var(--text-scale));
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.ask__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
+
+  button {
+    padding: 7px 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--text);
+    font-size: calc(12px * var(--text-scale));
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--state-hover);
+    }
+  }
+}
+
+.ask__primary {
+  border-color: transparent !important;
+  background: var(--accent-solid) !important;
+  color: var(--on-accent) !important;
+
+  &:hover {
+    background: var(--accent-solid-hover) !important;
+  }
+}

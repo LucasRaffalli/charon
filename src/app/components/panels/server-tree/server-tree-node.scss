@@ -106,14 +106,14 @@
 
 .node__name {
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--text-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .node__empty {
   padding: 2px 6px 4px 22px;
-  font-size: 11px;
+  font-size: calc(11px * var(--text-scale));
   font-style: italic;
   color: var(--text-faint);
 }

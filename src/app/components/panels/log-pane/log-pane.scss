@@ -16,7 +16,7 @@
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--text-faint);
 
   &--live {
@@ -31,7 +31,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--text-scale));
   color: var(--text-muted);
 }
 
@@ -45,7 +45,7 @@
   border-radius: var(--radius-sm);
   background: var(--bg, var(--surface-hover));
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   outline: none;
 
   &:focus {
@@ -82,7 +82,7 @@
 
 .line {
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--text-scale));
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
@@ -91,7 +91,7 @@
 
 .notice {
   padding: var(--space-xs);
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   color: var(--text-faint);
 
   &--error {

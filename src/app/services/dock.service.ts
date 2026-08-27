@@ -12,6 +12,8 @@ import {
 } from '@app/interfaces';
 import {
   ALL_PANELS,
+  DOCK_LAYOUTS,
+  DockLayout,
   collectGroups,
   collectPanels,
   defaultTree,
@@ -71,6 +73,15 @@ export class DockService {
   private readonly _tree = signal<DockNode>(this.load());
   readonly tree = this._tree.asReadonly();
 
+  /** Les dispositions toutes faites, proposées dans le mode design. */
+  readonly layouts = DOCK_LAYOUTS;
+
+  /**
+   * Le mode design est un brouillon : tant que c'est faux, la disposition
+   * s'applique à l'écran mais ne s'écrit pas dans le stockage.
+   */
+  private readonly persisting = signal(true);
+
   /** Glissement d'onglet en cours (position en coordonnées viewport). */
   readonly drag = signal<DockDrag | null>(null);
   /** Cible de dépôt survolée pendant le glissement. */
@@ -108,6 +119,9 @@ export class DockService {
     // qu'une fois le geste posé.
     effect((onCleanup) => {
       const stored: StoredLayout = { version: 1, tree: this.tree() };
+      if (!this.persisting()) {
+        return;
+      }
       const handle = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
       }, 300);
@@ -232,6 +246,20 @@ export class DockService {
   /** Revient à la disposition par défaut. */
   reset(): void {
     this._tree.set(defaultTree());
+  }
+
+  /** Applique une disposition toute faite. */
+  applyLayout(layout: DockLayout): void {
+    this._tree.set(layout.build());
+  }
+
+  setPersisting(on: boolean): void {
+    this.persisting.set(on);
+  }
+
+  /** Repose un arbre tel quel (retour en arrière du mode design). */
+  restoreTree(tree: DockNode): void {
+    this._tree.set(tree);
   }
 
   // --- Drag & drop d'onglets ---

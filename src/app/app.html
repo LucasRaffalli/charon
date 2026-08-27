@@ -1,7 +1,29 @@
-@if (sftp.connected()) {
-  <app-explorer-page />
-} @else {
-  <app-connect-page />
+<!-- `inert` pendant le mode design : la vue est là pour être regardée, pas
+     manipulée. Un clic malheureux sur un fichier ne doit rien déclencher, et
+     le clavier ne doit pas non plus s'y perdre. -->
+<div class="app__stage" [attr.inert]="design.open() ? '' : null">
+  @if (sftp.connected()) {
+    <app-explorer-page />
+  } @else {
+    <app-connect-page />
+  }
+</div>
+
+@if (design.open()) {
+  <app-design-panel
+    side="base"
+    class="design--base"
+    [class.design--anchored]="!design.positions().base"
+    [style.left.px]="design.positions().base?.x"
+    [style.top.px]="design.positions().base?.y"
+  />
+  <app-design-panel
+    side="gradient"
+    class="design--gradient"
+    [class.design--anchored]="!design.positions().gradient"
+    [style.left.px]="design.positions().gradient?.x"
+    [style.top.px]="design.positions().gradient?.y"
+  />
 }
 
 <app-settings-panel />

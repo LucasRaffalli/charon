@@ -1,5 +1,6 @@
 export * from './accent';
 export * from './activity';
+export * from './appearance';
 export * from './changelog';
 export * from './connection';
 export * from './dock';

@@ -18,7 +18,7 @@
   padding: var(--space-2xs) var(--space-sm);
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   font-weight: 600;
 }
 
@@ -40,7 +40,7 @@
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--accent);
 
   &--synced {
@@ -55,7 +55,7 @@
 .row__name {
   min-width: 0;
   overflow: hidden;
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -64,7 +64,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 11px;
+  font-size: calc(11px * var(--text-scale));
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);

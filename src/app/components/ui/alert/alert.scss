@@ -5,7 +5,7 @@
   padding: var(--space-sm) var(--space-md);
   border: 1px solid;
   border-radius: var(--radius-md);
-  font-size: 13px;
+  font-size: calc(13px * var(--text-scale));
   text-align: left;
 
   app-icon {

@@ -23,7 +23,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 13px;
+  font-size: calc(13px * var(--text-scale));
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -32,14 +32,14 @@
 .head__views {
   flex-shrink: 0;
   width: 150px;
-  font-size: 11px;
+  font-size: calc(11px * var(--text-scale));
 }
 
 .head__dirty {
   flex-shrink: 0;
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--accent);
 }
 
@@ -64,7 +64,7 @@
 
 .notice {
   padding: var(--space-xs) var(--space-sm);
-  font-size: 12px;
+  font-size: calc(12px * var(--text-scale));
   color: var(--text-muted);
 
   &--error {
@@ -82,7 +82,7 @@
 @mixin editor-metrics {
   padding: var(--space-sm);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--text-scale));
   line-height: 1.6;
   white-space: pre;
   tab-size: 2;
@@ -148,7 +148,7 @@
   padding: var(--space-md);
   overflow: auto;
   color: var(--text);
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--text-scale));
   line-height: 1.65;
 
   ::ng-deep {
@@ -272,7 +272,7 @@
       overflow-x: auto;
       border-radius: var(--radius-sm);
       background: var(--surface-hover);
-      font-size: 12.5px;
+      font-size: calc(12.5px * var(--text-scale));
       line-height: 1.55;
 
       code {

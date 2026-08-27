@@ -10,6 +10,25 @@ pub fn local_home_dir() -> Result<String, String> {
         .ok_or_else(|| "Impossible de trouver le dossier home".into())
 }
 
+/// Écrit un export de configuration dans le dossier Téléchargements.
+///
+/// Le nom de fichier vient du front mais il est assaini ici : pas de
+/// séparateur, pas de `..`, extension `.json` imposée. Le contenu, lui, est
+/// déjà purgé côté front, aucun secret ne transite (les mots de passe et
+/// passphrases vivent dans le trousseau et ne sont jamais exposés à la WebView).
+#[tauri::command]
+pub fn local_export_config(file_name: String, contents: String) -> Result<String, String> {
+    if !is_safe_entry_name(&file_name) || !file_name.ends_with(".json") {
+        return Err("Nom de fichier invalide".into());
+    }
+    let dir = dirs::download_dir()
+        .or_else(dirs::home_dir)
+        .ok_or_else(|| "Impossible de trouver le dossier Téléchargements".to_string())?;
+    let path = dir.join(&file_name);
+    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// Liste un dossier du disque local, dossiers d'abord puis ordre alphabétique.
 #[tauri::command]
 pub fn local_list_dir(path: String) -> Result<Vec<FileEntry>, String> {

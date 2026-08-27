@@ -36,6 +36,7 @@ import { LogTailService } from '@app/services/log-tail.service';
 import { OverwriteService } from '@app/services/overwrite.service';
 import { PreviewService } from '@app/services/preview.service';
 import { RemoteEditService } from '@app/services/remote-edit.service';
+import { AppearanceService } from '@app/services/appearance.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
 import { TransfersService } from '@app/services/transfers.service';
@@ -71,6 +72,7 @@ export class ExplorerPage {
   protected readonly sftp = inject(SftpService);
   protected readonly localFs = inject(LocalFsService);
   protected readonly settings = inject(SettingsService);
+  protected readonly appearance = inject(AppearanceService);
   protected readonly contextMenu = inject(ContextMenuService);
   protected readonly transfers = inject(TransfersService);
   private readonly logTail = inject(LogTailService);

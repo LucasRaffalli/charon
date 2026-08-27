@@ -10,9 +10,9 @@ import {
 import { Icon } from '@app/components/ui/icon/icon';
 import { ResizeHandle } from '@app/components/ui/resize-handle/resize-handle';
 import { DockGroup, DockNode, DockPanelId, DockSplit, DockZone } from '@app/interfaces';
-import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.service';
-import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/dock.service';
-import { TransfersService } from '@app/services/transfers.service';
+import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
+import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/dock.service';
+import { TransfersService } from '@app/services/files/transfers.service';
 
 /** Distance (px) avant qu'un appui sur un onglet devienne un glissement. */
 const DRAG_THRESHOLD = 5;

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { ActivityKind } from '@app/interfaces';
-import { ActivityLogService } from '@app/services/activity-log.service';
+import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 
 const KIND_ICONS: Record<ActivityKind, IconName> = {
   connect: 'server',
@@ -17,6 +17,7 @@ const KIND_ICONS: Record<ActivityKind, IconName> = {
   resume: 'refresh',
   cancel: 'close',
   edit: 'edit',
+  anchor: 'anchor',
   error: 'alert-circle',
 };
 

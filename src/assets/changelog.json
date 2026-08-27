@@ -1,39 +1,154 @@
 [
   {
+    "version": "1.2.0",
+    "date": "2026-08-27",
+    "title": "L'atelier, repensé",
+    "notes": [
+      {
+        "kind": "new",
+        "text": "Thèmes et accents séparés : le thème porte les gris, l'accent porte la couleur, et les deux se combinent librement"
+      },
+      {
+        "kind": "new",
+        "text": "Mode design : réglez le fond, la translucidité des panneaux, le rayon des angles et la taille du texte en voyant la vraie interface"
+      },
+      {
+        "kind": "new",
+        "text": "La palette cherche : profils, chemins, fichiers du dossier affiché et commandes, avec des filtres et un mode expression régulière qui explique le motif"
+      },
+      {
+        "kind": "new",
+        "text": "Ancre de connexion : un profil retient son dossier de travail et la connexion suivante y arrive directement"
+      },
+      {
+        "kind": "new",
+        "text": "Le terminal s'ouvre dans le dossier affiché et vous suit quand vous naviguez, sans jamais écrire pendant qu'un programme tourne"
+      },
+      {
+        "kind": "new",
+        "text": "Export de la configuration : apparence, disposition, réglages et profils dans un fichier, sans aucun mot de passe"
+      },
+      {
+        "kind": "better",
+        "text": "Nouvel écran d'ouverture, avec un mot d'accueil, une traversée annoncée et un bouton qui interrompt vraiment la connexion en cours"
+      },
+      {
+        "kind": "better",
+        "text": "Les gestes silencieux sont confirmés : copier un chemin, enregistrer un fichier ou poser une ancre affichent une carte avec le temps qu'il lui reste"
+      },
+      {
+        "kind": "better",
+        "text": "Clic droit plus complet sur un dossier serveur : y ouvrir le terminal, y chercher, en faire le point d'arrivée du profil"
+      },
+      {
+        "kind": "fixed",
+        "text": "La dernière ligne du terminal n'est plus rognée, et l'ouverture d'une session n'y laisse plus de ligne parasite"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le panneau Modules ne se rouvre plus à chaque démarrage après avoir été fermé"
+      },
+      {
+        "kind": "fixed",
+        "text": "La barre du bas de l'explorateur colle enfin au bas de la fenêtre"
+      }
+    ]
+  },
+  {
     "version": "1.1.1",
     "date": "2026-08-26",
+    "title": "Se connecter par mot de passe",
     "notes": [
-      "Connexion SFTP par mot de passe : un sélecteur Clé SSH / Mot de passe dit enfin ce que le champ attend",
-      "Correction : une clé illisible dans ~/.ssh n'empêche plus de se connecter avec un mot de passe",
-      "Messages d'erreur de connexion plus précis, notamment quand aucune clé n'est trouvée",
-      "FTPS retiré du sélecteur, trop souvent confondu avec SFTP (les profils existants continuent de fonctionner)",
-      "Les actions du formulaire de connexion restent visibles quand les champs défilent",
-      "Mise à jour de l'application accessible depuis l'écran de connexion",
-      "Aperçu de fichiers : coloration syntaxique, rendu markdown et icônes par type"
+      {
+        "kind": "new",
+        "text": "Connexion SFTP par mot de passe : un sélecteur Clé SSH / Mot de passe dit enfin ce que le champ attend"
+      },
+      {
+        "kind": "new",
+        "text": "Aperçu de fichiers : coloration syntaxique, rendu markdown et icônes par type"
+      },
+      {
+        "kind": "better",
+        "text": "FTPS retiré du sélecteur, trop souvent confondu avec SFTP (les profils existants continuent de fonctionner)"
+      },
+      {
+        "kind": "better",
+        "text": "Messages d'erreur de connexion plus précis, notamment quand aucune clé n'est trouvée"
+      },
+      {
+        "kind": "better",
+        "text": "Mise à jour de l'application accessible depuis l'écran de connexion"
+      },
+      {
+        "kind": "fixed",
+        "text": "Une clé illisible dans ~/.ssh n'empêche plus de se connecter avec un mot de passe"
+      },
+      {
+        "kind": "fixed",
+        "text": "Les actions du formulaire de connexion restent visibles quand les champs défilent"
+      }
     ]
   },
   {
     "version": "1.1.0",
     "date": "2026-08-23",
+    "title": "Modules et mises à jour",
     "notes": [
-      "Système de Modules : des extensions sandboxées peuvent ajouter des commandes, des tableaux de bord et réagir aux événements de l'app",
-      "Moniteur VPS inclus : espace disque, mémoire, charge et processus du serveur en un coup d'œil",
-      "Mises à jour automatiques : vérification en arrière-plan, indicateur discret et nouveautés affichées avant l'installation",
-      "Historique des versions consultable dans les réglages",
-      "Le bouton Débarquer a été éloigné des réglages et demande confirmation si des transferts sont en cours"
+      {
+        "kind": "new",
+        "text": "Système de Modules : des extensions isolées peuvent ajouter des commandes, des tableaux de bord et réagir aux événements de l'app"
+      },
+      {
+        "kind": "new",
+        "text": "Moniteur VPS inclus : espace disque, mémoire, charge et processus du serveur en un coup d'œil"
+      },
+      {
+        "kind": "new",
+        "text": "Mises à jour automatiques : vérification en arrière-plan, indicateur discret et nouveautés affichées avant l'installation"
+      },
+      {
+        "kind": "new",
+        "text": "Historique des versions consultable dans les réglages"
+      },
+      {
+        "kind": "better",
+        "text": "Le bouton Débarquer a été éloigné des réglages et demande confirmation si des transferts sont en cours"
+      }
     ]
   },
   {
     "version": "1.0.0",
     "date": "2026-08-22",
+    "title": "Première traversée",
     "notes": [
-      "Première version : client SFTP, FTPS et FTP pour macOS",
-      "Transferts fiables : reprise après interruption, file persistante, glisser-déposer",
-      "Terminal SSH intégré et suivi de logs en direct",
-      "Édition distante : un fichier serveur s'ouvre dans ton éditeur et se ré-envoie à chaque sauvegarde",
-      "Garde-fous de production : badge PROD, lecture seule, confirmation par nom d'hôte, diff avant écrasement",
-      "Profils multi-serveurs avec secrets dans le trousseau macOS",
-      "Espace de travail entièrement réorganisable (panneaux dockables), thèmes, palette de commandes"
+      {
+        "kind": "new",
+        "text": "Première version : client SFTP, FTPS et FTP pour macOS"
+      },
+      {
+        "kind": "new",
+        "text": "Transferts fiables : reprise après interruption, file persistante, glisser-déposer"
+      },
+      {
+        "kind": "new",
+        "text": "Terminal SSH intégré et suivi de logs en direct"
+      },
+      {
+        "kind": "new",
+        "text": "Édition distante : un fichier serveur s'ouvre dans ton éditeur et se ré-envoie à chaque sauvegarde"
+      },
+      {
+        "kind": "new",
+        "text": "Garde-fous de production : badge PROD, lecture seule, confirmation par nom d'hôte, diff avant écrasement"
+      },
+      {
+        "kind": "new",
+        "text": "Profils multi-serveurs avec secrets dans le trousseau macOS"
+      },
+      {
+        "kind": "new",
+        "text": "Espace de travail entièrement réorganisable (panneaux dockables), thèmes, palette de commandes"
+      }
     ]
   }
 ]

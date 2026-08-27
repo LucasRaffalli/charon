@@ -43,6 +43,13 @@ impl FtpConnection {
 #[derive(Default)]
 pub struct FtpPool(pub Mutex<HashMap<String, Arc<FtpConnection>>>);
 
+pub(crate) async fn get_ftp_connection(
+    pool: &State<'_, FtpPool>,
+    connection_id: &str,
+) -> Result<Arc<FtpConnection>, String> {
+    get_connection(pool, connection_id).await
+}
+
 async fn get_connection(
     pool: &State<'_, FtpPool>,
     connection_id: &str,
@@ -541,4 +548,86 @@ async fn stream_upload(
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
     emit_progress(app, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
+}
+
+// ---------- Recherche récursive (voir search.rs) ----------
+
+/// Recherche par nom en FTP : le protocole n'a pas de canal exec, le walk est
+/// la seule voie, et il verrouille le stream comme toute op FTP (nature du
+/// protocole : une recherche bloque les autres commandes de cette connexion).
+pub(crate) async fn search_walk(
+    app: tauri::AppHandle,
+    conn: Arc<FtpConnection>,
+    id: String,
+    root: String,
+    needle: String,
+    case_sensitive: bool,
+    cancel: Arc<std::sync::atomic::AtomicBool>,
+) {
+    use crate::search::{emit_done, emit_hits, SearchHit, EXCLUDED_DIRS, MAX_HITS, MAX_WALK_DEPTH, TIMEOUT};
+    use std::sync::atomic::Ordering;
+
+    let needle_folded = if case_sensitive {
+        needle.clone()
+    } else {
+        needle.to_lowercase()
+    };
+    let deadline = tokio::time::Instant::now() + TIMEOUT;
+    let mut stream = conn.stream.lock().await;
+    let mut to_visit: Vec<(String, usize)> = vec![(root, 0)];
+    let mut total = 0usize;
+
+    while let Some((dir, depth)) = to_visit.pop() {
+        if cancel.load(Ordering::Relaxed) {
+            emit_done(&app, &id, total, "cancelled");
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            emit_done(&app, &id, total, "timeout");
+            return;
+        }
+        let Ok(lines) = stream.list(Some(&dir)).await else {
+            continue; // dossier illisible : on passe
+        };
+        let mut hits = Vec::new();
+        for line in &lines {
+            let Ok(entry) = suppaftp::list::File::try_from(line.as_str()) else {
+                continue;
+            };
+            let name = entry.name();
+            if !is_safe_entry_name(name) || EXCLUDED_DIRS.contains(&name) {
+                continue;
+            }
+            let child = if dir == "/" {
+                format!("/{name}")
+            } else {
+                format!("{dir}/{name}")
+            };
+            let haystack = if case_sensitive {
+                name.to_string()
+            } else {
+                name.to_lowercase()
+            };
+            if haystack.contains(&needle_folded) {
+                hits.push(SearchHit {
+                    path: child.clone(),
+                    line: None,
+                    text: None,
+                    is_dir: entry.is_directory(),
+                });
+                total += 1;
+                if total >= MAX_HITS {
+                    emit_hits(&app, &id, &hits);
+                    emit_done(&app, &id, total, "cap");
+                    return;
+                }
+            }
+            if entry.is_directory() && depth < MAX_WALK_DEPTH {
+                to_visit.push((child, depth + 1));
+            }
+        }
+        emit_hits(&app, &id, &hits);
+    }
+
+    emit_done(&app, &id, total, "complete");
 }

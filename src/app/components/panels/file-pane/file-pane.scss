@@ -146,3 +146,25 @@
   color: var(--text-faint);
   text-align: center;
 }
+
+// Filtre du listing : slim, il ne doit pas manger le panneau.
+.pane__filter {
+  flex: none;
+  margin: 0 0 var(--space-2xs);
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--bg));
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+
+  &::placeholder {
+    color: var(--text-faint);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+}

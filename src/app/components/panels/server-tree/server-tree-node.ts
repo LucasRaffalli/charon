@@ -2,11 +2,11 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 
 import { Icon } from '@app/components/ui/icon/icon';
 import { TreeNode } from '@app/interfaces';
-import { DockService } from '@app/services/dock.service';
-import { PreviewService } from '@app/services/preview.service';
-import { SettingsService } from '@app/services/settings.service';
-import { SftpService } from '@app/services/sftp.service';
-import { SftpTreeService } from '@app/services/sftp-tree.service';
+import { DockService } from '@app/services/workspace/dock.service';
+import { PreviewService } from '@app/services/files/preview.service';
+import { SettingsService } from '@app/services/system/settings.service';
+import { SftpService } from '@app/services/connection/sftp.service';
+import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
 
 /** Un nœud de l'arborescence serveur (dossier ou fichier), rendu récursivement. */
 @Component({

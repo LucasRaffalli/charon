@@ -16,7 +16,7 @@ import {
   SegmentedOption,
 } from '@app/components/ui/segmented-control/segmented-control';
 import { TextField } from '@app/components/ui/text-field/text-field';
-import { UpdaterService } from '@app/services/updater.service';
+import { UpdaterService } from '@app/services/system/updater.service';
 
 /**
  * Les options avancées de la connexion : un engrenage flottant dans le coin,

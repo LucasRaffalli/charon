@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Icon } from '@app/components/ui/icon/icon';
 import { Transfer } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
-import { TransfersService } from '@app/services/transfers.service';
+import { TransfersService } from '@app/services/files/transfers.service';
 
 /** Contenu de l'onglet Transferts du panneau inférieur. */
 @Component({

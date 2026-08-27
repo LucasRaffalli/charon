@@ -242,7 +242,6 @@
 
   <app-error-toast [message]="visibleError()" (dismiss)="dismissError(visibleError() ?? '')" />
 
-  <app-update-toast [visible]="introDone()" />
 
   @if (showForm() && !sftp.loading() && introDone()) {
     <app-advanced-options

@@ -3,12 +3,14 @@ mod fs;
 mod ftp;
 mod modules;
 mod profiles;
+mod search;
 mod sftp;
 mod shell;
 
 use ftp::FtpPool;
 use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
 use edit::EditRegistry;
+use search::SearchRegistry;
 use shell::{ShellRegistry, TailRegistry};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,6 +46,7 @@ pub fn run() {
         .manage(IdleConfig::default())
         .manage(ShellRegistry::default())
         .manage(TailRegistry::default())
+        .manage(SearchRegistry::default())
         .manage(EditRegistry::default())
         .invoke_handler(tauri::generate_handler![
             sftp::sftp_connect,
@@ -79,6 +82,8 @@ pub fn run() {
             shell::shell_write,
             shell::shell_resize,
             shell::shell_close,
+            search::search_start,
+            search::search_stop,
             shell::tail_open,
             shell::tail_close,
             edit::edit_open,

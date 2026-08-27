@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 
 import { Button } from '@app/components/ui/button/button';
 import { TextField } from '@app/components/ui/text-field/text-field';
-import { DialogService } from '@app/services/dialog.service';
+import { DialogService } from '@app/services/workspace/dialog.service';
 
 /** Rendu des dialogues confirm/prompt. À placer une seule fois, à la racine. */
 @Component({

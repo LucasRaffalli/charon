@@ -4,8 +4,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Button } from '@app/components/ui/button/button';
 import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
-import { DiffLine, diffStats, toSplitRows } from '@app/services/diff';
-import { OverwriteService } from '@app/services/overwrite.service';
+import { DiffLine, diffStats, toSplitRows } from '@app/services/files/diff';
+import { OverwriteService } from '@app/services/files/overwrite.service';
 
 type DiffState =
   | { kind: 'idle' }

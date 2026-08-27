@@ -34,7 +34,7 @@ static TAIL_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 /// Échappement shell strict : le chemin est enfermé dans des quotes simples,
 /// les quotes simples internes deviennent la séquence `'\''`. Aucun autre
 /// caractère (backticks, $, ;…) ne peut s'échapper d'une quote simple POSIX.
-fn shell_quote(path: &str) -> String {
+pub(crate) fn shell_quote(path: &str) -> String {
     format!("'{}'", path.replace('\'', r"'\''"))
 }
 

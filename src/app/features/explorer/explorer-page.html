@@ -27,6 +27,7 @@
         [loading]="localFs.loading()"
         [atRoot]="localFs.atRoot()"
         [error]="localFs.error()"
+        [(filter)]="localFs.filter"
         (openDir)="openLocalDir($event)"
         (navigateUp)="localFs.navigateUp()"
         (fileAction)="upload($event)"
@@ -80,6 +81,28 @@
         <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
       }
 
+      <!-- Filtre du listing : réduit la liste affichée, sans réseau. -->
+      <div class="explorer__filter">
+        <app-icon class="explorer__filter-glyph" name="search" [size]="13" />
+        <input
+          #serverFilter
+          class="explorer__filter-field"
+          type="text"
+          placeholder="Filtrer ce dossier"
+          aria-label="Filtrer le dossier serveur"
+          [value]="sftp.filter()"
+          (input)="sftp.filter.set(serverFilter.value)"
+          (keydown.escape)="sftp.filter.set('')"
+        />
+        <app-segmented-control
+          variant="chip"
+          [options]="kindOptions"
+          [value]="sftp.kindFilter()"
+          (valueChange)="onKindFilter($event)"
+          ariaLabel="Filtrer par nature"
+        />
+      </div>
+
       <ul class="explorer__list" (contextmenu)="openServerAreaMenu($event)">
         @for (entry of serverEntries(); track entry.name) {
           <li class="explorer__row" (contextmenu)="openServerEntryMenu($event, entry)">
@@ -109,7 +132,11 @@
         } @empty {
           <li class="explorer__empty">
             <app-icon name="folder" [size]="30" />
-            <p>Dossier vide</p>
+            @if (serverFilterActive()) {
+              <p>Rien ne correspond au filtre</p>
+            } @else {
+              <p>Dossier vide</p>
+            }
           </li>
         }
       </ul>
@@ -149,6 +176,9 @@
       <app-module-panel />
     </div>
 
+    <div class="explorer__panel" data-dock-panel="search" [hidden]="!dock.activePanels().has('search')">
+      <app-search-pane />
+    </div>
     <div class="explorer__panel" data-dock-panel="logs" [hidden]="!dock.activePanels().has('logs')">
       <app-log-pane />
     </div>

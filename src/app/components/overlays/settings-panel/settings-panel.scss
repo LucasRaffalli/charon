@@ -284,7 +284,9 @@
   margin-top: var(--space-xs);
 }
 
-// Historique des versions (embarqué au build, survit aux mises à jour).
+// Le carnet de bord : un fil, un nœud par version, les notes en dessous.
+// La forme du journal de traversée, et la seule qui tienne dans la largeur
+// d'un panneau de réglages.
 .panel__history {
   margin-top: var(--space-md);
   padding-top: var(--space-sm);
@@ -293,7 +295,7 @@
 
 .panel__history-title {
   display: block;
-  margin-bottom: var(--space-xs);
+  margin-bottom: var(--space-sm);
   font-size: calc(11px * var(--text-scale));
   font-weight: 600;
   text-transform: uppercase;
@@ -301,20 +303,59 @@
   color: var(--text-muted);
 }
 
+// Le fil : il s'éteint vers le bas, les versions anciennes s'éloignant.
+.panel__log {
+  position: relative;
+  padding-left: 22px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 5px;
+    bottom: 4px;
+    width: 1px;
+    background: linear-gradient(180deg, var(--border-strong), transparent);
+  }
+}
+
 .panel__history-entry {
-  & + & {
-    margin-top: var(--space-sm);
+  position: relative;
+  padding-bottom: var(--space-md);
+
+  // Le nœud sur le fil. Carré, comme tout le reste de l'application.
+  &::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    box-shadow: 0 0 0 3px var(--surface);
+  }
+
+  // La version installée est celle qu'on cherche en premier.
+  &--current::before {
+    background: var(--accent);
+  }
+
+  &:last-child {
+    padding-bottom: 0;
   }
 }
 
 .panel__history-head {
   display: flex;
   align-items: baseline;
-  gap: var(--space-xs);
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-xs);
+  margin-bottom: var(--space-2xs);
 }
 
 .panel__history-version {
-  font-size: calc(12.5px * var(--text-scale));
+  font-size: calc(13px * var(--text-scale));
   font-weight: 600;
   color: var(--text);
 }
@@ -322,6 +363,12 @@
 .panel__history-date {
   font-size: calc(11px * var(--text-scale));
   color: var(--text-faint);
+}
+
+.panel__history-name {
+  width: 100%;
+  font-size: calc(12.5px * var(--text-scale));
+  color: var(--text-muted);
 }
 
 .panel__history-current {
@@ -337,13 +384,40 @@
 
 .panel__history-notes {
   margin: var(--space-2xs) 0 0;
-  padding-left: 18px;
+  padding: 0;
+  list-style: none;
+}
+
+// Chaque note porte sa nature dans une puce carrée : ce qu'on cherche dans un
+// journal, c'est « qu'est-ce qui est nouveau » ou « est-ce que c'est corrigé ».
+.panel__note {
+  position: relative;
+  padding: 3px 0 3px 14px;
   font-size: calc(12px * var(--text-scale));
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--text-muted);
 
-  li + li {
-    margin-top: 2px;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 10px;
+    width: 5px;
+    height: 5px;
+    border-radius: 1px;
+    background: var(--kind, var(--text-faint));
+  }
+
+  &--new {
+    --kind: var(--success);
+  }
+
+  &--better {
+    --kind: var(--accent);
+  }
+
+  &--fixed {
+    --kind: var(--warning);
   }
 }
 

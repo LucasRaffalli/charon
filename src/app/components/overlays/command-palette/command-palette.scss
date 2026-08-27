@@ -3,7 +3,8 @@
   inset: 0;
   z-index: 105; // sous les dialogues (110) : un prompt lancé par la palette passe devant
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   padding-top: 12vh;
   background: rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(2px);
@@ -24,10 +25,36 @@
   animation: palette-in 140ms ease;
 }
 
-.palette__input {
-  padding: var(--space-sm) var(--space-md);
-  border: none;
+// Rangée segmentée : loupe, filtres, motif, séparés par des filets. La hauteur
+// de rangée sert aussi de largeur à la loupe, qui reste donc carrée quoi qu'il
+// arrive à la taille du texte.
+.palette {
+  --row-h: 45px;
+}
+
+.palette__row {
+  display: flex;
+  align-items: stretch;
+  min-height: var(--row-h);
   border-bottom: 1px solid var(--border);
+}
+
+.palette__glyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--row-h);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--elev-2);
+  color: var(--text-muted);
+}
+
+.palette__text {
+  flex: 1;
+  min-width: 60px;
+  padding: 0 var(--space-md);
+  border: none;
   background: none;
   color: var(--text);
   font-size: calc(14px * var(--text-scale));
@@ -36,6 +63,52 @@
   &::placeholder {
     color: var(--text-faint);
   }
+}
+
+// Filtres posés : une case par filtre, fond légèrement décalé pour les détacher
+// de la saisie, filet entre chacune. Jamais d'accent : il est réservé au
+// surlignage des occurrences, seul endroit où il porte une information.
+.palette__filters {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: var(--elev-2);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: calc(11.5px * var(--text-scale));
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--elev-3);
+    color: var(--text);
+  }
+}
+
+// Le filtre de portée vient en tête et porte le texte plein : c'est lui qui
+// décide où l'on cherche, les autres ne font qu'affiner.
+.filter--scope {
+  color: var(--text);
+}
+
+.filter--full {
+  background: var(--warning-bg);
+  color: var(--warning);
+  cursor: default;
+}
+
+.filter__x {
+  display: flex;
+  opacity: 0.6;
 }
 
 .palette__list {
@@ -122,4 +195,219 @@
   .palette {
     animation: none;
   }
+}
+
+// --- Groupes de résultats -------------------------------------------------
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 9px 10px 4px;
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.group__count {
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--text-scale));
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+// Où la palette regarde, quand elle est descendue quelque part.
+.group__where {
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--text-scale));
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group__scope {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+// Contexte d'une ligne : le chemin, la ligne trouvée…
+.palette__path {
+  margin-left: var(--space-xs);
+  color: var(--text-faint);
+  font-size: calc(12px * var(--text-scale));
+}
+
+// --- Ligne de statut ------------------------------------------------------
+// La pastille porte la couleur, le texte reste lisible. Seule l'erreur colore
+// aussi le texte.
+
+.palette__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--space-md);
+  border-top: 1px solid var(--border);
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.palette__status .dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--text-faint);
+}
+
+.palette__status--warning {
+  background: var(--warning-bg);
+  color: var(--text);
+
+  .dot {
+    background: var(--warning);
+  }
+}
+
+.palette__status--error {
+  background: var(--danger-bg);
+  color: var(--danger);
+
+  .dot {
+    background: var(--danger);
+  }
+}
+
+// Sortie d'un groupe tronqué : le plafond ne doit jamais être un cul-de-sac.
+.palette__more {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: 5px 10px 7px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+}
+
+// ---------- Bulle d'explication du motif ----------
+//
+// Elle se pose AU-DESSUS de la palette, pas dans les résultats : elle commente
+// ce qu'on est en train de taper, elle n'est pas une réponse à la recherche.
+.tip {
+  width: min(520px, calc(100vw - 2 * var(--space-lg)));
+  margin-bottom: var(--space-xs);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px var(--space-md) 11px;
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+.tip--error {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+.tip__label {
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tip--error .tip__label {
+  color: var(--danger);
+}
+
+.tip__plain {
+  margin: 0;
+  font-size: calc(13px * var(--text-scale));
+  color: var(--text);
+}
+
+// Le motif et sa flèche, sur deux lignes d'une même chasse : c'est la seule
+// façon que la flèche tombe sous le bon caractère.
+.tip__pointer {
+  white-space: pre;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: calc(11.5px * var(--text-scale));
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.tip__legend {
+  margin: 3px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.tip__legend code {
+  padding: 1px 5px;
+  margin-right: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--state-active);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text);
+}
+
+// Des noms qui correspondent, fabriqués puis vérifiés contre le motif. Une
+// paraphrase se discute, un exemple non.
+.tip__samples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  margin: 1px 0 0;
+}
+
+.tip__samples-label {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.tip__samples code {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 13%, transparent);
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--text-scale));
 }

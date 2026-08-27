@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
-import { RemoteEditService } from '@app/services/remote-edit.service';
+import { RemoteEditService } from '@app/services/files/remote-edit.service';
 
 /** Après ce délai sans activité, une ligne de la barre se masque (toast). */
 const AUTO_HIDE_MS = 10_000;

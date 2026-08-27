@@ -5,7 +5,7 @@ import {
   ContextMenuItem,
   ContextMenuService,
   ContextMenuState,
-} from '@app/services/context-menu.service';
+} from '@app/services/workspace/context-menu.service';
 
 const MENU_WIDTH = 210;
 const ITEM_HEIGHT = 32;

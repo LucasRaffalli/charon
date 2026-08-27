@@ -7,14 +7,15 @@ import { ContextMenu } from '@app/components/overlays/context-menu/context-menu'
 import { DialogHost } from '@app/components/overlays/dialog-host/dialog-host';
 import { OverwriteDialog } from '@app/components/overlays/overwrite-dialog/overwrite-dialog';
 import { SettingsPanel } from '@app/components/overlays/settings-panel/settings-panel';
+import { ToastHost } from '@app/components/overlays/toast-host/toast-host';
 import { ConnectPage } from '@app/features/connect/connect-page';
 import { ExplorerPage } from '@app/features/explorer/explorer-page';
-import { SftpService } from '@app/services/sftp.service';
-import { DesignService } from '@app/services/design.service';
-import { ModuleHostService } from '@app/services/module-host.service';
-import { SecretAccentService } from '@app/services/secret-accent.service';
-import { ThemeService } from '@app/services/theme.service';
-import { UpdaterService } from '@app/services/updater.service';
+import { SftpService } from '@app/services/connection/sftp.service';
+import { DesignService } from '@app/services/appearance/design.service';
+import { ModuleHostService } from '@app/services/modules/module-host.service';
+import { SecretAccentService } from '@app/services/appearance/secret-accent.service';
+import { ThemeService } from '@app/services/appearance/theme.service';
+import { UpdaterService } from '@app/services/system/updater.service';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,7 @@ import { UpdaterService } from '@app/services/updater.service';
     ContextMenu,
     DesignPanel,
     Sparkles,
+    ToastHost,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

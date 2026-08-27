@@ -18,6 +18,19 @@
   <p class="pane__error" role="alert">{{ message }}</p>
 }
 
+@if (filterable()) {
+  <input
+    #filterField
+    class="pane__filter"
+    type="text"
+    placeholder="Filtrer"
+    [attr.aria-label]="'Filtrer : ' + title()"
+    [value]="filter()"
+    (input)="filter.set(filterField.value)"
+    (keydown.escape)="filter.set('')"
+  />
+}
+
 <ul
   class="pane__list"
   [class.pane__list--loading]="loading()"
@@ -49,6 +62,6 @@
       }
     </li>
   } @empty {
-    <li class="pane__empty">Dossier vide</li>
+    <li class="pane__empty">{{ filter().trim() ? 'Rien ne correspond' : 'Dossier vide' }}</li>
   }
 </ul>

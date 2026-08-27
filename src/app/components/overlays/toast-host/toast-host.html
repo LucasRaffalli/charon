@@ -1,0 +1,42 @@
+<div
+  class="toasts"
+  [class.toasts--open]="expanded()"
+  [class.toasts--filled]="toasts.toasts().length > 0"
+  (mouseenter)="setExpanded(true)"
+  (mouseleave)="setExpanded(false)"
+>
+  @for (toast of toasts.toasts(); track toast.id) {
+    <div
+      #card
+      class="toast toast--{{ toast.kind }}"
+      [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
+    >
+      @if (!toast.sticky) {
+        <span class="toast__life" [style.animation-duration.ms]="toast.life" aria-hidden="true"></span>
+      }
+      <div class="toast__top">
+        <app-icon class="toast__ico" [name]="iconFor(toast.kind)" [size]="13" />
+        <span class="toast__kind">{{ toast.title || wordFor(toast.kind) }}</span>
+        <button
+          type="button"
+          class="toast__close"
+          aria-label="Fermer"
+          (click)="toasts.dismiss(toast.id)"
+        >
+          <app-icon name="close" [size]="12" />
+        </button>
+      </div>
+      <div class="toast__body">
+        <span class="toast__msg">{{ toast.message }}</span>
+        @if (toast.detail) {
+          <span class="toast__detail">{{ toast.detail }}</span>
+        }
+        @if (toast.action; as action) {
+          <button type="button" class="toast__action" (click)="run(toast)">
+            {{ action.label }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

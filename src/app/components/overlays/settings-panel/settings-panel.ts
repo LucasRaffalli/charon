@@ -7,14 +7,14 @@ import { Toggle } from '@app/components/ui/toggle/toggle';
 import changelogData from '../../../../assets/changelog.json';
 
 import { ChangelogEntry } from '@app/interfaces';
-import { ConfigExportService } from '@app/services/config-export.service';
-import { DesignService } from '@app/services/design.service';
-import { DialogService } from '@app/services/dialog.service';
-import { DockService } from '@app/services/dock.service';
-import { ModulesService } from '@app/services/modules.service';
-import { SettingsService } from '@app/services/settings.service';
-import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
-import { UpdaterService } from '@app/services/updater.service';
+import { ConfigExportService } from '@app/services/system/config-export.service';
+import { DesignService } from '@app/services/appearance/design.service';
+import { DialogService } from '@app/services/workspace/dialog.service';
+import { DockService } from '@app/services/workspace/dock.service';
+import { ModulesService } from '@app/services/modules/modules.service';
+import { SettingsService } from '@app/services/system/settings.service';
+import { THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
+import { UpdaterService } from '@app/services/system/updater.service';
 
 type SettingsTab = 'design' | 'files' | 'connection' | 'data' | 'modules' | 'updates';
 
@@ -47,7 +47,10 @@ export class SettingsPanel {
   protected readonly activeTab = signal<SettingsTab>('files');
 
   /** Changelog curaté (src/assets/changelog.json), rédigé à chaque feature. */
-  protected readonly changelog: ChangelogEntry[] = changelogData;
+  // Le JSON importé donne `kind: string` : le cast dit ce que le fichier
+  // contient vraiment. Il est dans le dépôt, donc vérifié à la relecture, et le
+  // CSS a de toute façon une puce de repli si une nature inconnue s'y glissait.
+  protected readonly changelog = changelogData as ChangelogEntry[];
 
   protected readonly tabs: readonly TabOption[] = [
     { id: 'design', icon: 'palette', label: 'Design' },

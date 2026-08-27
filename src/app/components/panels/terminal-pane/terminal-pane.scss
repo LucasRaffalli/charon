@@ -18,6 +18,75 @@
   }
 }
 
+// Barre du terminal : le suivi du dossier, et le dossier suivi.
+.term-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 0 2px var(--space-xs);
+  min-width: 0;
+}
+
+.term-follow {
+  flex: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &:disabled {
+    cursor: default;
+    color: var(--text-faint);
+    border-color: var(--border);
+  }
+
+  // Actif : la couleur d'accent dit que le shell obéit maintenant au panneau.
+  &--on {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+}
+
+// Le suivi n'a pas pu écrire : on le dit, sinon l'écart avec l'explorateur
+// passerait pour une panne.
+.term-bar__wait {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.term-bar__path {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl; // le chemin est tronqué par la gauche : la fin porte le sens
+  text-align: left;
+}
+
 // Cadre : porte le padding et le fond, pour que .term (mesuré par FitAddon)
 // soit une boîte NUE, sans padding. Certains moteurs incluent le padding dans
 // la hauteur calculée, ce qui faisait déborder la grille d'une ligne.

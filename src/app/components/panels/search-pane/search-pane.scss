@@ -1,0 +1,284 @@
+// Colonne : barre de recherche, options, résultats qui prennent le reste,
+// statut collé en bas. Même architecture que le panneau de logs.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: var(--space-xs);
+}
+
+.bar {
+  display: flex;
+  flex: none;
+  gap: var(--space-2xs);
+}
+
+.bar__field {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--bg));
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(12.5px * var(--text-scale));
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+}
+
+.bar__go,
+.bar__stop {
+  flex: none;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+  }
+
+  &:disabled {
+    color: var(--text-faint);
+    cursor: default;
+  }
+}
+
+.bar__stop {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  color: var(--danger);
+}
+
+.opts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--on {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+
+  // La portée n'est pas un booléen visuel : elle dit d'où l'on part.
+  &--scope {
+    margin-left: auto;
+    max-width: 45%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+    font-weight: 400;
+  }
+}
+
+.notice {
+  flex: none;
+  margin: 0;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-faint);
+
+  &--error {
+    color: var(--danger);
+  }
+}
+
+.results {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.results__empty {
+  margin: var(--space-sm) 0 0;
+  font-size: calc(12px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.hit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2xs);
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(12px * var(--text-scale));
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+
+  app-icon {
+    align-self: center;
+    flex: none;
+    color: var(--text-faint);
+  }
+}
+
+.hit__name {
+  white-space: nowrap;
+}
+
+.hit__where {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+// Une ligne de contenu : numéro dans la gouttière, texte en chasse fixe.
+.hit--line {
+  padding-left: 24px;
+}
+
+.hit__no {
+  flex: none;
+  min-width: 34px;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.hit__text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--text-scale));
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--space-2xs);
+}
+
+.group__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2xs);
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+
+  app-icon {
+    align-self: center;
+    flex: none;
+    color: var(--text-faint);
+  }
+}
+
+.group__path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 400;
+  color: var(--text-faint);
+}
+
+// La raison d'arrêt, dans la couleur de statut qui lui revient.
+.status {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding-top: var(--space-2xs);
+  border-top: 1px solid var(--border);
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--text-faint);
+}
+
+.status--pending .status__dot {
+  background: var(--pending);
+  animation: search-pulse 1.2s ease-in-out infinite;
+}
+
+.status--success .status__dot {
+  background: var(--success);
+}
+
+.status--warning .status__dot {
+  background: var(--warning);
+}
+
+.status--warning {
+  color: var(--warning);
+}
+
+@keyframes search-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status--pending .status__dot {
+    animation: none;
+  }
+}

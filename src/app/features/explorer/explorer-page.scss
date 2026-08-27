@@ -529,3 +529,38 @@
   -webkit-mask: none;
   mask: none;
 }
+
+// Filtre du listing serveur : une rangée discrète entre l'en-tête et la liste.
+.explorer__filter {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0 2px var(--space-2xs);
+}
+
+.explorer__filter-glyph {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.explorer__filter-field {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--bg));
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+
+  &::placeholder {
+    color: var(--text-faint);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+}

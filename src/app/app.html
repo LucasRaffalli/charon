@@ -30,5 +30,8 @@
 <app-dialog-host />
 <app-overwrite-dialog />
 <app-context-menu />
-<app-command-palette />
+@if (sftp.settled()) {
+  <app-command-palette />
+}
+<app-toast-host />
 <app-sparkles />

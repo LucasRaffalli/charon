@@ -38,6 +38,10 @@ pub struct Profile {
     /// trousseau, une passphrase de clé ou un mot de passe de compte.
     #[serde(default)]
     pub auth_method: Option<String>,
+    /// Dossier d'arrivée : où déposer l'explorateur à la connexion. Absent, on
+    /// arrive au dossier personnel puis, à défaut, à la racine.
+    #[serde(default)]
+    pub anchor: Option<String>,
 }
 
 // ---------- Helpers ----------

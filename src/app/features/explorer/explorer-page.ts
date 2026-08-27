@@ -18,6 +18,11 @@ import { Dock } from '@app/components/dock/dock';
 import { FilePane } from '@app/components/panels/file-pane/file-pane';
 import { Icon } from '@app/components/ui/icon/icon';
 import { LogPane } from '@app/components/panels/log-pane/log-pane';
+import { SearchPane } from '@app/components/panels/search-pane/search-pane';
+import {
+  SegmentedControl,
+  SegmentedOption,
+} from '@app/components/ui/segmented-control/segmented-control';
 import { ModulePanel } from '@app/components/panels/module-panel/module-panel';
 import { FileEntry } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
@@ -26,21 +31,26 @@ import { PreviewPanel } from '@app/components/panels/preview-panel/preview-panel
 import { ServerTree } from '@app/components/panels/server-tree/server-tree';
 import { TerminalPane } from '@app/components/panels/terminal-pane/terminal-pane';
 import { TransferPanel } from '@app/components/panels/transfer-panel/transfer-panel';
-import { ContextMenuItem, ContextMenuService } from '@app/services/context-menu.service';
-import { DialogService } from '@app/services/dialog.service';
-import { DockService, PANEL_META } from '@app/services/dock.service';
-import { FileBrowserState } from '@app/services/file-browser-state';
-import { lineDiff } from '@app/services/diff';
-import { LocalFsService } from '@app/services/local-fs.service';
-import { LogTailService } from '@app/services/log-tail.service';
-import { OverwriteService } from '@app/services/overwrite.service';
-import { PreviewService } from '@app/services/preview.service';
-import { RemoteEditService } from '@app/services/remote-edit.service';
-import { AppearanceService } from '@app/services/appearance.service';
-import { SettingsService } from '@app/services/settings.service';
-import { SftpService } from '@app/services/sftp.service';
-import { TransfersService } from '@app/services/transfers.service';
-import { UpdaterService } from '@app/services/updater.service';
+import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
+import { DialogService } from '@app/services/workspace/dialog.service';
+import { DockService, PANEL_META } from '@app/services/workspace/dock.service';
+import { FileBrowserState } from '@app/services/connection/file-browser-state';
+import { lineDiff } from '@app/services/files/diff';
+import { LocalFsService } from '@app/services/connection/local-fs.service';
+import { LogTailService } from '@app/services/files/log-tail.service';
+import { OverwriteService } from '@app/services/files/overwrite.service';
+import { PreviewService } from '@app/services/files/preview.service';
+import { RemoteEditService } from '@app/services/files/remote-edit.service';
+import { AppearanceService } from '@app/services/appearance/appearance.service';
+import { SettingsService } from '@app/services/system/settings.service';
+import { SftpService } from '@app/services/connection/sftp.service';
+import { CommandPaletteService } from '@app/services/workspace/command-palette.service';
+import { ProfilesService } from '@app/services/connection/profiles.service';
+import { SearchService } from '@app/services/connection/search.service';
+import { TerminalService } from '@app/services/workspace/terminal.service';
+import { ToastService } from '@app/services/workspace/toast.service';
+import { TransfersService } from '@app/services/files/transfers.service';
+import { UpdaterService } from '@app/services/system/updater.service';
 
 /** Nom d'entrée valide : pas de séparateur, pas de `.` / `..`. */
 const isValidEntryName = (name: string): boolean =>
@@ -58,6 +68,8 @@ const isValidEntryName = (name: string): boolean =>
     FilePane,
     Icon,
     LogPane,
+    SearchPane,
+    SegmentedControl,
     ModulePanel,
     ServerTree,
     TerminalPane,
@@ -81,14 +93,34 @@ export class ExplorerPage {
   protected readonly preview = inject(PreviewService);
   private readonly dialog = inject(DialogService);
   protected readonly dock = inject(DockService);
+  private readonly toasts = inject(ToastService);
+  private readonly terminals = inject(TerminalService);
+  private readonly searchService = inject(SearchService);
+  private readonly palette = inject(CommandPaletteService);
+  private readonly profiles = inject(ProfilesService);
   protected readonly updater = inject(UpdaterService);
 
   /** Taille max lue de chaque côté pour l'aperçu de diff (256 Kio). */
   private static readonly DIFF_MAX_BYTES = 256 * 1024;
   private readonly destroyRef = inject(DestroyRef);
 
-  protected readonly localEntries = computed(() => this.withoutHidden(this.localFs.entries()));
-  protected readonly serverEntries = computed(() => this.withoutHidden(this.sftp.entries()));
+  protected readonly localEntries = computed(() => this.withoutHidden(this.localFs.filteredEntries()));
+  protected readonly serverEntries = computed(() => this.withoutHidden(this.sftp.filteredEntries()));
+
+  /** Le filtre du listing serveur retire des lignes : dit combien, et lesquelles reviennent. */
+  protected readonly serverFilterActive = computed(
+    () => this.sftp.filter().trim() !== '' || this.sftp.kindFilter() !== 'all',
+  );
+
+  protected readonly kindOptions: readonly SegmentedOption[] = [
+    { value: 'all', label: 'Tout' },
+    { value: 'dirs', label: 'Dossiers' },
+    { value: 'files', label: 'Fichiers' },
+  ];
+
+  protected onKindFilter(value: string): void {
+    this.sftp.kindFilter.set(value as 'all' | 'dirs' | 'files');
+  }
 
   /** Un glisser-déposer de fichiers survole le container serveur. */
   protected readonly dropActive = signal(false);
@@ -265,6 +297,9 @@ export class ExplorerPage {
       ? { label: 'Ouvrir', icon: 'folder', action: () => void this.sftp.openDir(entry.name) }
       : { label: 'Télécharger', icon: 'download', action: () => void this.download(entry) };
     const items: ContextMenuItem[] = [first];
+    if (entry.isDir) {
+      items.push(...this.folderActions(this.sftp.pathTo(entry.name)));
+    }
     if (!entry.isDir && this.sftp.protocol() === 'sftp') {
       items.push({
         label: 'Aperçu',
@@ -313,14 +348,25 @@ export class ExplorerPage {
     await this.logTail.open(this.sftp.pathTo(entry.name));
   }
 
-  /** Copie un chemin dans le presse-papier. */
+  /**
+   * Copie un chemin dans le presse-papier.
+   *
+   * Le geste ne laisse aucune trace à l'écran, et le presse-papier ne se
+   * regarde pas : sans un mot, rien ne distingue une copie réussie d'un clic
+   * qui a raté sa cible.
+   */
   private copyPath(path: string): void {
-    void navigator.clipboard.writeText(path).catch(() => undefined);
+    void navigator.clipboard.writeText(path).then(
+      () => this.toasts.success('Chemin copié', path),
+      () => this.toasts.error("Le presse-papier n'est pas accessible"),
+    );
   }
 
   protected openServerAreaMenu(event: MouseEvent): void {
     this.contextMenu.open(event, [
       ...this.areaActions(this.sftp, 'sur le serveur'),
+      { divider: true, label: '' },
+      ...this.folderActions(this.sftp.currentPath()),
       { divider: true, label: '' },
       {
         label: 'Copier le chemin courant',
@@ -328,6 +374,67 @@ export class ExplorerPage {
         action: () => this.copyPath(this.sftp.currentPath()),
       },
     ]);
+  }
+
+  /**
+   * Ce qu'on peut faire d'un dossier serveur sans y entrer : y ouvrir un
+   * terminal, y chercher, en faire le point d'arrivée du profil.
+   *
+   * Les trois valent pour le dossier affiché comme pour un sous-dossier
+   * désigné à la souris, d'où la mise en commun : un menu qui propose
+   * l'ancrage sur le fond mais pas sur une ligne serait arbitraire.
+   */
+  private folderActions(path: string): ContextMenuItem[] {
+    const items: ContextMenuItem[] = [];
+
+    // Le terminal n'existe qu'en SFTP (il vit sur la session SSH).
+    if (this.sftp.protocol() === 'sftp') {
+      items.push({
+        label: 'Ouvrir le terminal ici',
+        icon: 'terminal',
+        action: () => {
+          this.dock.openPanel('terminal');
+          this.terminals.goTo(path);
+        },
+      });
+    }
+
+    items.push({
+      label: 'Chercher dans ce dossier',
+      icon: 'search',
+      action: () => void this.palette.searchIn(path),
+    });
+
+    items.push({
+      label: 'Rechercher en profondeur…',
+      icon: 'search',
+      action: () => {
+        this.searchService.seed('', path);
+        this.dock.openPanel('search');
+      },
+    });
+
+    // L'ancre n'a de sens qu'attachée à un profil : une connexion de passage
+    // n'a rien où l'écrire.
+    const profileId = this.sftp.profileId();
+    if (profileId) {
+      const anchor = this.profiles.anchorOf(profileId);
+      if (anchor !== path) {
+        items.push({
+          label: 'Ancrer pour la connexion',
+          icon: 'anchor',
+          action: () => void this.profiles.setAnchor(profileId, path),
+        });
+      } else {
+        items.push({
+          label: "Retirer l'ancre de connexion",
+          icon: 'anchor',
+          action: () => void this.profiles.setAnchor(profileId, null),
+        });
+      }
+    }
+
+    return items;
   }
 
   protected openLocalEntryMenu(event: MouseEvent, entry: FileEntry): void {

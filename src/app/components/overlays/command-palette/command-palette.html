@@ -1,50 +1,180 @@
 @if (palette.open()) {
   <div class="overlay" (click)="palette.close()">
+    @if (explanation(); as tip) {
+      <div class="tip" [class.tip--error]="tip.error" (click)="$event.stopPropagation()">
+        <span class="tip__label">
+          {{ tip.error ? 'Motif invalide' : 'Ce que le motif cherche' }}
+        </span>
+        <p class="tip__plain">{{ tip.error ? tip.error.message : tip.plain }}</p>
+        @if (!tip.error && tip.samples.length) {
+          <p class="tip__samples">
+            <span class="tip__samples-label">correspond à</span>
+            @for (sample of tip.samples; track sample) {
+              <code>{{ sample }}</code>
+            }
+          </p>
+        }
+        @if (tip.error && tip.error.index >= 0) {
+          <span class="tip__pointer" aria-hidden="true">{{ query() }}
+{{ caret() }}</span>
+        }
+        @if (!tip.error && tip.legend.length) {
+          <ul class="tip__legend">
+            @for (item of tip.legend; track item.symbol) {
+              <li><code>{{ item.symbol }}</code>{{ item.meaning }}</li>
+            }
+          </ul>
+        }
+      </div>
+    }
     <div
       class="palette"
       role="dialog"
       aria-modal="true"
-      aria-label="Command palette"
+      aria-label="Recherche et commandes"
       (click)="$event.stopPropagation()"
     >
-      <input
-        #input
-        class="palette__input"
-        type="text"
-        placeholder="Tape une commande, un serveur, ou un chemin /…"
-        autocomplete="off"
-        spellcheck="false"
-        [value]="query()"
-        (input)="query.set(input.value)"
-        (keydown)="onKeydown($event)"
-      />
+      <!-- Rangée segmentée : loupe, filtres, motif. La loupe est carrée, sa
+           largeur venant de la hauteur de rangée. -->
+      <div class="palette__row">
+        <span class="palette__glyph" aria-hidden="true">
+          <app-icon name="search" [size]="15" />
+        </span>
+
+        @if (palette.filters().length) {
+          <div class="palette__filters">
+            @for (filter of palette.filters(); track filter.key) {
+              <button
+                type="button"
+                class="filter"
+                [class.filter--scope]="filter.kind === 'scope'"
+                [attr.aria-label]="'Retirer le filtre ' + palette.labelOf(filter)"
+                (click)="palette.removeFilter(filter.key)"
+              >
+                {{ palette.labelOf(filter) }}
+                <app-icon class="filter__x" name="close" [size]="11" />
+              </button>
+            }
+          </div>
+        }
+
+        @if (palette.refused()) {
+          <span class="filter filter--full" role="status">{{ maxFilters }} au maximum</span>
+        }
+
+        <input
+          #input
+          class="palette__text"
+          type="text"
+          [placeholder]="
+            palette.scope() ? 'Chercher dans ' + palette.scope() + '…' : 'Tape une commande, un serveur, ou un chemin /…'
+          "
+          autocomplete="off"
+          spellcheck="false"
+          [value]="query()"
+          (input)="palette.setQuery(input.value)"
+          (keydown)="onKeydown($event)"
+        />
+      </div>
 
       <ul class="palette__list" role="listbox">
-        @for (command of results(); track command.id; let index = $index) {
-          <li>
-            <button
-              type="button"
-              class="palette__item"
-              role="option"
-              [class.palette__item--selected]="index === selected()"
-              [attr.aria-selected]="index === selected()"
-              (mouseenter)="selected.set(index)"
-              (click)="run(command)"
-            >
-              <app-icon class="palette__icon" [name]="command.icon" [size]="15" />
-              <span class="palette__label">{{ command.label }}</span>
-              <span class="palette__hint">{{ command.hint }}</span>
-            </button>
+        @for (group of groups(); track group.category) {
+          <li class="group" role="presentation">
+            {{ group.label }}
+            <span class="group__count">{{ group.total }}</span>
+            @if (group.detail) {
+              <span class="group__where">{{ group.detail }}</span>
+            }
+            @if (!palette.scope() && group.total > group.items.length) {
+              <button type="button" class="group__scope" (click)="restrict(group.category)">
+                ⇥ chercher seulement ici
+              </button>
+            }
           </li>
+
+          @for (command of group.items; track command.id) {
+            <li>
+              <button
+                type="button"
+                class="palette__item"
+                role="option"
+                [class.palette__item--selected]="indexOf(command) === selected()"
+                [attr.aria-selected]="indexOf(command) === selected()"
+                (mouseenter)="selected.set(indexOf(command))"
+                (click)="run(command)"
+              >
+                <app-icon class="palette__icon" [name]="command.icon" [size]="15" />
+                <span class="palette__label">
+                  {{ command.label }}
+                  @if (command.detail) {
+                    <span class="palette__path">{{ command.detail }}</span>
+                  }
+                </span>
+                <!-- Sur la ligne courante, la touche est rappelée : on ne
+                     devrait jamais avoir à deviner ce que fera Entrée. -->
+                <!-- Sur la ligne courante, les deux gestes sont nommés : on ne
+                     devrait jamais avoir à deviner ce que fera un clic ou Entrée. -->
+                <span class="palette__hint">
+                  @if (indexOf(command) === selected()) {
+                    @if (command.commitHint) {
+                      clic {{ command.hint }} · ↵ {{ command.commitHint }}
+                    } @else {
+                      ↵ {{ command.hint }}
+                    }
+                  } @else {
+                    {{ command.hint }}
+                  }
+                </span>
+              </button>
+            </li>
+          }
+
+          <!-- Le reste ne se devine pas : il se demande. -->
+          @if (group.total > group.items.length) {
+            <li>
+              <button type="button" class="palette__more" (click)="expand(group.category)">
+                Voir les {{ group.total - group.items.length }} autres
+              </button>
+            </li>
+          }
         } @empty {
           <li class="palette__empty">Aucune commande ne correspond.</li>
         }
       </ul>
 
+      @if (patternError(); as error) {
+        <div class="palette__status palette__status--error" role="status">
+          <span class="dot" aria-hidden="true"></span>
+          <span>Motif invalide : {{ error }}</span>
+        </div>
+      } @else if (palette.refused()) {
+        <div class="palette__status palette__status--warning" role="status">
+          <span class="dot" aria-hidden="true"></span>
+          <span>Six filtres au maximum. Retire-en un pour en poser un autre.</span>
+        </div>
+      } @else if (notPortable().length) {
+        <div class="palette__status palette__status--warning" role="status">
+          <span class="dot" aria-hidden="true"></span>
+          <span>
+            Le motif utilise {{ notPortable().join(', ') }} : la recherche sur le serveur ne
+            comprendra pas cette construction.
+          </span>
+        </div>
+      } @else if (total() > 0) {
+        <div class="palette__status">
+          <span class="dot" aria-hidden="true"></span>
+          <span>{{ total() }} résultat{{ total() > 1 ? 's' : '' }}</span>
+        </div>
+      }
+
       <footer class="palette__footer">
         <span>↑↓ naviguer</span>
-        <span>↵ exécuter</span>
-        <span>échap fermer</span>
+        <span>↵ ouvrir</span>
+        @if (palette.scope()) {
+          <span class="spacer">⌫ revenir à tout</span>
+        } @else {
+          <span class="spacer">⇥ restreindre à la catégorie</span>
+        }
       </footer>
     </div>
   </div>

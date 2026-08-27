@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 
-import { ThemeService } from '@app/services/theme.service';
+import { ThemeService } from '@app/services/appearance/theme.service';
 
 interface Sparkle {
   x: number;

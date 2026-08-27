@@ -59,7 +59,11 @@ entries = json.load(open(os.environ["CHANGELOG"], encoding="utf-8"))
 version = os.environ["VERSION"]
 entry = next((e for e in entries if e["version"] == version), None)
 if entry:
-    print("\n".join(f"- {n}" for n in entry["notes"]))
+    # Une note est {kind, text} ; les anciens journaux la donnaient en chaîne.
+    def text(note):
+        return note["text"] if isinstance(note, dict) else note
+
+    print("\n".join(f"- {text(n)}" for n in entry["notes"]))
 PYEOF
 )"
 if [ -z "$NOTES" ]; then

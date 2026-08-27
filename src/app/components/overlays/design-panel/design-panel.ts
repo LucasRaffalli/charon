@@ -13,12 +13,12 @@ import {
   SegmentedOption,
 } from '@app/components/ui/segmented-control/segmented-control';
 import { Gradient, GradientColors } from '@app/interfaces';
-import { AppearanceService } from '@app/services/appearance.service';
-import { DesignPanelId, DesignService, DesignTemplate } from '@app/services/design.service';
-import { DialogService } from '@app/services/dialog.service';
-import { DockLayout } from '@app/services/dock-tree';
-import { DockService } from '@app/services/dock.service';
-import { ThemeService } from '@app/services/theme.service';
+import { AppearanceService } from '@app/services/appearance/appearance.service';
+import { DesignPanelId, DesignService, DesignTemplate } from '@app/services/appearance/design.service';
+import { DialogService } from '@app/services/workspace/dialog.service';
+import { DockLayout } from '@app/services/workspace/dock-tree';
+import { DockService } from '@app/services/workspace/dock.service';
+import { ThemeService } from '@app/services/appearance/theme.service';
 
 const MARGIN = 8;
 

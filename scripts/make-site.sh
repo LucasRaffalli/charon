@@ -32,7 +32,11 @@ entries = json.load(open(f"{repo}/src/assets/changelog.json", encoding="utf-8"))
 blocks = []
 for i, e in enumerate(entries):
     latest = '<span class="release-latest">dernière</span>' if i == 0 else ""
-    items = "\n".join(f"        <li>{html.escape(n)}</li>" for n in e["notes"])
+    # Une note est {kind, text} ; les anciens journaux la donnaient en chaîne.
+    def note_text(n):
+        return n["text"] if isinstance(n, dict) else n
+
+    items = "\n".join(f"        <li>{html.escape(note_text(n))}</li>" for n in e["notes"])
     blocks.append(
         '      <div class="release">\n'
         '        <div class="release-head">\n'

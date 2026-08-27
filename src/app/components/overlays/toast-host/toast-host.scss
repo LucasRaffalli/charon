@@ -1,0 +1,182 @@
+// L'hôte disparaît du flux : la pile se place par rapport à la fenêtre.
+:host {
+  display: contents;
+}
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: 46px;
+  z-index: 8;
+  width: min(440px, calc(100vw - 48px));
+  transform: translateX(-50%);
+  // Rien n'est intercepté tant qu'il n'y a rien à montrer, et la hauteur est
+  // posée par le composant : elle vaut exactement la pile.
+  pointer-events: none;
+}
+
+.toasts--filled {
+  pointer-events: auto;
+}
+
+.toast {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transform-origin: bottom center;
+  // L'empilement impose une largeur constante : superposer des cartes de
+  // largeurs différentes donnerait un escalier.
+  transition:
+    transform 0.34s cubic-bezier(0.2, 0.9, 0.3, 1),
+    opacity 0.28s ease;
+  animation: toast-in 0.3s cubic-bezier(0.2, 1, 0.4, 1);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+// En-tête : la nature nommée, dans sa couleur. C'est la seule partie visible
+// d'une carte enfouie, elle doit donc porter l'information à elle seule.
+.toast__top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 7px 6px 11px;
+  background: color-mix(in srgb, var(--k) 13%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--k) 22%, transparent);
+}
+
+.toast__ico {
+  flex: none;
+  color: var(--k);
+}
+
+.toast__kind {
+  flex: 1;
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--k);
+}
+
+.toast__close {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.toast__close:hover {
+  background: var(--state-hover);
+  color: var(--text);
+}
+
+.toast__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 9px 12px 11px;
+}
+
+.toast__msg {
+  font-size: calc(12.5px * var(--text-scale));
+  line-height: 1.4;
+}
+
+.toast__detail {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  word-break: break-all;
+}
+
+.toast__action {
+  margin-top: 5px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--k) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--k) 12%, transparent);
+  color: var(--k);
+  font-family: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast__action:hover {
+  background: color-mix(in srgb, var(--k) 20%, transparent);
+}
+
+// Le temps qu'il reste, en clair : sans elle, un message disparaît sans
+// prévenir et on ne sait pas s'il faut se dépêcher de le lire. La durée vient
+// du toast lui-même (animation-duration posé par la vue), pas d'un barème
+// recopié ici qui se désaccorderait du service au premier réglage.
+.toast__life {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  transform-origin: left;
+  background: var(--k);
+  animation-name: toast-life;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+// La pile dépliée suspend les comptes à rebours : la ligne doit s'arrêter avec
+// eux, sinon elle annoncerait une échéance qui n'arrive pas.
+.toasts--open .toast__life {
+  animation-play-state: paused;
+}
+
+@keyframes toast-life {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+// Une seule variable porte la nature, tout le reste s'y accorde.
+.toast--success {
+  --k: var(--success);
+}
+
+.toast--error {
+  --k: var(--danger);
+}
+
+.toast--info {
+  --k: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+    transition: opacity 0.2s ease;
+  }
+
+  // La ligne de temps n'est pas une décoration : elle reste, c'est la seule
+  // chose qui dise quand le message part.
+}

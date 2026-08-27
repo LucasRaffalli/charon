@@ -4,7 +4,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { Button } from '@app/components/ui/button/button';
 import { Icon } from '@app/components/ui/icon/icon';
 import { SegmentedControl, SegmentedOption } from '@app/components/ui/segmented-control/segmented-control';
-import { PreviewService } from '@app/services/preview.service';
+import { PreviewService } from '@app/services/files/preview.service';
 
 const MARKDOWN_VIEWS: readonly SegmentedOption[] = [
   { value: 'rendered', label: 'Aperçu' },

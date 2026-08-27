@@ -1,0 +1,107 @@
+<div class="bar">
+  <input
+    #field
+    class="bar__field"
+    type="text"
+    [value]="search.query()"
+    (input)="search.query.set(field.value)"
+    (keydown)="onKeydown($event)"
+    [placeholder]="search.mode() === 'content' ? 'Chercher dans le contenu…' : 'Chercher un nom de fichier…'"
+    aria-label="Motif de recherche"
+  />
+  @if (search.running()) {
+    <button type="button" class="bar__stop" (click)="search.stop()">Arrêter</button>
+  } @else {
+    <button
+      type="button"
+      class="bar__go"
+      [disabled]="!search.query().trim()"
+      (click)="search.start()"
+    >
+      Chercher
+    </button>
+  }
+</div>
+
+<div class="opts">
+  <app-segmented-control
+    variant="chip"
+    [options]="modeOptions()"
+    [value]="search.mode()"
+    (valueChange)="onMode($event)"
+    ariaLabel="Type de recherche"
+  />
+  <button
+    type="button"
+    class="opt"
+    [class.opt--on]="search.regex()"
+    [attr.aria-pressed]="search.regex()"
+    (click)="search.regex.set(!search.regex())"
+  >
+    regex
+  </button>
+  <button
+    type="button"
+    class="opt"
+    [class.opt--on]="search.caseSensitive()"
+    [attr.aria-pressed]="search.caseSensitive()"
+    (click)="search.caseSensitive.set(!search.caseSensitive())"
+  >
+    casse
+  </button>
+  <button
+    type="button"
+    class="opt opt--scope"
+    [title]="'La recherche part de : ' + scopeLabel()"
+    (click)="toggleScope()"
+  >
+    <app-icon name="folder" [size]="11" />
+    {{ scopeLabel() }}
+  </button>
+</div>
+
+@if (!search.contentAvailable()) {
+  <p class="notice">En FTP, la recherche ne porte que sur les noms (pas de session SSH).</p>
+}
+
+@if (search.error(); as message) {
+  <p class="notice notice--error">{{ message }}</p>
+}
+
+<div class="results">
+  @if (search.mode() === 'content') {
+    @for (group of groups(); track group.path) {
+      <div class="group">
+        <button type="button" class="group__head" (click)="open(group.hits[0])">
+          <app-icon [name]="iconFor(group.hits[0])" [size]="13" />
+          <span class="group__name">{{ group.name }}</span>
+          <span class="group__path">{{ parentOf(group.path) }}</span>
+        </button>
+        @for (hit of group.hits; track $index) {
+          <button type="button" class="hit hit--line" (click)="open(hit)">
+            <span class="hit__no">{{ hit.line }}</span>
+            <span class="hit__text">{{ hit.text }}</span>
+          </button>
+        }
+      </div>
+    }
+  } @else {
+    @for (hit of search.hits(); track hit.path) {
+      <button type="button" class="hit" (click)="open(hit)">
+        <app-icon [name]="iconFor(hit)" [size]="13" />
+        <span class="hit__name">{{ nameOf(hit.path) }}</span>
+        <span class="hit__where">{{ parentOf(hit.path) }}</span>
+      </button>
+    }
+  }
+  @if (!search.hits().length && !search.running() && search.doneReason() === 'complete') {
+    <p class="results__empty">Rien ne correspond sous {{ search.searchedRoot() }}.</p>
+  }
+</div>
+
+@if (status(); as line) {
+  <footer class="status status--{{ line.kind }}">
+    <span class="status__dot" aria-hidden="true"></span>
+    <span>{{ line.text }}</span>
+  </footer>
+}

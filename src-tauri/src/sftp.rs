@@ -26,7 +26,7 @@ pub(crate) const PROGRESS_STEP: u64 = 512 * 1024;
 /// se ferme quand il est drop) + la session SFTP par-dessus.
 pub struct ActiveConnection {
     _handle: client::Handle<ClientHandler>,
-    sftp: SftpSession,
+    pub(crate) sftp: SftpSession,
     /// Dernier usage : sert à la fermeture d'inactivité.
     last_used: StdMutex<std::time::Instant>,
     /// Sessions interactives ouvertes (terminal, tail -F, édition externe) :

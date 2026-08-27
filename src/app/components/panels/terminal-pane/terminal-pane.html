@@ -7,6 +7,26 @@
   @if (closed()) {
     <p class="notice">Session du terminal terminée.</p>
   }
+  <div class="term-bar">
+    <button
+      type="button"
+      class="term-follow"
+      [class.term-follow--on]="following()"
+      [attr.aria-pressed]="following()"
+      [disabled]="closed()"
+      title="Le terminal se place dans le dossier affiché à chaque navigation. Rien n'est écrit tant qu'un programme tourne ou qu'une ligne est en cours."
+      (click)="toggleFollow()"
+    >
+      Suivre le dossier
+    </button>
+    @if (pending(); as path) {
+      <span class="term-bar__wait" [title]="'Le shell est occupé : ' + path + ' partira dès qu\'il rendra la main.'">
+        en attente
+      </span>
+    }
+    <span class="term-bar__path">{{ sftp.currentPath() }}</span>
+  </div>
+
   <div class="term-frame">
     <div class="term" #term></div>
   </div>

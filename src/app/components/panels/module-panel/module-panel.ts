@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 
 import { Icon } from '@app/components/ui/icon/icon';
 import { ModuleStat } from '@app/interfaces';
-import { ModuleHostService } from '@app/services/module-host.service';
+import { ModuleHostService } from '@app/services/modules/module-host.service';
 
 /**
  * Rendu natif des vues déclaratives émises par les modules (`charon.ui.render`).

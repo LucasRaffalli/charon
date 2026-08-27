@@ -10,7 +10,7 @@ import {
 import { DockNodeView } from '@app/components/dock/dock-node';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { DockZone } from '@app/interfaces';
-import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/dock.service';
+import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/dock.service';
 
 /**
  * Racine du dock : rend l'arbre (splits + groupes), affiche le fantôme

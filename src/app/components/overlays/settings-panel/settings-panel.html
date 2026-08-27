@@ -277,22 +277,30 @@
               @if (changelog.length > 0) {
                 <div class="panel__history">
                   <span class="panel__history-title">Historique des versions</span>
-                  @for (entry of changelog; track entry.version) {
-                    <div class="panel__history-entry">
-                      <div class="panel__history-head">
-                        <span class="panel__history-version data">{{ entry.version }}</span>
-                        <span class="panel__history-date data">{{ entry.date }}</span>
-                        @if (entry.version === updater.currentVersion()) {
-                          <span class="panel__history-current">installée</span>
-                        }
+                  <div class="panel__log">
+                    @for (entry of changelog; track entry.version) {
+                      <div
+                        class="panel__history-entry"
+                        [class.panel__history-entry--current]="entry.version === updater.currentVersion()"
+                      >
+                        <div class="panel__history-head">
+                          <span class="panel__history-version data">{{ entry.version }}</span>
+                          <span class="panel__history-date data">{{ entry.date }}</span>
+                          @if (entry.version === updater.currentVersion()) {
+                            <span class="panel__history-current">installée</span>
+                          }
+                          @if (entry.title) {
+                            <span class="panel__history-name">{{ entry.title }}</span>
+                          }
+                        </div>
+                        <ul class="panel__history-notes">
+                          @for (note of entry.notes; track $index) {
+                            <li class="panel__note panel__note--{{ note.kind }}">{{ note.text }}</li>
+                          }
+                        </ul>
                       </div>
-                      <ul class="panel__history-notes">
-                        @for (note of entry.notes; track $index) {
-                          <li>{{ note }}</li>
-                        }
-                      </ul>
-                    </div>
-                  }
+                    }
+                  </div>
                 </div>
               }
             }

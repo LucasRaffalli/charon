@@ -1,6 +1,23 @@
 # Recherche, conception
 
-> Statut : **à implémenter**. Décisions arrêtées le 25/08/2026.
+> Statut : **la palette est faite** (27/08/2026) et **la portée C est faite**
+> (28/08/2026) : backend `search.rs` (exec find/grep + walk de repli, événements
+> `search:hit`/`search:done`/`search:error`, `SearchRegistry`, `ConnectionHold`),
+> `SearchService`, panneau dockable `search`, entrée de palette « Rechercher sur
+> le serveur… » et clic droit « Rechercher en profondeur… ». **La portée A est
+> faite** (28/08/2026) : `filter`/`kindFilter`/`filteredEntries` dans
+> `FileBrowserState`, champ au-dessus des deux listings (serveur avec chips
+> Tout/Dossiers/Fichiers, local en champ simple dans `FilePane`), vidé au
+> changement de dossier, conservé au refresh. Reste B (recherche dans le
+> fichier) — et donc le saut à la ligne depuis un résultat, qui attend le
+> surlignage de B. La catégorie **Contenu** de la
+> palette n'est pas branchée : une recherche serveur par frappe clavier serait
+> une rafale de commandes distantes, le panneau est le bon endroit.
+>
+> La catégorie **Fichiers** cherche dans le dossier serveur affiché, ce qui ne
+> coûte aucun aller-retour.
+>
+> Décisions arrêtées le 25/08/2026.
 >
 > Maquette des états de la palette : [mockups/palette-recherche.html](mockups/palette-recherche.html)
 > (ouvrir dans un navigateur), publiée sur

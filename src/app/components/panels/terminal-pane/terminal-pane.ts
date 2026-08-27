@@ -14,13 +14,20 @@ import { listen } from '@tauri-apps/api/event';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 
-import { SftpService } from '@app/services/sftp.service';
-import { ThemeService } from '@app/services/theme.service';
+import { SftpService } from '@app/services/connection/sftp.service';
+import { TerminalService } from '@app/services/workspace/terminal.service';
+import { ThemeService } from '@app/services/appearance/theme.service';
 
 interface TermEvent {
   id: string;
   data: string;
 }
+
+/** Silence après lequel on considère que le shell a fini de démarrer. */
+const OPENING_SETTLE_MS = 350;
+
+/** Un shell resté muet ne recevra rien : mieux vaut ne pas écrire à l'aveugle. */
+const OPENING_GIVE_UP_MS = 5000;
 
 /** Décode la sortie base64 du backend en octets bruts pour xterm. */
 const decode = (data: string): Uint8Array =>
@@ -41,10 +48,33 @@ const decode = (data: string): Uint8Array =>
 export class TerminalPane {
   protected readonly sftp = inject(SftpService);
   private readonly theme = inject(ThemeService);
+  private readonly terminals = inject(TerminalService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly closed = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  /**
+   * Suivre le dossier de l'explorateur : le terminal va là où l'utilisateur va.
+   *
+   * Écrire un `cd` revient à taper dans le shell, ce qui n'est sûr que devant
+   * une invite : d'où les deux gardes de `sendCd`, et ce bouton pour couper
+   * franchement le suivi quand on préfère mener le terminal soi-même.
+   */
+  protected readonly following = signal(true);
+
+  /** Dernier chemin envoyé, pour ne pas le renvoyer deux fois. */
+  private lastSent = '';
+
+  /**
+   * Le chemin qu'on n'a pas pu envoyer : quelque chose tournait, ou une ligne
+   * était en cours d'écriture. Il part dès que le shell reprend la main, et se
+   * voit dans la barre en attendant pour que l'écart s'explique.
+   */
+  protected readonly pending = signal<string | null>(null);
+
+  /** Caractères tapés depuis le dernier Entrée : une ligne est en cours. */
+  private typed = 0;
 
   private readonly host = viewChild<ElementRef<HTMLElement>>('term');
   private terminal: Terminal | null = null;
@@ -60,6 +90,23 @@ export class TerminalPane {
       this.theme.theme();
       requestAnimationFrame(() => this.applyTheme());
     });
+    // Le suivi : chaque changement de dossier écrit un cd, tant qu'il est actif.
+    effect(() => {
+      const path = this.sftp.currentPath();
+      if (this.following()) {
+        this.sendCd(path);
+      }
+    });
+
+    // « Ouvrir le terminal ici » : une demande explicite, qui aboutit même le
+    // suivi coupé et même si c'est le dossier où l'on est déjà censé être.
+    effect(() => {
+      const jump = this.terminals.jump();
+      if (jump) {
+        this.sendCd(jump.path, true);
+      }
+    });
+
     this.destroyRef.onDestroy(() => {
       const id = this.terminalId;
       if (id) {
@@ -67,6 +114,159 @@ export class TerminalPane {
       }
       this.terminal?.dispose();
     });
+  }
+
+  protected toggleFollow(): void {
+    const next = !this.following();
+    this.following.set(next);
+    if (next) {
+      this.sendCd(this.sftp.currentPath());
+    } else {
+      this.pending.set(null);
+    }
+  }
+
+  /**
+   * Un programme plein écran tourne-t-il ? vim, less, htop, nano basculent tous
+   * sur l'écran alternatif d'xterm : c'est le signal le plus fiable qu'on ait
+   * pour savoir qu'une frappe injectée n'irait pas au shell.
+   */
+  private busy(): boolean {
+    return this.terminal?.buffer.active.type === 'alternate' || this.typed > 0;
+  }
+
+  /**
+   * Écrit un `cd` dans le shell, si le shell est en mesure de le lire.
+   *
+   * Le chemin passe par des quotes simples POSIX, la seule mise entre
+   * guillemets dont rien ne peut s'échapper : à l'intérieur de `'…'` aucun
+   * caractère n'est spécial, et une quote simple se ferme, puis s'échappe, puis
+   * se rouvre. Même règle que `shell_quote` côté Rust.
+   */
+  private sendCd(path: string, forced = false): void {
+    const terminal = this.terminal;
+    const id = this.terminalId;
+    if (!id || !terminal || !path || (!forced && path === this.lastSent)) {
+      return;
+    }
+    // Le shell n'a pas encore rendu la main : la demande rejoint celle
+    // d'ouverture, qui partira au bon moment. Sans ça, un « ouvrir ici » qui
+    // fait naître le panneau serait écrit dans un shell qui ne lit pas encore,
+    // donc perdu.
+    if (this.openingCd !== null) {
+      this.openingCd = path;
+      return;
+    }
+    // Rien ne s'écrit par-dessus ce qui tourne : le chemin attend son tour.
+    if (this.busy()) {
+      this.pending.set(path);
+      return;
+    }
+    this.pending.set(null);
+    this.lastSent = path;
+    void invoke('shell_write', {
+      terminalId: id,
+      data: this.cdCommand(path, terminal),
+    }).catch(() => {
+      // L'écriture a échoué : ne pas garder le chemin pour envoyé, sinon le
+      // suivi resterait muet jusqu'au prochain dossier.
+      this.lastSent = '';
+    });
+  }
+
+  /**
+   * La commande de déplacement, suivie de l'effacement de sa propre trace.
+   *
+   * Le `cd` est écrit dans le tty comme une frappe, et le tty l'écho : rien
+   * côté client ne peut couper cet écho. En revanche la commande peut nettoyer
+   * derrière elle. Le `printf` remonte au-dessus de la ligne échoée et efface
+   * jusqu'au bas de l'écran ; le shell imprime son nouveau prompt à cet
+   * endroit. Vu de l'utilisateur, le prompt s'est mis à jour sur place, sans
+   * qu'une ligne ait été ajoutée.
+   *
+   * Le `&&` est ce qui rend la chose honnête : un `cd` qui échoue ne nettoie
+   * pas, et son message d'erreur reste lisible avec la commande qui l'a causé.
+   */
+  private cdCommand(path: string, terminal: Terminal): string {
+    const quoted = `'${path.split("'").join(`'\\''`)}'`;
+    // La colonne du curseur avant l'envoi est la largeur du prompt affiché :
+    // c'est elle qui décide si la ligne échoée va se replier ou non.
+    const prompt = terminal.buffer.active.cursorX;
+    const cols = Math.max(terminal.cols, 1);
+
+    // Deux passes : le nombre de lignes à remonter s'écrit dans la commande,
+    // donc il dépend de la longueur de celle-ci. Le nombre tenant sur un
+    // chiffre, une seconde passe suffit à converger.
+    const build = (rows: number): string => ` cd ${quoted} && printf '\\033[${rows}A\\033[J'`;
+    let command = build(1);
+    for (let pass = 0; pass < 2; pass++) {
+      // Plafond de sûreté : mieux vaut laisser un résidu que remonter dans du
+      // texte qui n'est pas à nous (une bannière de connexion, une sortie).
+      const rows = Math.min(5, Math.floor((prompt + command.length) / cols) + 1);
+      command = build(rows);
+    }
+    // L'espace initial garde la commande hors de l'historique quand le shell
+    // est réglé pour (HIST_IGNORE_SPACE en zsh, HISTCONTROL en bash).
+    return `${command}\n`;
+  }
+
+  /**
+   * Le dossier où placer le terminal à son ouverture, tant qu'il n'y est pas
+   * allé.
+   *
+   * Il ne part PAS dès que `shell_open` répond : à cet instant le shell distant
+   * n'a pas fini de démarrer, il ne lit pas encore son entrée, et le tty vide
+   * son tampon en cours de route. La ligne était bien échoée à l'écran, mais
+   * jamais exécutée : restait un `cd … && printf …` orphelin à chaque
+   * connexion, et un terminal qui n'avait pas bougé. On attend donc que le
+   * shell ait parlé, puis se soit tu : son invite est affichée, il écoute.
+   */
+  private openingCd: string | null = null;
+  private openingSettle: ReturnType<typeof setTimeout> | null = null;
+  private openingGiveUp: ReturnType<typeof setTimeout> | null = null;
+
+  /** Réarmé à chaque sortie reçue : le silence qui suit vaut « prêt ». */
+  private armOpeningCd(): void {
+    if (!this.openingCd) {
+      return;
+    }
+    if (this.openingSettle) {
+      clearTimeout(this.openingSettle);
+    }
+    this.openingSettle = setTimeout(() => {
+      const path = this.openingCd;
+      this.openingCd = null;
+      if (path) {
+        this.sendCd(path);
+      }
+    }, OPENING_SETTLE_MS);
+  }
+
+  /** Le shell a repris la main : le chemin en attente peut partir. */
+  private flushPending(): void {
+    const path = this.pending();
+    if (path && this.following()) {
+      this.pending.set(null);
+      this.sendCd(path);
+    }
+  }
+
+  /**
+   * Suit ce que l'utilisateur tape, uniquement pour savoir s'il a une ligne en
+   * cours d'écriture : on ne lui coupe pas sa commande au milieu.
+   */
+  private trackInput(data: string): void {
+    for (const char of data) {
+      if (char === '\r' || char === '\n' || char === '\x03') {
+        // Entrée ou Ctrl+C : ligne validée ou annulée, le shell reprend la main.
+        this.typed = 0;
+        this.flushPending();
+      } else if (char === '\x7f' || char === '\b') {
+        this.typed = Math.max(0, this.typed - 1);
+      } else if (char >= ' ') {
+        this.typed++;
+      }
+    }
   }
 
   /** Cale les couleurs d'xterm sur les custom properties du thème courant. */
@@ -229,15 +429,25 @@ export class TerminalPane {
     }
 
     terminal.onData((data) => {
+      this.trackInput(data);
       const id = this.terminalId;
       if (id) {
         void invoke('shell_write', { terminalId: id, data }).catch(() => undefined);
       }
     });
 
+    // Sortie de vim, less ou htop : l'écran alternatif est rendu, le shell est
+    // de nouveau devant nous, le chemin mis de côté peut partir.
+    terminal.buffer.onBufferChange(() => {
+      if (terminal.buffer.active.type === 'normal') {
+        this.flushPending();
+      }
+    });
+
     const unlistenData = await listen<TermEvent>('term:data', (event) => {
       if (event.payload.id === this.terminalId) {
         terminal.write(decode(event.payload.data));
+        this.armOpeningCd();
       }
     });
     const unlistenClosed = await listen<TermEvent>('term:closed', (event) => {
@@ -248,6 +458,21 @@ export class TerminalPane {
     this.destroyRef.onDestroy(() => {
       unlistenData();
       unlistenClosed();
+    });
+
+    // Le terminal s'ouvre là où l'utilisateur se trouve, mais pas tout de
+    // suite : voir openingCd.
+    // Une demande explicite déjà posée l'emporte sur le dossier de
+    // l'explorateur : le panneau vient peut-être de naître d'un « ouvrir ici ».
+    this.openingCd = this.terminals.jump()?.path ?? this.sftp.currentPath();
+    this.openingGiveUp = setTimeout(() => (this.openingCd = null), OPENING_GIVE_UP_MS);
+    this.destroyRef.onDestroy(() => {
+      if (this.openingGiveUp) {
+        clearTimeout(this.openingGiveUp);
+      }
+      if (this.openingSettle) {
+        clearTimeout(this.openingSettle);
+      }
     });
 
     terminal.focus();

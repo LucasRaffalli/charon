@@ -1,20 +1,28 @@
 // Thème sombre : l'identité par défaut de Charon.
-// Fond très sombre, quasi neutre : juste un soupçon de l'accent bleu acier.
+// Version « adoucie » : le fond monte de 6 % à 9 % de luminosité, les surfaces
+// se décollent du fond sans perdre le côté nocturne.
 @mixin theme {
   color-scheme: dark;
 
-  --bg: #0c0e11;
-  --surface: #12151a;
-  --surface-hover: #181c22;
-  --surface-active: #1f242c;
+  // Quatre élévations opaques : elles disent à quelle hauteur on se trouve.
+  --elev-0: #101319; // fond de l'application, derrière tout
+  --elev-1: #171b22; // panneaux, barres, listes
+  --elev-2: #1e232b; // zones dans un panneau : en-têtes, champs, cases
+  --elev-3: #252b34; // surfaces flottantes : palette, dialogues, menus
 
-  --border: #1e2228;
+  // Trois états en voiles translucides, valables sur n'importe quelle élévation.
+  --state-hover: rgba(255, 255, 255, 0.05);
+  --state-active: rgba(255, 255, 255, 0.09);
+  --state-selected: color-mix(in srgb, var(--accent) 18%, transparent);
+
+  --border: #262c35;
   --border-strong: #333a44;
 
   --text: #e2e4e8;
-  --text-muted: #8f96a0;
-  --text-faint: #5f6670;
+  --text-muted: #98a0aa;
+  --text-faint: #626b76;
 
+  // Accent par défaut (Charon). Un `data-accent` prend le relais.
   --accent: #7da3cc;
   --accent-solid: #5b7fa6;
   --accent-solid-hover: #6c91b8;

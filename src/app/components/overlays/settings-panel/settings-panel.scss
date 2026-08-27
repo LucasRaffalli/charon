@@ -76,7 +76,7 @@
   }
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
     color: var(--text);
   }
 
@@ -140,7 +140,7 @@
   cursor: pointer;
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
     color: var(--text);
   }
 }
@@ -216,8 +216,16 @@
 // Grille de thèmes (4 colonnes dans la modal large).
 .panel__themes {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: var(--space-xs);
+}
+
+// Pastille de couleur de l'accent : un carré, jamais un rond.
+.panel__swatch {
+  width: 17px;
+  height: 17px;
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .panel__theme {

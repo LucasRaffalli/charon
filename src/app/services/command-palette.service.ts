@@ -9,7 +9,7 @@ import { ModuleHostService } from '@app/services/module-host.service';
 import { ProfilesService } from '@app/services/profiles.service';
 import { SettingsService } from '@app/services/settings.service';
 import { SftpService } from '@app/services/sftp.service';
-import { THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
+import { ACCENT_OPTIONS, THEME_OPTIONS, ThemeService } from '@app/services/theme.service';
 
 export interface PaletteCommand {
   id: string;
@@ -52,6 +52,7 @@ export class CommandPaletteService {
   close(): void {
     this._open.set(false);
   }
+
 
   /** Les commandes disponibles dans le contexte actuel (signaux lus dedans). */
   commands(): PaletteCommand[] {
@@ -153,6 +154,22 @@ export class CommandPaletteService {
         hint: 'apparence',
         keywords: 'thème couleur apparence',
         run: () => this.theme.select(option.value),
+      });
+    }
+
+    // Les accents secrets restent hors de la liste même une fois déverrouillés :
+    // on ne les change que depuis les réglages.
+    for (const option of ACCENT_OPTIONS) {
+      if (option.secret) {
+        continue;
+      }
+      list.push({
+        id: `accent:${option.value}`,
+        label: `Accent ${option.label}`,
+        icon: 'palette',
+        hint: 'apparence',
+        keywords: 'accent couleur teinte apparence',
+        run: () => this.theme.selectAccent(option.value),
       });
     }
 

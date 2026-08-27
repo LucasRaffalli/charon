@@ -89,6 +89,9 @@ export class SettingsPanel {
 
   protected readonly themeOptions = THEME_OPTIONS;
 
+  /** Les accents listés. Un secret n'apparaît que tant qu'il est sélectionné. */
+  protected readonly accentOptions = this.themeService.visibleAccents;
+
   /** Une opération de mise à jour est en cours : relancer n'aurait pas de sens. */
   protected readonly updateBusy = computed(() => {
     const kind = this.updater.status().kind;

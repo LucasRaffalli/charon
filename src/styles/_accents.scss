@@ -1,0 +1,155 @@
+@use 'sass:map';
+
+// Les accents sont indépendants des thèmes : le thème porte les neutres et les
+// niveaux, l'accent porte la rampe de couleur (et, pour certains, une teinte
+// que les élévations absorbent). Posés par `data-accent` sur la racine.
+//
+//   solid       : fond plein des boutons primaires
+//   bright      : l'accent lisible sur fond sombre
+//   deep        : l'accent lisible sur fond clair
+//   hover-dark  : survol du fond plein, en thème sombre
+//   hover-light : survol du fond plein, en thème clair
+$accents: (
+  'charon': (
+    solid: #5b7fa6,
+    bright: #7da3cc,
+    deep: #44688f,
+    hover-dark: #6c91b8,
+    hover-light: #4d7099,
+  ),
+  'unloved': (
+    solid: #d81e4a,
+    bright: #ff7f9d,
+    deep: #b01739,
+    hover-dark: #e23a60,
+    hover-light: #9a1431,
+  ),
+  'jade': (
+    solid: #2f9e6e,
+    bright: #5fc79b,
+    deep: #237a54,
+    hover-dark: #38b57e,
+    hover-light: #1c6544,
+  ),
+  'unicorn': (
+    solid: #e0559f,
+    bright: #f480c1,
+    deep: #b83a7e,
+    hover-dark: #ee6cb0,
+    hover-light: #a02f6d,
+  ),
+);
+
+@each $name, $accent in $accents {
+  :root[data-accent='#{$name}'] {
+    --accent-solid: #{map.get($accent, solid)};
+    --on-accent: #ffffff;
+  }
+
+  :root[data-theme='dark'][data-accent='#{$name}'] {
+    --accent: #{map.get($accent, bright)};
+    --accent-solid-hover: #{map.get($accent, hover-dark)};
+    --focus-ring: #{map.get($accent, bright)};
+  }
+
+  :root[data-theme='light'][data-accent='#{$name}'] {
+    --accent: #{map.get($accent, deep)};
+    --accent-solid-hover: #{map.get($accent, hover-light)};
+    --focus-ring: #{map.get($accent, deep)};
+  }
+
+  // En contraste élevé, la lisibilité prime : l'accent garde sa teinte mais
+  // reste dans sa version claire, y compris en fond plein (texte noir dessus).
+  :root[data-theme='contrast'][data-accent='#{$name}'] {
+    --accent: #{map.get($accent, bright)};
+    --accent-solid: #{map.get($accent, bright)};
+    --accent-solid-hover: #{map.get($accent, bright)};
+    --on-accent: #000000;
+    --focus-ring: #{map.get($accent, bright)};
+  }
+}
+
+// --- Teintes absorbées par les élévations (thème sombre uniquement) ---------
+// Sur fond clair les surfaces restent blanches : un blanc teinté fait sale.
+
+// Unloved : la même rampe de luminosité, décalée vers le chaud.
+:root[data-theme='dark'][data-accent='unloved'] {
+  --elev-0: #151116;
+  --elev-1: #1d181f;
+  --elev-2: #251f28;
+  --elev-3: #2d2630;
+  --border: #2c2430;
+  --border-strong: #3d3442;
+}
+
+// Jade : la même rampe, décalée vers le vert.
+:root[data-theme='dark'][data-accent='jade'] {
+  --elev-0: #0f1513;
+  --elev-1: #161d1a;
+  --elev-2: #1d2622;
+  --elev-3: #242e29;
+  --border: #24302b;
+  --border-strong: #33443c;
+}
+
+// Unicorn : le seul accent qui repeint vraiment le fond, violet profond et
+// rose vif. C'est l'ancien thème unicorn, conservé tel quel. 🦄
+:root[data-theme='dark'][data-accent='unicorn'] {
+  --elev-0: #150d18;
+  --elev-1: #1e1324;
+  --elev-2: #281a30;
+  --elev-3: #321f3c;
+
+  --border: #322038;
+  --border-strong: #503060;
+
+  --text: #f2e7f7;
+  --text-muted: #bb9cca;
+  --text-faint: #83688f;
+
+  --danger: #ff6470;
+  --danger-bg: rgba(255, 100, 112, 0.14);
+
+  // Coloration syntaxique, palette Dracula.
+  --code-comment: #8a76a0;
+  --code-punct: #cbb3d8;
+  --code-keyword: #ff79c6;
+  --code-string: #f1fa8c;
+  --code-number: #bd93f9;
+  --code-function: #50fa7b;
+  --code-tag: #8be9fd;
+  --code-attr: #ffb86c;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 10px 32px rgba(20, 5, 25, 0.6);
+}
+
+// --- Le piège d'Unloved ----------------------------------------------------
+// Un accent rouge saturé entre en collision avec `--danger` : « Envoyer » et
+// « Supprimer » deviendraient la même couleur. La sortie n'est pas d'affadir
+// l'accent, c'est de faire descendre le danger vers un bordeaux profond. Le
+// rouge vif devient l'action normale, le rouge sombre l'action grave.
+:root[data-accent='unloved'] {
+  --danger-solid: #8f2233;
+}
+
+:root[data-theme='light'][data-accent='unloved'] {
+  // Sur fond clair, le bordeaux se lit très bien, y compris en texte.
+  --danger: #8f2233;
+  --danger-bg: rgba(143, 34, 51, 0.09);
+}
+
+:root[data-theme='dark'][data-accent='unloved'],
+:root[data-theme='contrast'][data-accent='unloved'] {
+  // Sur fond sombre le bordeaux serait illisible en texte : on décale vers
+  // l'orangé pour s'éloigner du rose de l'accent, et les fonds pleins
+  // gardent le bordeaux via `--danger-solid`.
+  --danger: #f0917f;
+  --danger-bg: rgba(240, 145, 127, 0.13);
+}
+
+// Par défaut, le fond plein du danger est la couleur du danger. Seul Unloved
+// les dissocie. Déclaré en dernier pour ne pas écraser la règle ci-dessus.
+:root:not([data-accent='unloved']) {
+  --danger-solid: var(--danger);
+}

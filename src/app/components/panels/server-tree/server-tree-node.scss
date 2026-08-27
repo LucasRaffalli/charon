@@ -10,11 +10,11 @@
   border-radius: var(--radius-sm);
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
   }
 
   &--active {
-    background: var(--surface-active);
+    background: var(--state-selected);
 
     .node__name {
       font-weight: 600;

@@ -2,10 +2,16 @@
 @mixin theme {
   color-scheme: light;
 
-  --bg: #f2f4f7;
-  --surface: #ffffff;
-  --surface-hover: #f0f3f6;
-  --surface-active: #e6ebf0;
+  // Quatre élévations opaques.
+  --elev-0: #f2f4f7;
+  --elev-1: #ffffff;
+  --elev-2: #f0f3f6;
+  --elev-3: #e6ebf0;
+
+  // Voiles d'état, version fonds clairs.
+  --state-hover: rgba(20, 26, 35, 0.045);
+  --state-active: rgba(20, 26, 35, 0.085);
+  --state-selected: color-mix(in srgb, var(--accent) 18%, transparent);
 
   --border: #dfe4ea;
   --border-strong: #c5cdd7;
@@ -14,6 +20,7 @@
   --text-muted: #59636f;
   --text-faint: #8b95a2;
 
+  // Accent par défaut (Charon). Un `data-accent` prend le relais.
   --accent: #44688f;
   --accent-solid: #5b7fa6;
   --accent-solid-hover: #4d7099;

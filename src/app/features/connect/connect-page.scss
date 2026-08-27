@@ -540,8 +540,8 @@
   }
 
   &--prod {
-    background: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 20%, transparent);
+    background: var(--danger-solid);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-solid) 20%, transparent);
   }
 }
 

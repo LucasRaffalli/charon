@@ -2,10 +2,17 @@
 @mixin theme {
   color-scheme: dark;
 
-  --bg: #000000;
-  --surface: #000000;
-  --surface-hover: #1a1a1a;
-  --surface-active: #262626;
+  // Quatre élévations opaques. Le fond et les panneaux restent noirs :
+  // c'est la bordure qui porte la séparation, pas la nuance.
+  --elev-0: #000000;
+  --elev-1: #000000;
+  --elev-2: #1a1a1a;
+  --elev-3: #262626;
+
+  // Voiles d'état plus marqués : sur du noir pur, 5 % ne se voit pas.
+  --state-hover: rgba(255, 255, 255, 0.12);
+  --state-active: rgba(255, 255, 255, 0.2);
+  --state-selected: color-mix(in srgb, var(--accent) 30%, transparent);
 
   --border: #6f6f6f;
   --border-strong: #ffffff;
@@ -14,6 +21,7 @@
   --text-muted: #d6d6d6;
   --text-faint: #ababab;
 
+  // Accent par défaut (Charon). Un `data-accent` prend le relais.
   --accent: #9ecbff;
   --accent-solid: #9ecbff;
   --accent-solid-hover: #c2ddff;

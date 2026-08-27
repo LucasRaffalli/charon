@@ -67,6 +67,26 @@
                 </div>
               </div>
 
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">Accent</span>
+                  <span class="setting__desc">La couleur, indépendante du thème.</span>
+                </div>
+                <div class="panel__themes">
+                  @for (option of accentOptions(); track option.value) {
+                    <button
+                      type="button"
+                      class="panel__theme"
+                      [class.panel__theme--active]="themeService.accent() === option.value"
+                      (click)="themeService.selectAccent(option.value)"
+                    >
+                      <span class="panel__swatch" [style.background]="option.swatch"></span>
+                      <span>{{ option.label }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
               <div class="setting">
                 <div class="setting__text">
                   <span class="setting__name">Filigrane</span>

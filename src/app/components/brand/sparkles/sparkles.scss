@@ -1,0 +1,11 @@
+// Par-dessus toute l'application, et totalement transparent aux évènements :
+// jamais un clic, un glisser-déposer ni une frappe du terminal ne doit être
+// intercepté par la traînée.
+.sparkles {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

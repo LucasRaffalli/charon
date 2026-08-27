@@ -1,6 +1,16 @@
 # Système de design, conception
 
-> Statut : **à implémenter**. Décisions arrêtées le 26/08/2026.
+> Statut : les sections **1 à 4 sont implémentées** le 27/08/2026 (surfaces,
+> thèmes et accents séparés, sombre adouci, Unicorn caché, paillettes). Restent
+> à faire les sections **5 et 6** : dégradés, bento translucides et mode design.
+>
+> Un écart assumé par rapport à la §3 : le code se tape **n'importe où dans
+> l'app**, pas seulement dans la palette, et reste la seule porte d'entrée.
+> Unicorn n'apparaît dans les réglages **que tant qu'il est sélectionné** :
+> assez pour voir ce qui est actif et pouvoir en sortir, jamais assez pour se
+> faire découvrir.
+>
+> Décisions arrêtées le 26/08/2026.
 >
 > Maquettes : [mockups/mode-design.html](mockups/mode-design.html) (surfaces,
 > dégradés, mode design) et [mockups/themes-accents.html](mockups/themes-accents.html)
@@ -62,6 +72,16 @@ les libellés secondaires deviennent trop discrets.
 | --- | --- | --- |
 | fond | `#0c0e11` | `#101319` |
 | surface | `#12151a` | `#171b22` |
+| surface-hover | `#181c22` | `#1e232b` |
+| surface-active | `#1f242c` | `#252b34` |
+| border | `#1e2228` | `#262c35` |
+| text-muted | `#8f96a0` | `#98a0aa` |
+| text-faint | `#5f6670` | `#626b76` |
+
+Le reste est inchangé (text, accents, danger, ombres, palette de code).
+Référence complète avec le SCSS prêt à coller :
+https://claude.ai/code/artifact/f68b3492-0fda-47e7-a482-b3c346506740
+(copie locale : mockups/theme-adouci.html).
 
 ### Quatre accents
 

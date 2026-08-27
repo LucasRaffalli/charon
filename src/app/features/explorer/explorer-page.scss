@@ -52,7 +52,7 @@
   white-space: nowrap;
 
   &:hover:not(:disabled) {
-    background: var(--surface-hover);
+    background: var(--state-hover);
     color: var(--text);
   }
 
@@ -94,7 +94,7 @@
 
   &--prod {
     color: #fff;
-    background: var(--danger);
+    background: var(--danger-solid);
     animation: env-pulse 2.4s ease-in-out infinite;
   }
 
@@ -180,7 +180,7 @@
     color var(--transition-fast);
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
     color: var(--text);
   }
 
@@ -366,7 +366,7 @@
   text-align: left;
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
   }
 
   &--dir {
@@ -489,9 +489,9 @@
   // dock (`.group--server` dans dock-node.scss).
 }
 
-// Thème unicorn : le filigrane de fond devient l'image licorne (en couleur,
+// Accent unicorn : le filigrane de fond devient l'image licorne (en couleur,
 // donc pas de masque monochrome).
-:host-context([data-theme='unicorn']) .explorer--logo::before {
+:host-context([data-accent='unicorn']) .explorer--logo::before {
   background-color: transparent;
   background-image: url('/assets/png/unicorn.png');
   background-repeat: no-repeat;

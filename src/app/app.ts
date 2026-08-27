@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
+import { Sparkles } from '@app/components/brand/sparkles/sparkles';
 import { CommandPalette } from '@app/components/overlays/command-palette/command-palette';
 import { ContextMenu } from '@app/components/overlays/context-menu/context-menu';
 import { DialogHost } from '@app/components/overlays/dialog-host/dialog-host';
@@ -9,6 +10,7 @@ import { ConnectPage } from '@app/features/connect/connect-page';
 import { ExplorerPage } from '@app/features/explorer/explorer-page';
 import { SftpService } from '@app/services/sftp.service';
 import { ModuleHostService } from '@app/services/module-host.service';
+import { SecretAccentService } from '@app/services/secret-accent.service';
 import { ThemeService } from '@app/services/theme.service';
 import { UpdaterService } from '@app/services/updater.service';
 
@@ -22,6 +24,7 @@ import { UpdaterService } from '@app/services/updater.service';
     DialogHost,
     OverwriteDialog,
     ContextMenu,
+    Sparkles,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -38,4 +41,7 @@ export class App {
 
   // Lance la vérification automatique des mises à jour dès le démarrage.
   private readonly updater = inject(UpdaterService);
+
+  // Écoute le code de l'accent caché, tapé n'importe où dans l'app.
+  private readonly secretAccent = inject(SecretAccentService);
 }

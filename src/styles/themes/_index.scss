@@ -1,7 +1,6 @@
 @use 'light';
 @use 'dark';
 @use 'contrast';
-@use 'unicorn';
 
 // Défaut : sombre. Le ThemeService pose `data-theme` dès le démarrage ;
 // le fallback système ne sert qu'avant la première frame.
@@ -27,6 +26,13 @@
   @include contrast.theme;
 }
 
-:root[data-theme='unicorn'] {
-  @include unicorn.theme;
+// Anciens noms, redirigés vers les élévations. Les composants qui posent un
+// fond statique continuent de marcher tels quels ; ceux qui décrivent un ÉTAT
+// (survol, actif, sélection) doivent utiliser les voiles `--state-*`, qui eux
+// fonctionnent par-dessus n'importe quelle élévation et avec tous les accents.
+:root {
+  --bg: var(--elev-0);
+  --surface: var(--elev-1);
+  --surface-hover: var(--elev-2);
+  --surface-active: var(--elev-3);
 }

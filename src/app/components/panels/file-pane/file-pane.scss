@@ -35,7 +35,7 @@
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--surface-hover);
+    background: var(--state-hover);
     color: var(--text);
   }
 
@@ -91,7 +91,7 @@
   text-align: left;
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--state-hover);
   }
 
   &--dir {

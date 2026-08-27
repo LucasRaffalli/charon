@@ -40,7 +40,7 @@
     color: var(--text-muted);
 
     &:hover:not(:disabled) {
-      background: var(--surface-hover);
+      background: var(--state-hover);
       color: var(--text);
     }
   }
@@ -55,11 +55,11 @@
   }
 
   &--danger-solid {
-    background: var(--danger);
+    background: var(--danger-solid);
     color: #ffffff;
 
     &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--danger) 85%, black);
+      background: color-mix(in srgb, var(--danger-solid) 85%, black);
     }
   }
 

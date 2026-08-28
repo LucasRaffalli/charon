@@ -147,10 +147,11 @@
   text-align: center;
 }
 
-// Filtre du listing : slim, il ne doit pas manger le panneau.
+// Filtre du listing : slim, il ne doit pas manger le panneau. La marge
+// horizontale reprend celle de l'en-tête, sinon le champ colle aux bords.
 .pane__filter {
   flex: none;
-  margin: 0 0 var(--space-2xs);
+  margin: 0 var(--space-sm) var(--space-2xs);
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

@@ -16,6 +16,35 @@
   &--error {
     color: var(--danger);
   }
+
+  // Session terminée : le message porte sa sortie. Sans elle, un exit tapé
+  // par réflexe condamnait l'onglet pour toute la session.
+  &--ended {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+}
+
+.notice__act {
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+  }
+
+  &:disabled {
+    color: var(--text-faint);
+    cursor: default;
+  }
 }
 
 // Barre du terminal : le suivi du dossier, et le dossier suivi.

@@ -8,9 +8,12 @@
 > faite** (28/08/2026) : `filter`/`kindFilter`/`filteredEntries` dans
 > `FileBrowserState`, champ au-dessus des deux listings (serveur avec chips
 > Tout/Dossiers/Fichiers, local en champ simple dans `FilePane`), vidé au
-> changement de dossier, conservé au refresh. Reste B (recherche dans le
-> fichier) — et donc le saut à la ligne depuis un résultat, qui attend le
-> surlignage de B. La catégorie **Contenu** de la
+> changement de dossier, conservé au refresh. **La portée B est faite**
+> (28/08/2026) : Cmd+F/Ctrl+F dans l'aperçu, compteur « n sur m », Entrée /
+> Maj+Entrée, Échap, options regex/casse, occurrences surlignées par une
+> troisième couche sous la coloration, et le clic d'un résultat de contenu de
+> la recherche récursive saute à la ligne avec le motif déjà surligné.
+> **Les trois portées sont faites.** La catégorie **Contenu** de la
 > palette n'est pas branchée : une recherche serveur par frappe clavier serait
 > une rafale de commandes distantes, le panneau est le bon endroit.
 >

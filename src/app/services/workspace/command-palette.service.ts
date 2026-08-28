@@ -10,6 +10,7 @@ import { ModuleHostService } from '@app/services/modules/module-host.service';
 import { PreviewService } from '@app/services/files/preview.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SearchService } from '@app/services/connection/search.service';
+import { WhatsNewService } from '@app/services/system/whats-new.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { ACCENT_OPTIONS, THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
@@ -94,6 +95,7 @@ export class CommandPaletteService {
   private readonly sftp = inject(SftpService);
   private readonly profiles = inject(ProfilesService);
   private readonly searchService = inject(SearchService);
+  private readonly whatsNew = inject(WhatsNewService);
   private readonly flow = inject(ConnectionFlowService);
   private readonly settings = inject(SettingsService);
   private readonly dock = inject(DockService);
@@ -142,6 +144,8 @@ export class CommandPaletteService {
   toggle(): void {
     if (!this.available) {
       return;
+    }
+    if (!this._open()) {
     }
     this._open.update((open) => !open);
   }
@@ -456,6 +460,16 @@ export class CommandPaletteService {
         run: () => this.theme.selectAccent(option.value),
       });
     }
+
+    list.push({
+      id: 'whats-new',
+      category: 'commandes',
+      label: 'Nouveautés de cette version',
+      icon: 'info',
+      hint: 'application',
+      keywords: 'changelog journal versions quoi de neuf historique',
+      run: () => this.whatsNew.show(),
+    });
 
     list.push({
       id: 'settings',

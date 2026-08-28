@@ -1,8 +1,9 @@
 // L'accent porte la rampe de couleur, et pour certains une teinte que les
 // élévations absorbent. Il se combine à n'importe quel thème.
 //
-// `unicorn` est caché : il ne se déverrouille qu'en tapant son nom dans la
-// palette de commandes, et n'apparaît ensuite que dans les réglages.
+// `unicorn` est caché : il ne se déverrouille qu'en tapant une séquence de
+// touches n'importe où dans l'application (voir SecretAccentService), et
+// n'apparaît ensuite que dans les réglages, tant qu'il reste actif.
 export const ACCENTS = ['charon', 'unloved', 'jade', 'unicorn'] as const;
 
 export type Accent = (typeof ACCENTS)[number];

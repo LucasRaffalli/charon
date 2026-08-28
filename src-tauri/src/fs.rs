@@ -45,6 +45,19 @@ pub fn local_list_dir(path: String) -> Result<Vec<FileEntry>, String> {
                 name,
                 is_dir: meta.is_dir(),
                 size: meta.len(),
+                mode: {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        Some(meta.permissions().mode() & 0o7777)
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        None
+                    }
+                },
+                owner: None,
+                group: None,
             })
         })
         .collect();

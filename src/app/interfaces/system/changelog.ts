@@ -11,6 +11,15 @@ export type ChangeKind = 'new' | 'better' | 'fixed';
 export interface ChangeNote {
   kind: ChangeKind;
   text: string;
+  /**
+   * Comment essayer cette nouveauté, en une ou deux phrases : où cliquer, quel
+   * raccourci.
+   *
+   * Facultatif, et ça doit le rester : une correction de bug n'a rien à faire
+   * essayer, et une nouveauté qui se trouve toute seule n'a pas besoin qu'on
+   * explique où elle est.
+   */
+  how?: string;
 }
 
 /**

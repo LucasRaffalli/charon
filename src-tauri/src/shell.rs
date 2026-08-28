@@ -157,6 +157,25 @@ pub async fn sftp_sudo(
                 format!("Renommer :\n{path}\n→ {to}"),
             )
         }
+        // `path2` porte le mode octal : la liste blanche vaut pour l'opération,
+        // pas pour ses arguments, qui sont validés comme partout ailleurs.
+        "chmod" | "chmod_r" => {
+            let mode = path2.ok_or("Mode manquant.")?;
+            let valid =
+                (3..=4).contains(&mode.len()) && mode.chars().all(|c| ('0'..='7').contains(&c));
+            if !valid {
+                return Err(format!("Mode invalide : {mode}."));
+            }
+            let recursive = op == "chmod_r";
+            let flag = if recursive { "-R " } else { "" };
+            (
+                format!("chmod {flag}{mode} -- {}", shell_quote(&path)),
+                format!(
+                    "Changer les permissions en {mode}{} :\n{path}",
+                    if recursive { " (et tout le contenu)" } else { "" }
+                ),
+            )
+        }
         _ => return Err("Opération non autorisée.".into()),
     };
 

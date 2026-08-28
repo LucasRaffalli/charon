@@ -1,0 +1,59 @@
+// La liste elle-même : deux colonnes, une rubrique ne se coupant jamais au
+// milieu. L'habillage (modale ou onglet) est l'affaire de l'appelant.
+:host {
+  display: block;
+  // Une largeur de colonne, pas un nombre : la liste sert dans la feuille ⌘/
+  // et dans le panneau des réglages, qui n'ont pas la même largeur — et une
+  // media query jugerait la fenêtre, pas le conteneur.
+  columns: 250px;
+  column-gap: var(--space-lg);
+}
+
+.grp {
+  break-inside: avoid;
+  margin-bottom: var(--space-sm);
+}
+
+.grp__name {
+  margin: 0 0 var(--space-2xs);
+  font-size: calc(10px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.grp__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: 2px 0;
+  font-size: calc(12px * var(--text-scale));
+}
+
+.grp__keys {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+  min-width: 74px;
+}
+
+kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.grp__label {
+  color: var(--text-muted);
+}
+
+.sheet__empty {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: calc(12px * var(--text-scale));
+}

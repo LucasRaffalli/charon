@@ -1,0 +1,75 @@
+// Barre de sélection : elle n'existe que quand il y a une sélection, donc
+// aucune place perdue le reste du temps. Extraite de l'explorateur, qui
+// dépassait son budget de styles.
+:host {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-top: 1px solid var(--border);
+  animation: selbar-in 0.16s ease;
+}
+
+@keyframes selbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selbar {
+    animation: none;
+  }
+}
+
+.selbar__count {
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: 600;
+  color: var(--text);
+}
+
+.selbar__clear {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.selbar__spacer {
+  flex: 1;
+}
+
+.selbar__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+
+  &--danger {
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    color: var(--danger);
+  }
+}
+

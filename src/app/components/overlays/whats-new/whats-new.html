@@ -1,0 +1,65 @@
+@if (whatsNew.open()) {
+  <div class="scrim" (click)="whatsNew.close()">
+    <div
+      class="sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Nouveautés"
+      (click)="$event.stopPropagation()"
+      (keydown.escape)="whatsNew.close()"
+    >
+      <header class="sheet__head">
+        <span class="sheet__title">Nouveautés</span>
+        <span class="sheet__hint">Ce qui a changé, version par version</span>
+      </header>
+
+      <div class="sheet__body">
+        <div class="log">
+          @for (entry of entries(); track entry.version) {
+            <section class="rel" [class.rel--now]="isHighlighted(entry.version)">
+              <div class="rel__head">
+                <span class="rel__v data">{{ entry.version }}</span>
+                <span class="rel__date data">{{ entry.date }}</span>
+                @if (badge(entry.version); as label) {
+                  <span class="rel__badge" [class.rel__badge--soon]="!isHighlighted(entry.version)">
+                    {{ label }}
+                  </span>
+                }
+                @if (entry.title) {
+                  <span class="rel__title">{{ entry.title }}</span>
+                }
+              </div>
+              <ul class="rel__notes">
+                @for (note of entry.notes; track $index) {
+                  <li class="note note--{{ note.kind }}">
+                    <span class="note__tag">{{ kindLabels[note.kind] }}</span>
+                    <div class="note__body">
+                      <span class="note__text">{{ note.text }}</span>
+                      @if (note.how) {
+                        <button
+                          type="button"
+                          class="note__how-btn"
+                          [attr.aria-expanded]="isOpen(note.text)"
+                          (click)="toggleHow(note.text)"
+                        >
+                          {{ isOpen(note.text) ? 'Masquer' : 'Comment l’essayer' }}
+                        </button>
+                        @if (isOpen(note.text)) {
+                          <p class="note__how">{{ note.how }}</p>
+                        }
+                      }
+                    </div>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+        </div>
+      </div>
+
+      <footer class="sheet__foot">
+        <app-button variant="primary" (click)="whatsNew.close()">Compris</app-button>
+      </footer>
+    </div>
+  </div>
+}

@@ -24,7 +24,17 @@ interface RunningModule {
   worker: Worker;
   /** Ids de commandes contribuées (pour nettoyage à l'arrêt). */
   commandIds: Set<string>;
+  /** Instant du démarrage : les notifications du réveil ne font pas de toast. */
+  startedAt: number;
 }
+
+/**
+ * Pendant cette fenêtre après le démarrage d'un module, ses `notify` de niveau
+ * info vont au journal mais pas en toast : « compteur prêt » à chaque
+ * lancement de l'app n'est pas une nouvelle, c'est un module qui se réveille.
+ * Une vraie erreur, elle, toaste toujours.
+ */
+const STARTUP_QUIET_MS = 3000;
 
 /** Méthode d'API hôte → permission requise (undefined = toujours permis). */
 const METHOD_PERMISSION: Record<string, ModulePermission | undefined> = {
@@ -181,7 +191,7 @@ export class ModuleHostService {
     }
     URL.revokeObjectURL(url);
 
-    const rm: RunningModule = { module, worker, commandIds: new Set() };
+    const rm: RunningModule = { module, worker, commandIds: new Set(), startedAt: Date.now() };
     this.running.set(module.slug, rm);
 
     worker.onmessage = (event: MessageEvent) => void this.onMessage(rm, event.data);
@@ -257,10 +267,15 @@ export class ModuleHostService {
         this.activity.log('module', 'local', rm.module.name, message, ok);
         // Un module qui notifie s'adresse à l'utilisateur, pas à un registre :
         // le journal seul enterrait le message dans un onglet souvent fermé.
+        // Exception : les infos du réveil (voir STARTUP_QUIET_MS), et une clé
+        // par module pour qu'un module bavard remplace son toast au lieu d'en
+        // empiler quatre.
         if (ok) {
-          this.toasts.info(message, rm.module.name);
+          if (Date.now() - rm.startedAt >= STARTUP_QUIET_MS) {
+            this.toasts.info(message, { detail: rm.module.name, key: `module:${rm.module.slug}` });
+          }
         } else {
-          this.toasts.error(message, rm.module.name);
+          this.toasts.error(message, { detail: rm.module.name, key: `module:${rm.module.slug}` });
         }
         return null;
       }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/ui/button/button';
+import { ShortcutsList } from '@app/components/panels/shortcuts-list/shortcuts-list';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { Toggle } from '@app/components/ui/toggle/toggle';
@@ -16,7 +17,14 @@ import { SettingsService } from '@app/services/system/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
 import { UpdaterService } from '@app/services/system/updater.service';
 
-type SettingsTab = 'design' | 'files' | 'connection' | 'data' | 'modules' | 'updates';
+type SettingsTab =
+  | 'design'
+  | 'files'
+  | 'connection'
+  | 'shortcuts'
+  | 'data'
+  | 'modules'
+  | 'updates';
 
 interface TabOption {
   id: SettingsTab;
@@ -26,7 +34,7 @@ interface TabOption {
 
 @Component({
   selector: 'app-settings-panel',
-  imports: [Button, Icon, TextField, Toggle],
+  imports: [Button, Icon, ShortcutsList, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -56,6 +64,7 @@ export class SettingsPanel {
     { id: 'design', icon: 'palette', label: 'Design' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
     { id: 'connection', icon: 'server', label: 'Connexion' },
+    { id: 'shortcuts', icon: 'command', label: 'Raccourcis' },
     { id: 'data', icon: 'file', label: 'Données' },
     { id: 'modules', icon: 'layout-grid', label: 'Modules' },
     { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
@@ -112,6 +121,12 @@ export class SettingsPanel {
   }
 
   /** Minutes d'inactivité avant fermeture, bornées à [0 ; 240] (0 = jamais). */
+  /** Bornes du champ : le service borne aussi à la relecture du stockage. */
+  protected setTrashDays(value: string): void {
+    const days = Number.parseInt(value, 10);
+    this.settings.update({ trashDays: Number.isFinite(days) ? Math.min(365, Math.max(0, days)) : 0 });
+  }
+
   protected setIdleMinutes(raw: string): void {
     const minutes = Math.max(0, Math.min(240, Math.round(Number(raw)) || 0));
     this.settings.update({ idleMinutes: minutes });

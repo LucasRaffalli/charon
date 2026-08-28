@@ -1,0 +1,48 @@
+@if (sftp.protocol() !== 'sftp') {
+  <p class="notice">La corbeille n'existe qu'en SFTP.</p>
+} @else {
+  <header class="bar">
+    <span class="bar__where" [title]="dir()">{{ dir() }}</span>
+    <button type="button" class="bar__act" [disabled]="loading()" (click)="load()">
+      <app-icon name="refresh" [size]="13" />
+    </button>
+    @if (entries().length) {
+      <button type="button" class="bar__act bar__act--danger" (click)="empty()">Vider</button>
+    }
+  </header>
+
+  <ul class="list">
+    @for (entry of entries(); track entry.path) {
+      <li class="row">
+        <app-icon class="row__icon" [name]="iconFor(entry)" [size]="14" />
+        <span class="row__name" [title]="entry.name">{{ entry.name }}</span>
+        <span class="row__when">{{ when(entry) }}</span>
+        <span class="row__size data">{{ entry.isDir ? '–' : (entry.size | fileSize) }}</span>
+        <button
+          type="button"
+          class="row__act"
+          title="Remettre à sa place"
+          (click)="restore(entry)"
+        >
+          <app-icon name="corner-up" [size]="13" />
+        </button>
+        <button
+          type="button"
+          class="row__act row__act--danger"
+          title="Supprimer définitivement"
+          (click)="destroy(entry)"
+        >
+          <app-icon name="trash" [size]="13" />
+        </button>
+      </li>
+    } @empty {
+      <li class="empty">
+        @if (loading()) {
+          Lecture de la corbeille…
+        } @else {
+          Rien dans la corbeille de ce dossier.
+        }
+      </li>
+    }
+  </ul>
+}

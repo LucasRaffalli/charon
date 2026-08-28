@@ -5,7 +5,12 @@
     <p class="notice notice--error">{{ message }}</p>
   }
   @if (closed()) {
-    <p class="notice">Session du terminal terminée.</p>
+    <p class="notice notice--ended">
+      <span>Session du terminal terminée.</span>
+      <button type="button" class="notice__act" [disabled]="restarting()" (click)="restart()">
+        Relancer
+      </button>
+    </p>
   }
   <div class="term-bar">
     <button

@@ -95,6 +95,39 @@
   background: var(--surface-hover);
 }
 
+// La couche d'occurrences, TOUT en dessous : texte transparent, seuls les
+// fonds des marques se voient, sous les glyphes colorés de Prism. Le HTML
+// vient d'[innerHTML], donc hors encapsulation : ::ng-deep volontaire, porté
+// par .editor__occ qui reste encapsulé.
+.editor__occ {
+  @include editor-metrics;
+
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: transparent;
+
+  code {
+    display: block;
+    font: inherit;
+    color: transparent;
+  }
+
+  ::ng-deep mark.occ {
+    color: transparent;
+    border-radius: 2px;
+    // Le seul endroit où l'accent porte une information : l'occurrence.
+    background: color-mix(in srgb, var(--accent) 26%, transparent);
+  }
+
+  ::ng-deep mark.occ--now {
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+    outline: 1px solid var(--accent);
+  }
+}
+
 .editor__highlight {
   @include editor-metrics;
 
@@ -321,5 +354,93 @@
     // Damier discret pour distinguer la transparence.
     background:
       repeating-conic-gradient(var(--surface-active) 0% 25%, transparent 0% 50%) 0 / 16px 16px;
+  }
+}
+
+// Barre de recherche dans le fichier (Cmd+F) : une rangée sous l'en-tête.
+.find {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0 0 var(--space-2xs);
+}
+
+.find__field {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--bg));
+  color: var(--text);
+  font-family: inherit;
+  font-size: calc(12px * var(--text-scale));
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  &--bad {
+    border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  }
+}
+
+.find__count {
+  flex: none;
+  min-width: 68px;
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.find__nav,
+.find__close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.find__opt {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--on {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
   }
 }

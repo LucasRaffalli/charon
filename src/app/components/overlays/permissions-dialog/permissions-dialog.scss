@@ -1,0 +1,152 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 108;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+// La carte de la maquette : étroite, tout tient dans la largeur d'un panneau.
+.perms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(320px, 100%);
+  padding: var(--space-sm);
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.perms__file {
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 650;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.perms__owner {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: auto repeat(3, 1fr);
+  gap: 5px var(--space-xs);
+  align-items: center;
+  font-size: calc(11px * var(--text-scale));
+}
+
+.grid__h {
+  font-size: calc(9px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.grid__l {
+  color: var(--text-muted);
+}
+
+// Des boutons r/w/x plutôt que des cases : la lettre EST l'information, et
+// une case à cocher demanderait une légende pour dire laquelle.
+.chk {
+  width: 100%;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--accent);
+  }
+
+  &[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: var(--accent);
+    color: var(--text);
+    font-weight: 600;
+  }
+}
+
+.presets {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.preset {
+  flex: 1;
+  padding: 3px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--on {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    color: var(--accent);
+  }
+}
+
+.perms__warn {
+  margin: 0;
+  font-size: calc(10.5px * var(--text-scale));
+  line-height: 1.45;
+  color: var(--warning);
+}
+
+.perms__error {
+  margin: 0;
+  font-size: calc(11px * var(--text-scale));
+  color: var(--danger);
+}
+
+.perms__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+}
+
+// L'octal suit les boutons en direct : c'est lui qu'on tape d'habitude, le
+// voir bouger fait le lien entre les deux façons de dire la même chose.
+.perms__octal {
+  font-family: var(--font-mono);
+  font-size: calc(15px * var(--text-scale));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.perms__sym {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.perms__spacer {
+  flex: 1;
+}

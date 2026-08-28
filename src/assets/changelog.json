@@ -6,31 +6,81 @@
     "notes": [
       {
         "kind": "new",
-        "text": "Thèmes et accents séparés : le thème porte les gris, l'accent porte la couleur, et les deux se combinent librement"
+        "text": "Thèmes et accents séparés : le thème porte les gris et les niveaux, l'accent porte la couleur, et les deux se combinent librement",
+        "how": "Réglages, onglet Design. Choisissez un thème, puis un accent : les deux grilles sont indépendantes."
       },
       {
         "kind": "new",
-        "text": "Mode design : réglez le fond, la translucidité des panneaux, le rayon des angles et la taille du texte en voyant la vraie interface"
+        "text": "Mode design : réglez le fond, la translucidité des panneaux, le rayon des angles et la taille du texte en voyant la vraie interface",
+        "how": "Réglages puis Design : la modale se referme et deux cartes flottantes apparaissent. Tout reste un brouillon jusqu'à Enregistrer."
       },
       {
         "kind": "new",
-        "text": "La palette cherche : profils, chemins, fichiers du dossier affiché et commandes, avec des filtres et un mode expression régulière qui explique le motif"
+        "text": "Recherche récursive sur le serveur, par nom de fichier ou dans le contenu, avec les résultats au fil de l'eau",
+        "how": "⌘⇧F, ou clic droit sur un dossier puis « Rechercher en profondeur ». Le mode Contenu demande une session SFTP."
       },
       {
         "kind": "new",
-        "text": "Ancre de connexion : un profil retient son dossier de travail et la connexion suivante y arrive directement"
+        "text": "Recherche dans le fichier ouvert, avec les occurrences surlignées et un compteur",
+        "how": "Ouvrez un fichier dans l'aperçu (double-clic) puis ⌘F. Entrée passe à l'occurrence suivante, Maj+Entrée à la précédente."
       },
       {
         "kind": "new",
-        "text": "Le terminal s'ouvre dans le dossier affiché et vous suit quand vous naviguez, sans jamais écrire pendant qu'un programme tourne"
+        "text": "Filtre du dossier affiché, avec un tri par nature : tout, dossiers seuls, fichiers seuls",
+        "how": "L'entonnoir à droite du fil d'Ariane, ou ⌘F quand l'aperçu n'est pas au premier plan. Échap vide le champ, un second Échap le referme."
       },
       {
         "kind": "new",
-        "text": "Export de la configuration : apparence, disposition, réglages et profils dans un fichier, sans aucun mot de passe"
+        "text": "La palette de commandes cherche : profils, chemins, fichiers du dossier et commandes, avec des filtres et un mode expression régulière",
+        "how": "⌘K. Tapez sans préfixe : tout est cherché d'un coup. ⇥ restreint à une catégorie, et l'option regex affiche une bulle qui traduit le motif."
+      },
+      {
+        "kind": "new",
+        "text": "Sélection multiple, avec copie, déplacement et glisser-déposer entre dossiers",
+        "how": "Cliquez une ligne, puis Maj-clic pour une plage ou ⌘-clic pour ajouter. Traînez la sélection sur un dossier pour la déplacer, ⌥ pendant le dépôt pour copier."
+      },
+      {
+        "kind": "new",
+        "text": "Corbeille distante : supprimer devient réversible, avec un panneau pour récupérer",
+        "how": "⌘⌫ ou le clic droit met à la corbeille, et le toast propose d'annuler. Le panneau Corbeille montre ce qui a été jeté dans le dossier affiché."
+      },
+      {
+        "kind": "new",
+        "text": "Panneau de permissions : voir et changer les droits d'un fichier sans quitter Charon",
+        "how": "Clic droit sur un fichier puis « Permissions ». Les droits s'affichent aussi en octal dans une colonne de la liste."
+      },
+      {
+        "kind": "new",
+        "text": "Ancre de connexion : un profil retient son dossier de travail et la connexion suivante y arrive directement",
+        "how": "Placez-vous dans le dossier voulu, puis ⌘K et « Ancrer ce dossier », ou le clic droit sur un dossier."
+      },
+      {
+        "kind": "new",
+        "text": "Le terminal s'ouvre dans le dossier affiché et peut vous suivre quand vous naviguez",
+        "how": "Clic droit sur un dossier puis « Ouvrir le terminal ici ». Dans le panneau, « Suivre le dossier » rejoue le déplacement à chaque navigation."
+      },
+      {
+        "kind": "new",
+        "text": "Vérification des transferts par empreinte sha256, et débit affiché pendant le transfert",
+        "how": "Réglages, onglet Fichiers : activez « Vérifier les transferts ». Chaque ligne du panneau Transferts porte ensuite son verdict."
+      },
+      {
+        "kind": "new",
+        "text": "Raccourcis clavier sur toute l'application, avec leur liste consultable",
+        "how": "⌘/ affiche la liste complète. Les raccourcis sans effet dans le contexte courant y restent visibles, en retrait."
+      },
+      {
+        "kind": "new",
+        "text": "Export de la configuration : apparence, disposition, réglages et profils dans un fichier, sans aucun mot de passe",
+        "how": "Réglages, onglet Données. Le fichier part dans votre dossier Téléchargements."
       },
       {
         "kind": "better",
-        "text": "Nouvel écran d'ouverture, avec un mot d'accueil, une traversée annoncée et un bouton qui interrompt vraiment la connexion en cours"
+        "text": "Nouvel écran d'ouverture, avec un mot d'accueil, la traversée annoncée et un bouton qui interrompt vraiment la connexion en cours"
+      },
+      {
+        "kind": "better",
+        "text": "Navigation plus rapide : un dossier déjà visité s'affiche immédiatement, et l'arborescence ne redemande plus au serveur ce qu'il vient de dire"
       },
       {
         "kind": "better",
@@ -38,7 +88,11 @@
       },
       {
         "kind": "better",
-        "text": "Clic droit plus complet sur un dossier serveur : y ouvrir le terminal, y chercher, en faire le point d'arrivée du profil"
+        "text": "Une connexion perdue est détectée et annoncée, au lieu de laisser l'application se croire connectée"
+      },
+      {
+        "kind": "better",
+        "text": "Coller sur un fichier qui existe déjà propose de remplacer, de comparer, ou de garder les deux"
       },
       {
         "kind": "fixed",
@@ -51,6 +105,14 @@
       {
         "kind": "fixed",
         "text": "La barre du bas de l'explorateur colle enfin au bas de la fenêtre"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le logo suit le thème : il restait clair, donc invisible, en thème clair"
+      },
+      {
+        "kind": "fixed",
+        "text": "Windows : un reliquat de version précédente ne fait plus disparaître l'installeur du manifeste de mise à jour"
       }
     ]
   },

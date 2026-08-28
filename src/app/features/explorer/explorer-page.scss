@@ -530,22 +530,70 @@
   mask: none;
 }
 
-// Filtre du listing serveur : une rangée discrète entre l'en-tête et la liste.
+// Filtre du listing serveur : il vit DANS l'en-tête, déplié depuis
+// l'entonnoir, à largeur contenue. Le fil d'Ariane (flex: 1, min-width: 0)
+// cède la place sans que le champ traverse tout le panneau. Le fermer vide le
+// filtre : jamais de liste réduite par un filtre invisible.
 .explorer__filter {
   display: flex;
   flex: none;
   align-items: center;
   gap: var(--space-2xs);
-  padding: 0 2px var(--space-2xs);
-}
-
-.explorer__filter-glyph {
-  flex: none;
-  color: var(--text-faint);
+  animation: filter-unfold 0.16s ease;
 }
 
 .explorer__filter-field {
-  flex: 1;
+  // Assez pour un nom de fichier, jamais toute la largeur du panneau.
+  width: clamp(120px, 20vw, 200px);
+}
+
+@keyframes filter-unfold {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__filter {
+    animation: none;
+  }
+}
+
+// L'entonnoir de l'en-tête : allumé tant que la rangée est ouverte.
+.explorer__filter-toggle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--on {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+  }
+}
+
+.explorer__filter-count {
+  flex: none;
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.explorer__filter-field {
   min-width: 0;
   padding: 4px 8px;
   border: 1px solid var(--border);
@@ -563,4 +611,48 @@
     outline: none;
     border-color: var(--accent);
   }
+}
+
+// Ligne sélectionnée : le voile d'état teinté par l'accent, comme partout.
+.explorer__row--picked .entry {
+  background: var(--state-selected);
+}
+
+// Éléments coupés, en attente de collage : présents mais déjà partis.
+.explorer__row--cut .entry {
+  opacity: 0.45;
+}
+
+// Dossier survolé par un glisser : la cible du dépôt se voit avant de lâcher.
+.explorer__row--drop .entry {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+// Permissions dans la liste : discrètes, mais une colonne suffit pour repérer
+// un 777 qui traîne.
+.entry__mode {
+  flex: none;
+  min-width: 30px;
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  text-align: right;
+}
+
+// L'étiquette qui suit le curseur pendant un glissé : sans elle, le geste ne
+// se voit pas (il n'y a pas d'image de drag, on n'est pas en drag HTML5).
+.draglabel {
+  position: fixed;
+  z-index: 120;
+  transform: translate(12px, 12px);
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-solid);
+  color: var(--text-inverse);
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-md);
 }

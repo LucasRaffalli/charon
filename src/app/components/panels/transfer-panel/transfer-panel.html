@@ -33,11 +33,22 @@
                   @if (transfer.total > 0) {
                     / {{ transfer.total | fileSize }}
                   }
+                  @if (transfer.speed) {
+                    · {{ transfer.speed | fileSize }}/s
+                  }
                 </span>
               } @else {
                 {{ statusLabel(transfer) }}
               }
             </span>
+            @if (transfer.verify; as verify) {
+              <span
+                class="row__verify row__verify--{{ verify }}"
+                [title]="verifyTitle(transfer)"
+              >
+                {{ verifyLabel(verify) }}
+              </span>
+            }
           </div>
           <div
             class="row__bar"

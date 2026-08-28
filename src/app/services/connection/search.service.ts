@@ -67,6 +67,15 @@ export class SearchService {
    */
   readonly scope = signal<string | null>(null);
 
+  /**
+   * Ce qui a lancé la recherche affichée : c'est ce motif-là qu'un clic sur un
+   * résultat re-cherche dans le fichier ouvert, pas la saisie du moment, qui a
+   * pu changer depuis.
+   */
+  readonly launched = signal<{ query: string; regex: boolean; caseSensitive: boolean } | null>(
+    null,
+  );
+
   readonly running = signal(false);
   readonly hits = signal<SearchHit[]>([]);
   readonly total = computed(() => this.hits().length);
@@ -169,6 +178,7 @@ export class SearchService {
     this.error.set(null);
     this.doneReason.set(null);
     this.searchedRoot.set(root);
+    this.launched.set({ query: raw, regex: this.regex(), caseSensitive: this.caseSensitive() });
     this.running.set(true);
     try {
       this.searchId = await invoke<string>('search_start', {
@@ -201,5 +211,6 @@ export class SearchService {
     this.doneReason.set(null);
     this.running.set(false);
     this.scope.set(null);
+    this.launched.set(null);
   }
 }

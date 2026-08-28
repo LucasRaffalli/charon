@@ -1,0 +1,145 @@
+// Même règle que les autres panneaux : le dock donne un emplacement nu, la
+// gouttière vient d'ici.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: var(--space-2xs);
+  padding: var(--space-xs);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-xs);
+  font-size: calc(12px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 0 2px;
+}
+
+// Le chemin est tronqué par la gauche : la fin porte le sens.
+.bar__where {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+}
+
+.bar__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--danger {
+    border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+    color: var(--danger);
+  }
+}
+
+.list {
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  font-size: calc(12px * var(--text-scale));
+
+  &:hover {
+    background: var(--state-hover);
+  }
+
+  // Les actions ne se montrent qu'au survol : la ligne reste calme.
+  &:not(:hover) .row__act {
+    opacity: 0;
+  }
+}
+
+.row__icon {
+  flex: none;
+  color: var(--text-faint);
+}
+
+.row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row__when,
+.row__size {
+  flex: none;
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.row__act {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--danger:hover {
+    color: var(--danger);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+  }
+}
+
+.empty {
+  padding: var(--space-sm) var(--space-xs);
+  font-size: calc(12px * var(--text-scale));
+  color: var(--text-faint);
+}

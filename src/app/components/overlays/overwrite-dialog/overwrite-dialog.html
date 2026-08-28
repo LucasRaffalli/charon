@@ -7,26 +7,35 @@
       [attr.aria-label]="'Écraser ' + request.name"
       (click)="$event.stopPropagation()"
     >
-      <h2 class="dialog__title">Écraser « {{ request.name }} » ?</h2>
+      <h2 class="dialog__title">« {{ request.name }} » existe déjà</h2>
 
       @if (request.remoteNewer) {
         <p class="dialog__conflict">
           <app-icon name="alert-circle" [size]="14" />
           <span>
-            La version sur le serveur est <strong>plus récente</strong> que votre copie
-            locale : vous risquez d'écraser des changements faits ailleurs.
+            La version de destination est <strong>plus récente</strong> que celle qui
+            arrive : vous risquez d'écraser des changements faits ailleurs.
           </span>
         </p>
       }
 
       <p class="dialog__intro">
-        Ce fichier existe déjà sur le serveur. L'envoi va
-        <strong>remplacer la version du serveur par ta version locale</strong>.
+        @if (request.canKeepBoth) {
+          Un fichier de ce nom est déjà là. Vous pouvez le
+          <strong>remplacer</strong>, <strong>garder les deux</strong> (une copie sera créée
+          à côté), ou comparer les deux versions avant de choisir.
+        } @else {
+          Ce fichier existe déjà sur le serveur. L'envoi va
+          <strong>remplacer la version du serveur par ta version locale</strong>.
+        }
       </p>
 
       <div class="dialog__meta">
         <div class="meta meta--server">
-          <span class="meta__label"><app-icon name="server" [size]="12" /> Serveur : version actuelle (sera remplacée)</span>
+          <span class="meta__label">
+            <app-icon [name]="sides(request).targetIcon" [size]="12" />
+            {{ sides(request).target }}
+          </span>
           <span class="meta__val data">{{ request.remote.size | fileSize }}</span>
           <span class="meta__val" [class.meta__val--warn]="request.remoteNewer">
             @if (ms(request.remote.mtime); as t) {
@@ -37,7 +46,10 @@
           </span>
         </div>
         <div class="meta meta--local">
-          <span class="meta__label"><app-icon name="monitor" [size]="12" /> Local : ce que tu envoies</span>
+          <span class="meta__label">
+            <app-icon [name]="sides(request).sourceIcon" [size]="12" />
+            {{ sides(request).source }}
+          </span>
           <span class="meta__val data">{{ request.local.size | fileSize }}</span>
           <span class="meta__val">
             @if (ms(request.local.mtime); as t) {
@@ -120,7 +132,20 @@
       }
 
       <div class="dialog__actions">
-        <app-button variant="ghost" (click)="cancel()">Annuler</app-button>
+        @if (request.batch) {
+          <!-- Un lot de dix fichiers ne doit pas demander dix fois la même
+               chose : ces deux-là valent pour tout ce qui reste. -->
+          <app-button variant="ghost" (click)="all('skip-all')">
+            Ignorer tout
+          </app-button>
+          <app-button variant="ghost" (click)="all('overwrite-all')">
+            Écraser tout
+          </app-button>
+        }
+        @if (request.canKeepBoth) {
+          <app-button variant="ghost" (click)="all('keep-both')">Garder les deux</app-button>
+        }
+        <app-button variant="ghost" (click)="cancel()">Ignorer</app-button>
         <app-button variant="danger-solid" (click)="confirm()">Écraser</app-button>
       </div>
     </section>

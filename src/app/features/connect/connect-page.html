@@ -238,9 +238,15 @@
     />
   </div>
 
-  <span class="connect__version">Charon · v.{{ version() }}</span>
+  <button
+    type="button"
+    class="connect__version"
+    title="Voir les nouveautés"
+    (click)="whatsNew.show()"
+  >
+    Charon · v.{{ version() }}
+  </button>
 
-  <app-error-toast [message]="visibleError()" (dismiss)="dismissError(visibleError() ?? '')" />
 
 
   @if (showForm() && !sftp.loading() && introDone()) {

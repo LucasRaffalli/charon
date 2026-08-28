@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
-import { Transfer } from '@app/interfaces';
+import { Transfer, VerifyState } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { TransfersService } from '@app/services/files/transfers.service';
 
@@ -14,6 +14,33 @@ import { TransfersService } from '@app/services/files/transfers.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransferPanel {
+  /** L'état de la vérification d'intégrité, en un mot. */
+  protected verifyLabel(state: VerifyState): string {
+    switch (state) {
+      case 'checking':
+        return 'sha256…';
+      case 'ok':
+        return 'intègre';
+      case 'mismatch':
+        return 'empreintes différentes';
+      case 'skipped':
+        return 'non vérifié';
+      default:
+        return 'vérification impossible';
+    }
+  }
+
+  /** Le détail, en infobulle : pourquoi ça n'a pas pu être vérifié. */
+  protected verifyTitle(transfer: Transfer): string {
+    if (transfer.verify === 'ok') {
+      return 'Les empreintes sha256 locale et distante concordent.';
+    }
+    if (transfer.verify === 'mismatch') {
+      return 'Le fichier transféré diffère de la source.';
+    }
+    return transfer.verifyDetail ?? '';
+  }
+
   protected readonly transfers = inject(TransfersService);
 
   protected percent(transfer: Transfer): number {

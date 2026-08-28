@@ -1,0 +1,47 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 109;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: 76vh;
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.sheet__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet__title {
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 650;
+}
+
+.sheet__hint {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.sheet__body {
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  overflow-y: auto;
+}
+

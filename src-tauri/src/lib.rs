@@ -1,11 +1,13 @@
 mod edit;
 mod fs;
 mod ftp;
+mod integrity;
 mod modules;
 mod profiles;
 mod search;
 mod sftp;
 mod shell;
+mod trash;
 
 use ftp::FtpPool;
 use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
@@ -30,10 +32,18 @@ pub fn run() {
             // « hold » qui suspend la fermeture).
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                let mut tick: u32 = 0;
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-                    sftp::reap_idle_connections(&handle).await;
-                    ftp::reap_idle_connections(&handle).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    // Toutes les 5 s : lire l'état local des sessions SSH
+                    // (gratuit). Toutes les 30 s : sonde FTP + inactivité.
+                    sftp::watch_lost_connections(&handle).await;
+                    tick = tick.wrapping_add(1);
+                    if tick % 6 == 0 {
+                        ftp::watch_lost_connections(&handle).await;
+                        sftp::reap_idle_connections(&handle).await;
+                        ftp::reap_idle_connections(&handle).await;
+                    }
                 }
             });
 
@@ -82,6 +92,14 @@ pub fn run() {
             shell::shell_write,
             shell::shell_resize,
             shell::shell_close,
+            integrity::local_sha256,
+            integrity::sftp_sha256,
+            trash::sftp_trash,
+            trash::sftp_trash_list,
+            trash::sftp_trash_size,
+            sftp::sftp_chmod,
+            sftp::sftp_copy,
+            sftp::sftp_probe,
             search::search_start,
             search::search_stop,
             shell::tail_open,

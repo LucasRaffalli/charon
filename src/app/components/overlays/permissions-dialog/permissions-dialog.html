@@ -1,0 +1,90 @@
+@if (permissions.state(); as request) {
+  <div class="scrim" (click)="permissions.close()">
+    <div
+      class="perms"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Permissions"
+      (click)="$event.stopPropagation()"
+      (keydown)="onKeydown($event)"
+    >
+      <div>
+        <div class="perms__file" [title]="request.path">{{ request.entry.name }}</div>
+        <div class="perms__owner">
+          @if (request.entry.owner) {
+            {{ request.entry.owner }}@if (request.entry.group) { · {{ request.entry.group }} }
+          } @else {
+            propriétaire inconnu
+          }
+        </div>
+      </div>
+
+      <!-- Trois classes en lignes, trois droits en colonnes : la disposition
+           d'un chmod, qui se lit sans légende. -->
+      <div class="grid">
+        <span></span>
+        @for (bit of bits; track bit) {
+          <span class="grid__h">{{ bitLabels[bit] }}</span>
+        }
+        @for (cls of classes; track cls) {
+          <span class="grid__l">{{ classLabels[cls] }}</span>
+          @for (bit of bits; track bit) {
+            <button
+              type="button"
+              class="chk"
+              [attr.aria-pressed]="has(cls, bit)"
+              [attr.aria-label]="classLabels[cls] + ' : ' + bitLabels[bit]"
+              (click)="toggle(cls, bit)"
+            >
+              {{ letters[bit] }}
+            </button>
+          }
+        }
+      </div>
+
+      <!-- Les modes courants : c'est ce qu'on tape neuf fois sur dix. -->
+      <div class="presets">
+        @for (preset of presets; track preset.mode) {
+          <button
+            type="button"
+            class="preset"
+            [class.preset--on]="octal() === preset.mode"
+            [title]="preset.hint"
+            (click)="applyPreset(preset.mode)"
+          >
+            {{ preset.mode }}
+          </button>
+        }
+      </div>
+
+      @if (request.entry.isDir) {
+        <app-toggle
+          label="Appliquer à tout le contenu"
+          ariaLabel="Appliquer récursivement"
+          [checked]="recursive()"
+          (checkedChange)="recursive.set($event)"
+        />
+        @if (recursive()) {
+          <p class="perms__warn">
+            Les mêmes droits s'appliqueront aux fichiers comme aux dossiers : les fichiers
+            deviendront exécutables si le bit l'est.
+          </p>
+        }
+      }
+
+      @if (error(); as message) {
+        <p class="perms__error" role="alert">{{ message }}</p>
+      }
+
+      <div class="perms__foot">
+        <span class="perms__octal">{{ octal() }}</span>
+        <span class="perms__sym">{{ request.entry.isDir ? 'd' : '-' }}{{ symbolic() }}</span>
+        <span class="perms__spacer"></span>
+        <app-button variant="ghost" (click)="permissions.close()">Annuler</app-button>
+        <app-button variant="primary" [disabled]="!dirty()" [loading]="saving()" (click)="apply()">
+          Appliquer
+        </app-button>
+      </div>
+    </div>
+  </div>
+}

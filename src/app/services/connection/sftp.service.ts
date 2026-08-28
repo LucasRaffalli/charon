@@ -15,7 +15,7 @@ import { ActivityLogService } from '@app/services/workspace/activity-log.service
 import { FileBrowserState } from '@app/services/connection/file-browser-state';
 
 /** Opérations qu'un `sudo` peut réexécuter (whitelist, côté backend aussi). */
-type SudoOp = 'mkdir' | 'touch' | 'rm_file' | 'rm_dir' | 'rename';
+type SudoOp = 'mkdir' | 'touch' | 'rm_file' | 'rm_dir' | 'rename' | 'chmod' | 'chmod_r';
 
 /** Balise émise par le backend quand la clé d'un hôte inconnu attend confirmation. */
 const UNKNOWN_KEY_TAG = 'CHARON_UNKNOWN_KEY:';
@@ -37,6 +37,8 @@ export class SftpService extends FileBrowserState {
   private readonly _protection = signal<ServerProtection | null>(null);
   private readonly _host = signal('');
   private readonly _profileId = signal<string | null>(null);
+  /** Instant de la connexion : borne basse du bilan de session (idée 06). */
+  private readonly _connectedAt = signal(0);
 
   readonly connectionId = this._connectionId.asReadonly();
   readonly connected = computed(() => this._connectionId() !== null);
@@ -64,6 +66,7 @@ export class SftpService extends FileBrowserState {
    * un dossier d'arrivée.
    */
   readonly profileId = this._profileId.asReadonly();
+  readonly connectedAt = this._connectedAt.asReadonly();
 
   /** Refus central en lecture seule : couvre menus, palette, drag & drop. */
   private guardWritable(action: string, target: string): void {
@@ -110,6 +113,24 @@ export class SftpService extends FileBrowserState {
     super();
     // Le backend ferme les connexions inactives : retour à l'écran de
     // connexion avec un message clair.
+    // Le serveur s'est arrêté, le réseau a lâché, ou la session a été coupée
+    // à distance : la sentinelle du backend l'a vu, on le dit et on ramène à
+    // l'écran de connexion au lieu de rester « connecté » devant un cadavre.
+    void listen<string>('connection:lost', (event) => {
+      if (event.payload !== this._connectionId()) {
+        return;
+      }
+      this._connectionId.set(null);
+      this._settled.set(false);
+      this._currentPath.set('/');
+      this._entries.set([]);
+      this.clearSeen();
+      this._error.set(
+        'La connexion au serveur a été perdue : serveur arrêté, réseau coupé ou session fermée à distance.',
+      );
+      this.activity.log('disconnect', 'remote', event.payload, 'connexion perdue', false);
+    });
+
     void listen<string>('connection:idle-closed', (event) => {
       if (event.payload !== this._connectionId()) {
         return;
@@ -118,6 +139,7 @@ export class SftpService extends FileBrowserState {
       this._settled.set(false);
       this._currentPath.set('/');
       this._entries.set([]);
+      this.clearSeen();
       this._error.set('Session fermée pour inactivité.');
       this.activity.log('disconnect', 'remote', event.payload, 'inactivité');
     });
@@ -257,6 +279,7 @@ export class SftpService extends FileBrowserState {
       return;
     }
 
+    this.clearSeen();
     this._protocol.set(protocol);
     this._profileId.set(params.profileId ?? null);
     this._environment.set(params.environment ?? null);
@@ -264,6 +287,7 @@ export class SftpService extends FileBrowserState {
     this._host.set(params.host);
     this._connectionId.set(id);
     this.activity.log('connect', 'remote', id);
+    this._connectedAt.set(Date.now());
     setTimeout(() => this._settled.set(true), LANDING_MS);
 
     // L'ancre du profil d'abord : c'est le dossier où l'on travaille, et le
@@ -315,6 +339,7 @@ export class SftpService extends FileBrowserState {
     this._profileId.set(null);
     this._currentPath.set('/');
     this._entries.set([]);
+    this.clearSeen();
     this._error.set(null);
   }
 
@@ -334,7 +359,20 @@ export class SftpService extends FileBrowserState {
 
   private withConnection<T>(operation: (id: string) => Promise<T>): Promise<T> {
     const id = this._connectionId();
-    return id ? operation(id) : Promise.reject('Aucune connexion active');
+    if (!id) {
+      return Promise.reject('Aucune connexion active');
+    }
+    // Toute erreur déclenche la sonde : si la session est morte, le backend
+    // émet connection:lost dans les secondes qui suivent au lieu de laisser
+    // l'utilisateur « connecté » à collectionner des timeouts jusqu'à ce que
+    // le keepalive conclue (~95 s). Une erreur légitime (droits refusés) sonde
+    // pour rien, mais un metadata("/") ne coûte presque rien.
+    return operation(id).catch((error: unknown) => {
+      if (this.protocol() === 'sftp' && this._connectionId() === id) {
+        void invoke('sftp_probe', { connectionId: id }).catch(() => undefined);
+      }
+      throw error;
+    });
   }
 
   // --- API médiée pour les modules (mêmes garde-fous que l'utilisateur) ---
@@ -352,6 +390,38 @@ export class SftpService extends FileBrowserState {
     if (parent === this._currentPath()) {
       await this.refresh();
     }
+  }
+
+  /**
+   * Change les permissions (idée 07), avec escalade sudo si le serveur refuse
+   * — c'est le cas courant sur les fichiers d'un autre utilisateur, et
+   * l'escalade existait déjà pour mkdir, rm et mv.
+   */
+  async chmod(path: string, mode: string, recursive: boolean): Promise<void> {
+    this.guardWritable('permissions', path);
+    await this.escalateOnDenied(recursive ? 'chmod_r' : 'chmod', path, mode, () =>
+      this.withConnection((id) =>
+        invoke('sftp_chmod', { connectionId: id, path, mode, recursive }),
+      ),
+    );
+  }
+
+  /**
+   * Déplace une entrée (rename SFTP), sans rafraîchir : un lot relit le
+   * dossier une seule fois. Passe par `renameEntry`, donc par la lecture
+   * seule et l'escalade sudo comme un renommage ordinaire.
+   */
+  async moveTo(from: string, to: string): Promise<void> {
+    await this.renameEntry(from, to);
+  }
+
+  /**
+   * Supprime sans rafraîchir : les suppressions en lot relisent le dossier
+   * une seule fois, à la fin. Les garde-fous (lecture seule, escalade sudo)
+   * restent ceux de `removeEntry`.
+   */
+  async removeSilently(path: string, isDir: boolean): Promise<void> {
+    await this.removeEntry(path, isDir);
   }
 
   async moduleMkdir(path: string): Promise<void> {
@@ -435,7 +505,11 @@ export class SftpService extends FileBrowserState {
           invoke('sftp_sudo', { connectionId: id, op, path, path2: path2 ?? null }),
         );
         const action =
-          op === 'mkdir' || op === 'touch' ? 'mkdir' : op === 'rename' ? 'rename' : 'remove';
+          op === 'mkdir' || op === 'touch'
+            ? 'mkdir'
+            : op === 'rename' || op === 'chmod' || op === 'chmod_r'
+              ? 'rename'
+              : 'remove';
         this.activity.log(action, 'remote', path, 'sudo');
       } catch (sudoError) {
         // Invite annulée : on conserve l'erreur de permission d'origine.

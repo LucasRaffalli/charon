@@ -19,7 +19,7 @@ export interface AccentOption {
   swatch: string;
   /** Les deux teintes que reprend le dégradé quand il suit l'accent. */
   glow: { from: string; to: string };
-  /** Un accent secret n'est jamais listé : il ne s'obtient qu'en tapant son nom. */
+  /** Un accent secret n'est jamais listé : voir SecretAccentService pour l'ouvrir. */
   secret?: boolean;
 }
 

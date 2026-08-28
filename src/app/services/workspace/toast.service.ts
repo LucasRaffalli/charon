@@ -26,6 +26,12 @@ export interface ToastOptions {
   sticky?: boolean;
   /** Identité stable : reposer la même clé remplace au lieu d'empiler. */
   key?: string | null;
+  /**
+   * Durée sur mesure, en millisecondes. Sert quand le toast porte une action
+   * qu'on doit avoir le temps de viser : le barème par nature est calibré pour
+   * une annonce qu'on lit, pas pour un bouton qu'on clique.
+   */
+  life?: number;
 }
 
 /** Une minuterie de toast, suspendable : déplier la pile arrête le compte. */
@@ -123,7 +129,7 @@ export class ToastService {
     // à chaque appel.
     const opts: ToastOptions = typeof options === 'string' ? { detail: options } : (options ?? {});
     const id = this.nextId++;
-    const life = opts.sticky ? 0 : LIFETIME[kind];
+    const life = opts.sticky ? 0 : (opts.life ?? LIFETIME[kind]);
     const toast: Toast = {
       id,
       kind,

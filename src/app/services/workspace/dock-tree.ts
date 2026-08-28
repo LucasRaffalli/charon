@@ -18,6 +18,8 @@ export const ALL_PANELS: readonly DockPanelId[] = [
   'modules',
   // Fermé par défaut : ouvert par la palette ou le clic droit d'un dossier.
   'search',
+  // Fermé par défaut : on l'ouvre quand on cherche à récupérer quelque chose.
+  'trash',
 ];
 
 /** Part de l'espace donnée à un panneau déposé sur un bord de la fenêtre. */

@@ -615,7 +615,19 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);
-  transition: opacity 0.4s ease 0.5s;
+  transition:
+    opacity 0.4s ease 0.5s,
+    color 0.15s ease;
+  // Devenue un bouton (elle ouvre les nouveautés) : elle doit rester le
+  // discret filigrane qu'elle était.
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-muted);
+  }
 }
 
 .connect[data-phase='dark'] .connect__version,

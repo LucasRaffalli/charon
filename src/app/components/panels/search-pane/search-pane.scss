@@ -1,11 +1,14 @@
 // Colonne : barre de recherche, options, résultats qui prennent le reste,
 // statut collé en bas. Même architecture que le panneau de logs.
+// La gouttière est portée par le panneau : le dock donne un emplacement nu
+// (`.group__slot` n'a pas de padding), chaque contenu décide de sa marge.
 :host {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   gap: var(--space-xs);
+  padding: var(--space-xs);
 }
 
 .bar {

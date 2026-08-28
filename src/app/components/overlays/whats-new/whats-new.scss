@@ -1,0 +1,230 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 109;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(600px, 100%);
+  max-height: 80vh;
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.sheet__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet__title {
+  font-size: calc(15px * var(--text-scale));
+  font-weight: 650;
+}
+
+.sheet__hint {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+// Une donnée d'usage se dit, même locale : personne ne devrait avoir à
+// deviner ce qui est mesuré.
+.sheet__privacy {
+  font-size: calc(10.5px * var(--text-scale));
+  line-height: 1.4;
+  color: var(--text-faint);
+  max-width: 46ch;
+}
+
+.sheet__body {
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+.sheet__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+// Le fil du carnet de bord, comme dans les réglages : une même chose se
+// raconte de la même façon aux deux endroits.
+.log {
+  position: relative;
+  padding-left: 22px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 6px;
+    bottom: 4px;
+    width: 1px;
+    background: linear-gradient(180deg, var(--border-strong), transparent);
+  }
+}
+
+.rel {
+  position: relative;
+  padding-bottom: var(--space-md);
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 6px;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    box-shadow: 0 0 0 3px var(--elev-2);
+  }
+
+  &--now::before {
+    background: var(--accent);
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+.rel__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-xs);
+  margin-bottom: var(--space-2xs);
+}
+
+.rel__v {
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 650;
+}
+
+.rel__date {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.rel__badge {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+// Une version plus récente que celle installée : livrée, mais pas encore ici.
+.rel__badge--soon {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.rel__title {
+  width: 100%;
+  font-size: calc(12.5px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.rel__notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// Chaque note porte son étiquette : on cherche « quoi de neuf » ou « est-ce
+// que c'est corrigé », rarement la liste entière.
+.note {
+  display: flex;
+  // En tête de bloc et non sur la ligne de base : la note peut désormais
+  // porter son mode d'emploi en dessous, l'étiquette doit rester en haut.
+  align-items: flex-start;
+  gap: var(--space-xs);
+  padding: 3px 0;
+  font-size: calc(12.5px * var(--text-scale));
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+// Le mode d'emploi, replié par défaut : une liste dont chaque ligne porterait
+// son paragraphe ne se lirait plus comme un journal.
+.note__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.note__how-btn {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.note__how {
+  margin: 2px 0 4px;
+  padding: var(--space-2xs) var(--space-xs);
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--state-hover);
+  font-size: calc(11.5px * var(--text-scale));
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.note__tag {
+  flex: none;
+  min-width: 62px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  background: var(--state-hover);
+  color: var(--text-faint);
+}
+
+.note--new .note__tag {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.note--better .note__tag {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.note--fixed .note__tag {
+  background: var(--warning-bg);
+  color: var(--warning);
+}

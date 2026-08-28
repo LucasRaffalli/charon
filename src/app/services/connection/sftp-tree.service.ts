@@ -142,19 +142,29 @@ export class SftpTreeService {
     }));
   }
 
-  /** Déplie la chaîne de dossiers menant à `path` (sans refetch de l'existant). */
+  /**
+   * Déplie la chaîne de dossiers menant à `path`, sans refetch de l'existant.
+   *
+   * Le dossier CIBLE ne coûte jamais de requête : la vue principale vient de
+   * le lister, ses entrées sont déjà là. Ne partent au réseau que les
+   * ancêtres jamais matérialisés — et en navigation ordinaire (descendre d'un
+   * cran), ils sont déjà tous dépliés : zéro requête d'arbre.
+   */
   private async reveal(path: string): Promise<void> {
     const segments = path.split('/').filter(Boolean);
-    let current = '/';
     const chain = ['/', ...segments.map((_, i) => `/${segments.slice(0, i + 1).join('/')}`)];
     for (const step of chain) {
-      current = step;
-      const node = findNode(this._root(), current);
+      const node = findNode(this._root(), step);
       if (!node) {
         return;
       }
+      if (step === path) {
+        this.patch(step, (n) => ({ ...n, expanded: true }));
+        this.mergeChildren(step, this.sftp.entries());
+        return;
+      }
       if (!node.expanded || node.children === null) {
-        await this.expand(current);
+        await this.expand(step);
       }
     }
   }

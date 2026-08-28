@@ -143,3 +143,34 @@
   color: var(--accent);
   flex-shrink: 0;
 }
+
+// Vérification d'intégrité : « le fichier est identique » plutôt que « le
+// fichier est parti ». Un échec doit se voir, une impossibilité aussi — jamais
+// de silence qui passerait pour un succès.
+.row__verify {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--state-hover);
+  color: var(--text-faint);
+
+  &--ok {
+    background: var(--success-bg);
+    color: var(--success);
+  }
+
+  &--mismatch {
+    background: var(--danger-bg);
+    color: var(--danger);
+  }
+
+  &--error,
+  &--skipped {
+    background: var(--warning-bg);
+    color: var(--warning);
+  }
+}

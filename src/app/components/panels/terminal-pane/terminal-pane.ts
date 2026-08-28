@@ -52,6 +52,8 @@ export class TerminalPane {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly closed = signal(false);
+  /** Une relance est en cours : le bouton ne doit pas être cliqué deux fois. */
+  protected readonly restarting = signal(false);
   protected readonly error = signal<string | null>(null);
 
   /**
@@ -114,6 +116,32 @@ export class TerminalPane {
       }
       this.terminal?.dispose();
     });
+  }
+
+  /**
+   * Relance un shell après un `exit` (idée 05 : le cul-de-sac).
+   *
+   * Jusqu'ici, la session terminée affichait « Session du terminal terminée. »
+   * et rien d'autre : un `exit` tapé par réflexe condamnait l'onglet pour
+   * toute la session Charon. La session SSH, elle, est toujours ouverte —
+   * relancer ne coûte qu'un canal, ni reconnexion ni authentification.
+   */
+  protected async restart(): Promise<void> {
+    const terminal = this.terminal;
+    if (!terminal || this.restarting()) {
+      return;
+    }
+    this.restarting.set(true);
+    this.closed.set(false);
+    this.error.set(null);
+    // Le nouveau shell repart d'un écran propre, pas sous le « logout ».
+    terminal.reset();
+    this.terminalId = null;
+    this.lastSent = '';
+    this.typed = 0;
+    this.pending.set(null);
+    await this.startShell(terminal);
+    this.restarting.set(false);
   }
 
   protected toggleFollow(): void {
@@ -409,6 +437,13 @@ export class TerminalPane {
     }
   }
 
+  /**
+   * L'I/O n'est branchée qu'une fois. Une relance rouvre un canal, elle ne
+   * doit pas rebrancher : deux abonnements enverraient chaque frappe en
+   * double et écriraient chaque paquet reçu deux fois.
+   */
+  private wired = false;
+
   /** Ouvre le shell SSH une fois le conteneur dimensionné, et branche l'I/O. */
   private async startShell(terminal: Terminal): Promise<void> {
     const connectionId = this.sftp.connectionId();
@@ -425,8 +460,19 @@ export class TerminalPane {
       this.terminalId = id;
     } catch (err) {
       this.error.set(typeof err === 'string' ? err : String(err));
+      this.closed.set(true);
       return;
     }
+
+    if (this.wired) {
+      // Relance : le canal est neuf, les abonnements sont ceux d'origine et
+      // suivent `terminalId`, qui vient de changer.
+      this.openingCd = this.terminals.jump()?.path ?? this.sftp.currentPath();
+      this.openingGiveUp = setTimeout(() => (this.openingCd = null), OPENING_GIVE_UP_MS);
+      terminal.focus();
+      return;
+    }
+    this.wired = true;
 
     terminal.onData((data) => {
       this.trackInput(data);

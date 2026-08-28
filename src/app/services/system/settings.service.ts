@@ -7,6 +7,8 @@ const STORAGE_KEY = 'charon:settings';
 
 const DEFAULT_SETTINGS: Settings = {
   showHidden: false,
+  verifyTransfers: false,
+  trashDays: 7,
   idleMinutes: 15,
   editorApp: '',
 };
@@ -21,6 +23,8 @@ export class SettingsService {
   readonly panelOpen = this._panelOpen.asReadonly();
 
   readonly showHidden = computed(() => this._settings().showHidden);
+  readonly verifyTransfers = computed(() => this._settings().verifyTransfers);
+  readonly trashDays = computed(() => this._settings().trashDays);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly editorApp = computed(() => this._settings().editorApp);
 
@@ -58,6 +62,10 @@ export class SettingsService {
       // Ne reprend que les clés connues (purge les réglages disparus).
       return {
         showHidden: parsed.showHidden ?? DEFAULT_SETTINGS.showHidden,
+        verifyTransfers: parsed.verifyTransfers ?? DEFAULT_SETTINGS.verifyTransfers,
+        // Borné à l'année : une corbeille qu'on ne purge jamais se règle
+        // avec 0, pas avec un nombre de jours absurde.
+        trashDays: Math.min(365, Math.max(0, parsed.trashDays ?? DEFAULT_SETTINGS.trashDays)),
         idleMinutes: parsed.idleMinutes ?? DEFAULT_SETTINGS.idleMinutes,
         editorApp: parsed.editorApp ?? DEFAULT_SETTINGS.editorApp,
       };

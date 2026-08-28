@@ -16,7 +16,6 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { Button } from '@app/components/ui/button/button';
 import { AuroraSky } from '@app/components/brand/aurora-sky/aurora-sky';
-import { ErrorToast } from '@app/components/overlays/error-toast/error-toast';
 import { AdvancedOptions } from '@app/features/connect/advanced-options/advanced-options';
 import { Traversal } from '@app/features/connect/traversal/traversal';
 import { CharonGlyph } from '@app/components/brand/charon-logo/charon-glyph';
@@ -39,6 +38,7 @@ import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { UpdaterService } from '@app/services/system/updater.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { WhatsNewService } from '@app/services/system/whats-new.service';
 
 const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
 
@@ -70,7 +70,6 @@ type Panel = 'form' | 'servers';
     AuroraSky,
     Button,
     CharonGlyph,
-    ErrorToast,
     Icon,
     SegmentedControl,
     TextField,
@@ -113,6 +112,17 @@ export class ConnectPage implements OnDestroy {
 
   private readonly updater = inject(UpdaterService);
   private readonly toasts = inject(ToastService);
+  protected readonly whatsNew = inject(WhatsNewService);
+
+  private readonly errorToast = effect(() => {
+    const message = this.currentError();
+    if (message) {
+      this.toasts.error(message, { key: 'connect-error' });
+    } else {
+      // L'erreur s'est dissipée (nouvelle tentative en cours) : la carte suit.
+      this.toasts.dismissKey('connect-error');
+    }
+  });
 
   /** Salut selon l'heure, et le prénom si le système veut bien le donner. */
   protected readonly userName = signal('');
@@ -185,15 +195,13 @@ export class ConnectPage implements OnDestroy {
   protected readonly traversing = computed(() => this.sftp.loading() || this.sftp.connected());
 
   /**
-   * Les erreurs s'annoncent en carte flottante plutôt qu'en ligne dans le
-   * panneau : le formulaire garde sa taille, et un échec de connexion se
-   * remarque mieux qu'un texte glissé entre deux champs.
+   * Les erreurs s'annoncent dans la pile de toasts commune, au régime normal
+   * des erreurs : 9 s, ligne de temps, survol qui suspend. Une nouvelle
+   * tentative vide l'erreur puis la repose, donc la carte revient d'elle-même
+   * si l'échec se répète, et la clé fait qu'elle se remplace au lieu de
+   * s'empiler.
    */
-  private readonly dismissedError = signal<string | null>(null);
-  protected readonly visibleError = computed(() => {
-    const error = this.sftp.error() ?? this.profiles.error();
-    return error && error !== this.dismissedError() ? error : null;
-  });
+  private readonly currentError = computed(() => this.sftp.error() ?? this.profiles.error());
 
   /** Vrai dès la première bascule d'onglet : l'ouverture a sa propre cascade. */
   protected readonly switching = signal(false);
@@ -455,10 +463,6 @@ export class ConnectPage implements OnDestroy {
    */
   protected cancelConnect(): void {
     this.sftp.cancelConnect();
-  }
-
-  protected dismissError(message: string): void {
-    this.dismissedError.set(message);
   }
 
   protected setPanel(panel: string): void {

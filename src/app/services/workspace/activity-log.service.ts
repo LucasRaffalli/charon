@@ -11,6 +11,14 @@ const MAX_ENTRIES = 500;
  * dossiers, renommages, suppressions, transferts), persistée sur le poste.
  * Rien ne quitte la machine.
  */
+/** Une nature d'action et son compte, pour le bilan de session (idée 06). */
+export interface SessionTally {
+  kind: ActivityKind;
+  count: number;
+  /** La plus récente des cibles : de quoi situer sans tout lister. */
+  sample: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ActivityLogService {
   private readonly _entries = signal<ActivityEntry[]>(this.load());
@@ -32,6 +40,35 @@ export class ActivityLogService {
   ): void {
     const entry: ActivityEntry = { at: Date.now(), kind, scope, target, detail, ok };
     this._entries.update((list) => [entry, ...list].slice(0, MAX_ENTRIES));
+  }
+
+  /**
+   * Ce qui a été touché depuis un instant donné, regroupé par nature (idée 06,
+   * le bilan de session). Construit sur le journal qui existe déjà : rien à
+   * enregistrer de plus, il suffit de regarder en arrière.
+   *
+   * Les erreurs et les gestes sans conséquence (connexion, ancre) sont
+   * écartés : le bilan répond à « qu'est-ce que j'ai changé », pas à « qu'ai-je
+   * fait ».
+   */
+  since(at: number): SessionTally[] {
+    const counted = new Map<ActivityKind, { count: number; sample: string }>();
+    for (const entry of this._entries()) {
+      if (entry.at < at || !entry.ok) {
+        continue;
+      }
+      if (entry.kind === 'connect' || entry.kind === 'disconnect' || entry.kind === 'anchor') {
+        continue;
+      }
+      const seen = counted.get(entry.kind);
+      if (seen) {
+        seen.count++;
+      } else {
+        // Le premier rencontré est le plus récent : c'est celui qu'on montre.
+        counted.set(entry.kind, { count: 1, sample: entry.target });
+      }
+    }
+    return [...counted].map(([kind, data]) => ({ kind, ...data }));
   }
 
   clear(): void {

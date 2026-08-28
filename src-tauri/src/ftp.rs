@@ -168,6 +168,10 @@ pub async fn ftp_list_dir(
             name: file.name().to_string(),
             is_dir: file.is_directory(),
             size: file.size() as u64,
+            // Le parseur LIST reconstitue les droits depuis `drwxr-xr-x`.
+            mode: Some(ftp_mode(&file)),
+            owner: None,
+            group: None,
         })
         .collect();
 
@@ -548,6 +552,52 @@ async fn stream_upload(
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
     emit_progress(app, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
+}
+
+/// Sentinelle des connexions FTP mortes : un NOOP sondé quand le stream est
+/// libre. Occupé = une opération est en cours = la connexion vit, inutile
+/// d'attendre le verrou.
+pub async fn watch_lost_connections(app: &tauri::AppHandle) {
+    use tauri::{Emitter, Manager};
+    let pool = app.state::<FtpPool>();
+    let conns: Vec<(String, Arc<FtpConnection>)> = pool
+        .inner()
+        .0
+        .lock()
+        .await
+        .iter()
+        .map(|(id, conn)| (id.clone(), conn.clone()))
+        .collect();
+
+    for (id, conn) in conns {
+        let Ok(mut stream) = conn.stream.try_lock() else {
+            continue;
+        };
+        let alive = tokio::time::timeout(std::time::Duration::from_secs(10), stream.noop())
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false);
+        drop(stream);
+        if !alive {
+            pool.inner().0.lock().await.remove(&id);
+            eprintln!("[charon] connexion FTP perdue : {id}");
+            let _ = app.emit("connection:lost", &id);
+        }
+    }
+}
+
+/// Les permissions telles que le parseur LIST les a lues, en bits POSIX.
+fn ftp_mode(file: &suppaftp::list::File) -> u32 {
+    let bit = |on: bool, weight: u32| if on { weight } else { 0 };
+    bit(file.can_read(suppaftp::list::PosixPexQuery::Owner), 0o400)
+        | bit(file.can_write(suppaftp::list::PosixPexQuery::Owner), 0o200)
+        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Owner), 0o100)
+        | bit(file.can_read(suppaftp::list::PosixPexQuery::Group), 0o040)
+        | bit(file.can_write(suppaftp::list::PosixPexQuery::Group), 0o020)
+        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Group), 0o010)
+        | bit(file.can_read(suppaftp::list::PosixPexQuery::Others), 0o004)
+        | bit(file.can_write(suppaftp::list::PosixPexQuery::Others), 0o002)
+        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Others), 0o001)
 }
 
 // ---------- Recherche récursive (voir search.rs) ----------

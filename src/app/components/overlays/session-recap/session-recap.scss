@@ -1,0 +1,98 @@
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+}
+
+.recap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  width: min(380px, 100%);
+  padding: var(--space-md);
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.recap__title {
+  font-size: calc(13px * var(--text-scale));
+  font-weight: 650;
+}
+
+.recap__host {
+  font-family: var(--font-mono);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+
+  b {
+    color: var(--danger);
+  }
+}
+
+.recap__list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: calc(12px * var(--text-scale));
+}
+
+.recap__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+// La pastille dit la nature avant que le texte soit lu. Carrée, comme partout.
+.recap__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: var(--text-faint);
+
+  &--ok {
+    background: var(--success);
+  }
+
+  &--accent {
+    background: var(--accent);
+  }
+
+  &--warn {
+    background: var(--warning);
+  }
+
+  &--err {
+    background: var(--danger);
+  }
+}
+
+// Le chemin à droite : il situe sans encombrer la lecture de la ligne.
+.recap__path {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.recap__actions {
+  display: flex;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
+
+  app-button {
+    flex: 1;
+  }
+}

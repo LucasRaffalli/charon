@@ -120,9 +120,16 @@ export class SearchPane {
    */
   protected async open(hit: SearchHit): Promise<void> {
     if (hit.line !== null) {
-      // Un résultat de contenu est forcément un fichier.
+      // Un résultat de contenu est un fichier, et on sait quoi y montrer : le
+      // motif qui a amené ici, déjà surligné, à la bonne ligne (portée B).
+      const seed = this.search.launched();
       this.dock.openPanel('preview');
-      await this.preview.openFile(hit.path, baseName(hit.path));
+      await this.preview.openFileAt(hit.path, baseName(hit.path), {
+        line: hit.line,
+        query: seed?.query ?? '',
+        regex: seed?.regex ?? false,
+        caseSensitive: seed?.caseSensitive ?? false,
+      });
       return;
     }
     const isDir = hit.isDir || ((await this.sftp.stat(hit.path))?.isDir ?? false);

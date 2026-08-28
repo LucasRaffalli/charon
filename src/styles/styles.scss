@@ -9,3 +9,11 @@
 
 // Styles du terminal intégré (xterm.js)
 @import "@xterm/xterm/css/xterm.css";
+
+// Glissé de fichiers en cours (déplacement interne dans l'explorateur) : la
+// sélection de texte gênerait le geste, et le curseur doit dire ce qui se
+// passe. Posé sur <body> par ExplorerPage, le temps du glissé.
+body.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}

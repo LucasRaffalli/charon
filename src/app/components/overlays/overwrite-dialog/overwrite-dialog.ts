@@ -5,7 +5,7 @@ import { Button } from '@app/components/ui/button/button';
 import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { DiffLine, diffStats, toSplitRows } from '@app/services/files/diff';
-import { OverwriteService } from '@app/services/files/overwrite.service';
+import { OverwriteRequest, OverwriteSides, UPLOAD_SIDES, OverwriteService } from '@app/services/files/overwrite.service';
 
 type DiffState =
   | { kind: 'idle' }
@@ -23,6 +23,11 @@ type DiffView = 'split' | 'unified';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OverwriteDialog {
+  /** Les libellés des deux côtés : envoi par défaut, collage si précisé. */
+  protected sides(request: OverwriteRequest): OverwriteSides {
+    return request.sides ?? UPLOAD_SIDES;
+  }
+
   protected readonly overwrite = inject(OverwriteService);
   protected readonly diff = signal<DiffState>({ kind: 'idle' });
   protected readonly view = signal<DiffView>('split');
@@ -66,6 +71,12 @@ export class OverwriteDialog {
   protected cancel(): void {
     this.reset();
     this.overwrite.settle('cancel');
+  }
+
+  /** Décisions autres que les deux boutons principaux. */
+  protected all(decision: 'overwrite-all' | 'skip-all' | 'keep-both'): void {
+    this.reset();
+    this.overwrite.settle(decision);
   }
 
   private reset(): void {

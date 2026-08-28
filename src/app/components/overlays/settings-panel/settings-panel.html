@@ -60,6 +60,39 @@
                 />
               </div>
 
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Vérifier les transferts</span>
+                  <span class="setting__desc">
+                    Comparer les empreintes sha256 après chaque transfert. Coûte une lecture
+                    complète des deux côtés. SFTP uniquement.
+                  </span>
+                </div>
+                <app-toggle
+                  ariaLabel="Vérifier l'intégrité des transferts"
+                  [checked]="settings.verifyTransfers()"
+                  (checkedChange)="settings.update({ verifyTransfers: $event })"
+                />
+              </div>
+
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">Corbeille distante</span>
+                  <span class="setting__desc">
+                    Supprimer déplace vers un dossier .charon-trash au lieu d'effacer. Purgée à la
+                    connexion au-delà de ce nombre de jours. 0 = ne jamais purger.
+                  </span>
+                </div>
+                <app-text-field
+                  class="setting__minutes"
+                  type="number"
+                  name="trash-days"
+                  ariaLabel="Jours de rétention de la corbeille"
+                  [value]="'' + settings.trashDays()"
+                  (valueChange)="setTrashDays($event)"
+                />
+              </div>
+
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">Éditeur externe</span>
@@ -93,6 +126,17 @@
                   (valueChange)="setIdleMinutes($event)"
                 />
               </div>
+            }
+            @case ('shortcuts') {
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">Raccourcis clavier</span>
+                  <span class="setting__desc">
+                    Tout ce que Charon écoute au clavier. Accessible aussi par ⌘/.
+                  </span>
+                </div>
+              </div>
+              <app-shortcuts-list />
             }
             @case ('data') {
               <div class="setting setting--stack">

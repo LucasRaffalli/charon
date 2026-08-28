@@ -10,6 +10,12 @@ export type TransferDirection = 'download' | 'upload';
 export type TransferStatus = 'active' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
 /** Un transfert suivi par la file (streaming côté Rust, persisté pour la reprise). */
+/**
+ * Où en est la vérification d'intégrité (idée 04) : les empreintes sha256
+ * locale et distante ont-elles été comparées, et que disent-elles ?
+ */
+export type VerifyState = 'checking' | 'ok' | 'mismatch' | 'skipped' | 'error';
+
 export interface Transfer {
   id: string;
   name: string;
@@ -23,4 +29,12 @@ export interface Transfer {
   connectionId: string;
   remotePath: string;
   localPath: string;
+  /** Epoch ms du départ : sert au calcul du débit. */
+  startedAt?: number;
+  /** Débit moyen en octets par seconde, 0 tant qu'il est inconnu. */
+  speed?: number;
+  /** Vérification d'intégrité, absente si elle n'a pas été demandée. */
+  verify?: VerifyState;
+  /** Ce qui a empêché la vérification, quand `verify` vaut error ou skipped. */
+  verifyDetail?: string;
 }

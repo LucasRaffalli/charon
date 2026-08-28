@@ -11,6 +11,23 @@ import { ToastService } from '@app/services/workspace/toast.service';
 
 export type PreviewKind = 'loading' | 'text' | 'image' | 'binary' | 'error';
 
+/** Une occurrence trouvée dans le fichier ouvert (portée B de docs/search.md). */
+export interface FindMatch {
+  start: number;
+  end: number;
+  /** Ligne (à partir de 1), pour le compteur et le saut depuis la recherche. */
+  line: number;
+}
+
+/**
+ * Plafond d'occurrences : au-delà, chercher une lettre dans un gros fichier
+ * fabriquerait des dizaines de milliers de marques dans le DOM.
+ */
+const MAX_FIND_MATCHES = 2000;
+
+const escapeHtml = (raw: string): string =>
+  raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 /** Taille max lue pour l'aperçu/édition (au-delà : aperçu tronqué en lecture seule). */
 const PREVIEW_MAX = 512 * 1024;
 
@@ -94,6 +111,181 @@ export class PreviewService {
   /** Aperçu markdown affiché à la place de l'éditeur. */
   readonly markdownView = this._markdownView.asReadonly();
 
+  // ---------- Recherche dans le fichier (portée B) ----------
+
+  /** La barre est ouverte. La saisie survit à sa fermeture, pas à un autre fichier. */
+  readonly findOpen = signal(false);
+  readonly findQuery = signal('');
+  readonly findRegex = signal(false);
+  readonly findCase = signal(false);
+  private readonly _findIndex = signal(0);
+
+  /** En mode regex, un motif qui ne compile pas : signalé, jamais utilisé. */
+  readonly findInvalid = computed(() => {
+    if (!this.findRegex() || !this.findQuery()) {
+      return false;
+    }
+    try {
+      new RegExp(this.findQuery());
+      return false;
+    } catch {
+      return true;
+    }
+  });
+
+  /**
+   * Les occurrences dans le contenu courant. Recalculées à chaque frappe des
+   * deux côtés (le champ de recherche ET l'éditeur), comme la coloration.
+   */
+  readonly findMatches = computed<FindMatch[]>(() => {
+    if (!this.findOpen() || this._kind() !== 'text') {
+      return [];
+    }
+    const query = this.findQuery();
+    if (!query) {
+      return [];
+    }
+    const content = this._content();
+    const matches: FindMatch[] = [];
+
+    if (this.findRegex()) {
+      let pattern: RegExp;
+      try {
+        pattern = new RegExp(query, this.findCase() ? 'g' : 'gi');
+      } catch {
+        return [];
+      }
+      let found: RegExpExecArray | null;
+      while ((found = pattern.exec(content)) !== null && matches.length < MAX_FIND_MATCHES) {
+        if (found[0].length === 0) {
+          // Un motif qui matche vide (`a*`) n'avance pas tout seul.
+          pattern.lastIndex++;
+          continue;
+        }
+        matches.push({ start: found.index, end: found.index + found[0].length, line: 0 });
+      }
+    } else {
+      const haystack = this.findCase() ? content : content.toLowerCase();
+      const needle = this.findCase() ? query : query.toLowerCase();
+      let at = haystack.indexOf(needle);
+      while (at !== -1 && matches.length < MAX_FIND_MATCHES) {
+        matches.push({ start: at, end: at + needle.length, line: 0 });
+        at = haystack.indexOf(needle, at + needle.length);
+      }
+    }
+
+    // Les lignes en une seule passe : les occurrences sont déjà dans l'ordre.
+    let line = 1;
+    let cursor = 0;
+    for (const match of matches) {
+      while (cursor < match.start) {
+        if (content.charCodeAt(cursor) === 10) {
+          line++;
+        }
+        cursor++;
+      }
+      match.line = line;
+    }
+    return matches;
+  });
+
+  readonly findCapped = computed(() => this.findMatches().length >= MAX_FIND_MATCHES);
+
+  /** L'index courant, toujours ramené dans la liste réelle. */
+  readonly findIndex = computed(() => {
+    const count = this.findMatches().length;
+    return count === 0 ? 0 : Math.min(this._findIndex(), count - 1);
+  });
+
+  readonly currentMatch = computed<FindMatch | null>(
+    () => this.findMatches()[this.findIndex()] ?? null,
+  );
+
+  /**
+   * La couche d'occurrences : le contenu entier, échappé, avec une marque par
+   * occurrence. Elle se glisse SOUS la coloration (texte transparent, seuls
+   * les fonds se voient) : injecter des marques dans le HTML de Prism
+   * casserait ses spans.
+   */
+  readonly findLayer = computed<string | null>(() => {
+    const matches = this.findMatches();
+    if (!matches.length) {
+      return null;
+    }
+    const content = this._content();
+    const current = this.findIndex();
+    const parts: string[] = [];
+    let cursor = 0;
+    matches.forEach((match, index) => {
+      parts.push(escapeHtml(content.slice(cursor, match.start)));
+      const now = index === current ? ' occ--now' : '';
+      parts.push(`<mark class="occ${now}">${escapeHtml(content.slice(match.start, match.end))}</mark>`);
+      cursor = match.end;
+    });
+    parts.push(escapeHtml(content.slice(cursor)));
+    return parts.join('');
+  });
+
+  /**
+   * Saut demandé sans occurrence à montrer (le motif a disparu du fichier) :
+   * le panneau défile jusqu'à la ligne, à défaut de mieux. `stamp` rend deux
+   * demandes de la même ligne distinctes.
+   */
+  readonly jumpLine = signal<{ line: number; stamp: number } | null>(null);
+
+  openFind(): void {
+    if (this._kind() === 'text') {
+      this.findOpen.set(true);
+    }
+  }
+
+  closeFind(): void {
+    this.findOpen.set(false);
+  }
+
+  findNext(): void {
+    const count = this.findMatches().length;
+    if (count) {
+      this._findIndex.set((this.findIndex() + 1) % count);
+    }
+  }
+
+  findPrev(): void {
+    const count = this.findMatches().length;
+    if (count) {
+      this._findIndex.set((this.findIndex() - 1 + count) % count);
+    }
+  }
+
+  /**
+   * Ouvre un fichier et saute à une ligne, en re-cherchant le motif qui a
+   * amené ici : c'est le débouché de la recherche récursive, l'occurrence
+   * arrive déjà surlignée. Si le motif ne s'y trouve plus (le fichier a bougé
+   * depuis), on défile au moins jusqu'à la ligne.
+   */
+  async openFileAt(
+    remotePath: string,
+    name: string,
+    jump: { line: number; query: string; regex: boolean; caseSensitive: boolean },
+  ): Promise<void> {
+    await this.openFile(remotePath, name);
+    if (this._kind() !== 'text') {
+      return;
+    }
+    if (jump.query) {
+      this.findQuery.set(jump.query);
+      this.findRegex.set(jump.regex);
+      this.findCase.set(jump.caseSensitive);
+      this.findOpen.set(true);
+      const at = this.findMatches().findIndex((match) => match.line >= jump.line);
+      if (at >= 0) {
+        this._findIndex.set(at);
+        return;
+      }
+    }
+    this.jumpLine.set({ line: jump.line, stamp: Date.now() });
+  }
+
   /** Markdown rendu, recalculé au fil des modifications. */
   readonly renderedMarkdown = computed(() =>
     this._isMarkdown() && this._markdownView() ? renderMarkdown(this._content()) : '',
@@ -114,6 +306,10 @@ export class PreviewService {
     this._path.set(remotePath);
     this._kind.set('loading');
     this._content.set('');
+    // La recherche appartenait au fichier précédent.
+    this.findOpen.set(false);
+    this._findIndex.set(0);
+    this.jumpLine.set(null);
     this._original.set('');
     this._imageSrc.set('');
     this._readonly.set(false);

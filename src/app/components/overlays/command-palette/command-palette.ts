@@ -62,10 +62,9 @@ const score = (command: PaletteCommand, query: string): number => {
   templateUrl: './command-palette.html',
   styleUrl: './command-palette.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    '(document:keydown.meta.k)': 'toggle($event)',
-    '(document:keydown.control.k)': 'toggle($event)',
-  },
+  // ⌘K est déclaré dans le registre des raccourcis (ShortcutsService) : un
+  // écouteur ici en plus le ferait tirer deux fois, et il n'apparaîtrait pas
+  // dans la liste ⌘/.
 })
 export class CommandPalette {
   protected readonly palette = inject(CommandPaletteService);

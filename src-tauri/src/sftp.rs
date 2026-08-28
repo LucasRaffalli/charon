@@ -160,6 +160,15 @@ pub struct FileEntry {
     pub name: String,
     pub is_dir: bool,
     pub size: u64,
+    /// Permissions POSIX (les 12 bits utiles), `None` si le serveur ne les
+    /// donne pas — c'est le cas de certains serveurs SFTP non-Unix.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<u32>,
+    /// Propriétaire, quand le serveur le nomme. L'uid brut n'apprend rien.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 /// Métadonnées d'une entrée (pour détecter conflits / écrasements).
@@ -305,6 +314,58 @@ pub fn set_idle_timeout(config: State<'_, IdleConfig>, minutes: u64) -> Result<(
 /// Ferme les connexions inutilisées depuis plus que le délai configuré et
 /// prévient le front (`connection:idle-closed`). Appelé périodiquement
 /// par la tâche de fond de `lib.rs`.
+/// Sonde une connexion après une erreur de commande.
+///
+/// Une opération qui échoue en « Timeout » est un signal fort, mais pas une
+/// preuve : un dossier aux droits refusés échoue aussi. La sonde tranche avec
+/// un `metadata("/")` borné à 5 s — la racine se lit toujours sur une session
+/// vivante. Morte : retirée du pool + `connection:lost`, sans attendre les
+/// ~95 s du keepalive.
+#[tauri::command]
+pub async fn sftp_probe(
+    app: AppHandle,
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+) -> Result<bool, String> {
+    let Some(conn) = pool.inner().0.lock().await.get(&connection_id).cloned() else {
+        return Ok(false);
+    };
+
+    let alive = !conn._handle.is_closed()
+        && tokio::time::timeout(std::time::Duration::from_secs(5), conn.sftp.metadata("/"))
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false);
+
+    if !alive {
+        pool.inner().0.lock().await.remove(&connection_id);
+        eprintln!("[charon] connexion perdue (sonde) : {connection_id}");
+        let _ = app.emit("connection:lost", &connection_id);
+    }
+    Ok(alive)
+}
+
+/// Sentinelle des connexions mortes : russh ferme la session de lui-même
+/// quand le serveur s'arrête ou coupe (keepalive 30 s ×3, ou erreur TCP
+/// immédiate sur un kick) — mais personne ne le remarquait, et le front
+/// restait « connecté » devant un cadavre. Cette passe ne coûte AUCUN
+/// aller-retour : elle lit l'état que russh tient déjà.
+pub async fn watch_lost_connections(app: &AppHandle) {
+    use tauri::Manager;
+    let pool = app.state::<ConnectionPool>();
+    let mut map = pool.inner().0.lock().await;
+    let dead: Vec<String> = map
+        .iter()
+        .filter(|(_, conn)| conn._handle.is_closed())
+        .map(|(id, _)| id.clone())
+        .collect();
+    for id in dead {
+        map.remove(&id);
+        eprintln!("[charon] connexion perdue : {id}");
+        let _ = app.emit("connection:lost", &id);
+    }
+}
+
 pub async fn reap_idle_connections(app: &AppHandle) {
     use tauri::Manager;
     let idle_secs = app.state::<IdleConfig>().inner().0.load(Ordering::Relaxed);
@@ -641,6 +702,11 @@ pub async fn sftp_list_dir(
                 name: entry.file_name(),
                 is_dir: meta.is_dir(),
                 size: meta.size.unwrap_or(0),
+                // Seuls les bits de permission : le type de fichier occupe le
+                // haut du mot et n'a rien à faire dans un affichage octal.
+                mode: meta.permissions.map(|p| p & 0o7777),
+                owner: meta.user.clone(),
+                group: meta.group.clone(),
             }
         })
         .collect();
@@ -896,6 +962,99 @@ pub async fn sftp_rename(
         .rename(&from, &to)
         .await
         .map_err(|e| format!("Renommage de {from} impossible : {e}"))
+}
+
+/// Change les permissions d'une entrée distante (idée 07).
+///
+/// `mode` est une chaîne octale de trois ou quatre chiffres, validée ici :
+/// elle finit dans une commande distante, elle ne peut pas être libre. Le
+/// récursif est **explicite** — un `chmod -R 755` sur un dossier rend tous
+/// ses fichiers exécutables, ce que personne ne veut par accident.
+#[tauri::command]
+pub async fn sftp_chmod(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    path: String,
+    mode: String,
+    recursive: bool,
+) -> Result<(), String> {
+    if !path.starts_with('/') || path.split('/').any(|c| c == "..") {
+        return Err(format!("Chemin refusé pour un chmod : {path}"));
+    }
+    // Trois ou quatre chiffres octaux, rien d'autre : ni `u+x`, ni variable,
+    // ni espace. La valeur est ensuite sûre à interpoler telle quelle.
+    let valid = (3..=4).contains(&mode.len()) && mode.chars().all(|c| ('0'..='7').contains(&c));
+    if !valid {
+        return Err(format!("Mode invalide : {mode} (trois ou quatre chiffres octaux attendus)."));
+    }
+
+    let conn = get_connection(&pool, &connection_id).await?;
+    let flag = if recursive { "-R " } else { "" };
+    let command = format!(
+        "chmod {flag}{mode} -- {}",
+        crate::shell::shell_quote(&path)
+    );
+    let (code, output) = conn.exec_capture(command, &[]).await?;
+    if code == 0 {
+        return Ok(());
+    }
+    let detail = output.trim();
+    Err(if detail.is_empty() {
+        format!("chmod sur {path} impossible (code {code}).")
+    } else {
+        format!("chmod impossible : {detail}")
+    })
+}
+
+/// Copie côté serveur (idée 03) : `cp -a` sur le canal exec.
+///
+/// Dupliquer un fichier distant imposait de le télécharger puis de le
+/// renvoyer — deux traversées réseau pour une opération qui prend une seconde
+/// sur le serveur. `-a` préserve mode, horodatages et liens ; `-T` empêche la
+/// surprise classique de `cp` (si la cible EXISTE et est un dossier, `cp src
+/// dst` écrit `dst/src` au lieu de `dst`, ce qui déplacerait la copie
+/// ailleurs que là où l'utilisateur l'a demandée).
+///
+/// La commande est construite ici, jamais fournie : chemins échappés par
+/// `shell_quote`, `--` avant les opérandes pour qu'un nom commençant par `-`
+/// ne soit pas lu comme une option.
+#[tauri::command]
+pub async fn sftp_copy(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    for path in [&from, &to] {
+        if !path.starts_with('/') || path.split('/').any(|c| c == "..") {
+            return Err(format!("Chemin refusé pour une copie : {path}"));
+        }
+    }
+    if from == to {
+        return Err("La source et la destination sont identiques.".into());
+    }
+    // Copier un dossier dans lui-même partirait en boucle jusqu'à saturer le
+    // disque : `cp` s'en aperçoit, mais après avoir déjà écrit.
+    if to.starts_with(&format!("{from}/")) {
+        return Err("Un dossier ne peut pas être copié dans lui-même.".into());
+    }
+
+    let conn = get_connection(&pool, &connection_id).await?;
+    let command = format!(
+        "cp -aT -- {} {}",
+        crate::shell::shell_quote(&from),
+        crate::shell::shell_quote(&to)
+    );
+    let (code, output) = conn.exec_capture(command, &[]).await?;
+    if code == 0 {
+        return Ok(());
+    }
+    let detail = output.trim();
+    Err(if detail.is_empty() {
+        format!("Copie de {from} impossible (code {code}).")
+    } else {
+        format!("Copie impossible : {detail}")
+    })
 }
 
 /// Stats système du serveur : sorties brutes de commandes read-only

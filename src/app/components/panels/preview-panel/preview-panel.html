@@ -31,6 +31,62 @@
   </button>
 </header>
 
+@if (preview.findOpen() && preview.kind() === 'text' && !preview.markdownView()) {
+  <div class="find">
+    <input
+      #findField
+      class="find__field"
+      type="text"
+      placeholder="Rechercher dans le fichier"
+      aria-label="Rechercher dans le fichier"
+      [class.find__field--bad]="preview.findInvalid()"
+      [value]="preview.findQuery()"
+      (input)="preview.findQuery.set(findField.value)"
+      (keydown)="onFindKeydown($event)"
+    />
+    <span class="find__count" role="status">{{ findCount() }}</span>
+    <button
+      type="button"
+      class="find__nav"
+      aria-label="Occurrence précédente"
+      [disabled]="!preview.findMatches().length"
+      (click)="preview.findPrev()"
+    >
+      <app-icon name="chevron-up" [size]="13" />
+    </button>
+    <button
+      type="button"
+      class="find__nav"
+      aria-label="Occurrence suivante"
+      [disabled]="!preview.findMatches().length"
+      (click)="preview.findNext()"
+    >
+      <app-icon name="chevron-down" [size]="13" />
+    </button>
+    <button
+      type="button"
+      class="find__opt"
+      [class.find__opt--on]="preview.findRegex()"
+      [attr.aria-pressed]="preview.findRegex()"
+      (click)="preview.findRegex.set(!preview.findRegex())"
+    >
+      regex
+    </button>
+    <button
+      type="button"
+      class="find__opt"
+      [class.find__opt--on]="preview.findCase()"
+      [attr.aria-pressed]="preview.findCase()"
+      (click)="preview.findCase.set(!preview.findCase())"
+    >
+      casse
+    </button>
+    <button type="button" class="find__close" aria-label="Fermer la recherche" (click)="preview.closeFind()">
+      <app-icon name="close" [size]="13" />
+    </button>
+  </div>
+}
+
 @if (preview.error(); as error) {
   <p class="notice notice--error">{{ error }}</p>
 }
@@ -57,10 +113,14 @@
       ></div>
     } @else {
       <div class="editor" [class.editor--plain]="preview.highlighted() === null">
+        @if (preview.findLayer(); as occurrences) {
+          <pre class="editor__occ" aria-hidden="true" #occ><code [innerHTML]="occurrences"></code></pre>
+        }
         @if (preview.highlighted(); as html) {
           <pre class="editor__highlight" aria-hidden="true" #hl><code [innerHTML]="html"></code></pre>
         }
         <textarea
+          #ta
           class="editor__input"
           spellcheck="false"
           wrap="off"

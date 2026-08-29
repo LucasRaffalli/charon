@@ -21,7 +21,22 @@ import sys
 repo, dmg_name, exe_name = sys.argv[1], sys.argv[2], sys.argv[3]
 
 version = json.load(open(f"{repo}/src-tauri/tauri.conf.json"))["version"]
-today = datetime.date.today().isoformat()
+# Les dates se lisent en toutes lettres, comme dans l'application : le format
+# ISO est fait pour trier, pas pour être lu. Les mois sont écrits ici plutôt
+# que confiés à la locale du système, qui n'est pas garantie sur un runner.
+MOIS = ["janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+
+
+def en_toutes_lettres(iso):
+    try:
+        d = datetime.date.fromisoformat(iso)
+    except ValueError:
+        return iso
+    return f"{d.day} {MOIS[d.month - 1]} {d.year}"
+
+
+today = en_toutes_lettres(datetime.date.today().isoformat())
 if not dmg_name:
     dmg_name = f"Charon_{version}_aarch64.dmg"
 
@@ -36,17 +51,50 @@ for i, e in enumerate(entries):
     def note_text(n):
         return n["text"] if isinstance(n, dict) else n
 
-    items = "\n".join(f"        <li>{html.escape(note_text(n))}</li>" for n in e["notes"])
+    # Groupées par nature et comptées, comme dans l'application : cinquante
+    # notes à la suite ne disent pas par où commencer.
+    def note_kind(n):
+        return n.get("kind", "new") if isinstance(n, dict) else "new"
+
+    groups_html = []
+    for kind, one, many in (
+        ("new", "nouveauté", "nouveautés"),
+        ("better", "amélioration", "améliorations"),
+        ("fixed", "correctif", "correctifs"),
+    ):
+        of = [n for n in e["notes"] if note_kind(n) == kind]
+        if not of:
+            continue
+        items = "\n".join(f"            <li>{html.escape(note_text(n))}</li>" for n in of)
+        label = many if len(of) > 1 else one
+        groups_html.append(
+            '        <section class="release-group">\n'
+            f"          <h3>{len(of)} {label}</h3>\n"
+            f'          <ul class="g-{kind}">\n{items}\n          </ul>\n'
+            "        </section>"
+        )
+    groups = '        <div class="release-groups">\n' + "\n".join(groups_html) + "\n        </div>"
+
+    # Le nom porte, le numéro l'accompagne : même hiérarchie que dans l'app.
+    title = e.get("title")
+    name = f'          <span class="release-name">{html.escape(title)}</span>\n' if title else ""
+
+    # L'illustration : le site sert tout à plat, seul le nom de fichier compte.
+    cover = ""
+    if e.get("cover"):
+        src = html.escape(e["cover"].rsplit("/", 1)[-1])
+        cover = f'        <div class="release-cover"><img src="{src}" alt="" loading="lazy" /></div>\n'
+
     blocks.append(
         '      <div class="release">\n'
         '        <div class="release-head">\n'
+        f"{name}"
         f'          <span class="release-version">{html.escape(e["version"])}</span>\n'
-        f'          <span class="release-date">{html.escape(e["date"])}</span>\n'
+        f'          <span class="release-date">{html.escape(en_toutes_lettres(e["date"]))}</span>\n'
         f"          {latest}\n"
         "        </div>\n"
-        "        <ul>\n"
-        f"{items}\n"
-        "        </ul>\n"
+        f"{cover}"
+        f"{groups}\n"
         "      </div>"
     )
 changelog_html = "\n".join(blocks) or '      <p class="release-date">Première version.</p>'
@@ -58,12 +106,13 @@ if exe_name:
     e = html.escape(exe_name)
     windows_btn = f'<a class="btn btn-alt" href="{e}" download>Télécharger pour Windows</a>'
     windows_note = (
-        '<div class="note">\n'
-        "      <strong>Windows :</strong> l'installeur n'est pas signé —\n"
+        '<div class="note note--win">\n'
+        '      <span class="note__ic" aria-hidden="true"></span>\n'
+        "      <div><strong class=\"note__title\">Windows : l'installeur n'est pas signé</strong>\n"
         "      SmartScreen affichera « Windows a protégé votre ordinateur ».\n"
         "      Clique sur <strong>Informations complémentaires → Exécuter quand\n"
         "      même</strong> (une seule fois, les mises à jour passent ensuite\n"
-        "      par l'app).\n"
+        "      par l'app).</div>\n"
         "    </div>"
     )
 

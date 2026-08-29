@@ -99,6 +99,25 @@ scp -P "$VPS_PORT" \
   "$ROOT/src/assets/fonts/Satoshi-900.woff2" \
   "$ARCHIVE" ${DMG:+"$DMG"} ${WIN_EXE:+"$WIN_EXE"} "$VPS_HOST:$VPS_DIR/"
 
+# Illustrations des versions : la page les sert à plat, comme le reste.
+COVERS=$(python3 - "$ROOT" <<'PY'
+import json, os, sys
+repo = sys.argv[1]
+entries = json.load(open(f"{repo}/src/assets/changelog.json", encoding="utf-8"))
+for e in entries:
+    rel = e.get("cover")
+    if not rel:
+        continue
+    path = os.path.join(repo, "src", rel)
+    if os.path.isfile(path):
+        print(path)
+PY
+)
+if [ -n "$COVERS" ]; then
+  # shellcheck disable=SC2086
+  scp -P "$VPS_PORT" $COVERS "$VPS_HOST:$VPS_DIR/"
+fi
+
 # Favicon de la page (icônes de l'app, renommées à l'upload).
 scp -P "$VPS_PORT" "$ROOT/src-tauri/icons/32x32.png" "$VPS_HOST:$VPS_DIR/favicon.png"
 scp -P "$VPS_PORT" "$ROOT/src-tauri/icons/128x128@2x.png" "$VPS_HOST:$VPS_DIR/apple-touch-icon.png"

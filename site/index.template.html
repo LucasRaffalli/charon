@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Charon le passeur de fichiers</title>
-  <meta name="description" content="Client SFTP/FTPS/FTP pour macOS. Télécharger la version {{VERSION}}." />
+  <meta name="description" content="Client SFTP/FTPS/FTP pour macOS et Windows. Plusieurs serveurs dans une fenêtre. Télécharger la version {{VERSION}}." />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <style>
@@ -27,296 +27,853 @@
       font-display: swap;
     }
 
+    /* Les valeurs de l'application, thème sombre, accent Charon. Le site et
+       l'app sont la même chose : mêmes élévations, mêmes rayons, mêmes
+       couleurs de nature, même vocabulaire de surfaces. */
     :root {
-      --bg: #0c0e12;
-      --surface: #12151a;
-      --border: #1f242c;
-      --text: #e6e9ee;
-      --text-muted: #9aa3ad;
-      --text-faint: #5f6670;
-      --accent: #5b7fa6;
-      --accent-bright: #6c91b8;
-      --cover-text: #eaf1fb;
+      --elev-0: #101319;
+      --elev-1: #171b22;
+      --elev-2: #1e232b;
+      --elev-3: #252b34;
+      --border: #262c35;
+      --border-strong: #333a44;
+      --text: #e2e4e8;
+      --text-muted: #98a0aa;
+      --text-faint: #7b8591;
+      --text-inverse: #14181f;
+      --accent: #7da3cc;
+      --accent-solid: #5b7fa6;
+      --new: #74c496;
+      --better: #7da3cc;
+      --fixed: #d9a441;
+      --fixed-bg: rgba(217, 164, 65, 0.13);
+      /* Les couleurs d'identité de session, comme dans l'app. */
+      --s1: #7da3cc;
+      --s2: #c58fd8;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
-      background: var(--bg);
+      background: var(--elev-0);
       color: var(--text);
-      font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font: 15px/1.6 'Satoshi', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
       -webkit-font-smoothing: antialiased;
-      line-height: 1.6;
     }
+    .mono { font-family: var(--mono); }
 
-    /* --- Hero plein écran, comme la cover de l'app --- */
-    .hero {
+    /* ============================================================
+       Le seuil : le ciel de l'écran d'ouverture, le glyphe, l'install.
+       ============================================================ */
+    .seuil {
       position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100svh;
-      overflow: hidden;
-      text-align: center;
-      color: var(--cover-text);
-    }
-    .hero-bg {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    /* Version au-dessus du logo même style que la cover. */
-    .hero-version {
-      position: absolute;
-      top: 24px;
-      left: 0;
-      right: 0;
-      z-index: 2;
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-      text-align: center;
-    }
-
-    .hero-mark { width: 154px; height: 154px; }
-
-    /* Tagline sous le logo même style que la version. */
-    .hero-tagline {
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    /* Bouton download, simple. */
-    .hero-download {
-      margin-top: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-
-    /* Installation Homebrew : commande copiable, en premier le bouton de
-       copie est un carré à icône incrusté dans l'input. */
-    .brew-field { position: relative; }
-    .brew-input {
-      width: 372px;
-      max-width: 76vw;
-      padding: 13px 54px 13px 16px;
-      border: 1px solid rgba(255, 255, 255, 0.28);
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.35);
-      color: var(--cover-text);
-      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-      font-size: 12.5px;
-      outline: none;
-    }
-    .brew-input:focus { border-color: var(--accent-bright); }
-    .brew-copy {
-      position: absolute;
-      top: 50%;
-      right: 7px;
-      transform: translateY(-50%);
-      width: 32px;
-      height: 32px;
       display: grid;
       place-items: center;
+      min-height: 82vh;
+      padding: 80px 24px 60px;
+      overflow: hidden;
+      text-align: center;
+    }
+    .sky { position: absolute; inset: 0; pointer-events: none; }
+    .sky i {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      mix-blend-mode: screen;
+    }
+    .sky i:nth-child(1) {
+      width: 60vw; height: 42vw; left: -12vw; top: -18vw;
+      background: radial-gradient(circle, rgba(91, 127, 166, 0.75), transparent 65%);
+    }
+    .sky i:nth-child(2) {
+      width: 48vw; height: 36vw; right: -8vw; top: -14vw;
+      background: radial-gradient(circle, rgba(125, 163, 204, 0.5), transparent 65%);
+    }
+    .sky i:nth-child(3) {
+      width: 70vw; height: 26vw; left: 22%; bottom: -20vw;
+      background: radial-gradient(circle, rgba(91, 127, 166, 0.34), transparent 70%);
+    }
+
+    .seuil__in { position: relative; display: grid; justify-items: center; gap: 18px; }
+    .mark { width: 88px; height: 88px; color: #e5edf5; }
+    .name {
+      font-size: clamp(38px, 7vw, 56px);
+      font-weight: 900;
+      letter-spacing: -0.035em;
+      line-height: 1;
+    }
+    .tagline { color: var(--text-muted); font-size: clamp(15px, 2.4vw, 18px); }
+
+    /* Le champ d'installation : celui de l'app, champ creusé et bouton plein. */
+    .brew {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: min(440px, 92vw);
+      margin-top: 8px;
+      padding: 6px 6px 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--elev-1) 82%, transparent);
+      backdrop-filter: blur(6px);
+    }
+    .brew input {
+      flex: 1;
+      min-width: 0;
       border: 0;
-      border-radius: 8px;
-      background: var(--accent);
+      background: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      outline: none;
+    }
+    .brew button {
+      display: grid;
+      place-items: center;
+      width: 32px; height: 32px;
+      flex: none;
+      border: 0;
+      border-radius: var(--radius-md);
+      background: var(--accent-solid);
       color: #fff;
       cursor: pointer;
       transition: background 0.15s ease;
     }
-    .brew-copy:hover { background: var(--accent-bright); }
-    .brew-copy svg { width: 15px; height: 15px; }
-    .brew-copy .ic-check { display: none; }
-    .brew-copy.copied { background: #3d9b6f; }
-    .brew-copy.copied .ic-copy { display: none; }
-    .brew-copy.copied .ic-check { display: block; }
-    .dmg-link {
-      font-size: 12px;
-      color: var(--cover-text);
-      opacity: 0.75;
-      text-decoration: underline;
-      text-underline-offset: 3px;
+    .brew button:hover { background: var(--accent); }
+    .brew svg { width: 15px; height: 15px; }
+    .brew .ic-check { display: none; }
+    .brew button.copied .ic-copy { display: none; }
+    .brew button.copied .ic-check { display: block; }
+
+    /* Le sélecteur segmenté de l'application : pastille glissante sur un
+       fond creusé. Il choisit la voie d'installation au lieu de les mettre
+       côte à côte. */
+    /* La variante « solid » du switch de l'écran de connexion : un cadre
+       discret, et c'est la PASTILLE qui porte l'aplat, pour qu'elle glisse
+       d'un segment à l'autre au lieu de sauter. */
+    .seg {
+      position: relative;
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--elev-1);
     }
-    .dmg-link:hover { opacity: 1; }
+    /* Position et largeur MESURÉES sur le segment actif, comme dans l'app :
+       « macOS » et « Windows » n'ont pas la même largeur, et une pastille à
+       50 % ne recouvre alors ni l'un ni l'autre. */
+    .seg__pill {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      left: 3px;
+      width: 0;
+      border-radius: var(--radius-sm);
+      background: var(--text);
+    }
+    /* La transition n'est armée qu'APRÈS le premier placement : sinon la
+       pastille grandit de zéro à sa taille au chargement, ce qui donne à voir
+       une animation que personne n'a déclenchée. */
+    .seg--ready .seg__pill {
+      transition:
+        transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+        width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .seg__opt {
+      position: relative;
+      flex: 0 0 auto;
+      padding: 5.5px 15px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: none;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 160ms ease;
+    }
+    .seg__opt:hover { color: var(--text); }
+    .seg__opt--on { color: var(--text-inverse); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .seg__pill { transition: none; }
+    }
+
+    /* `align-items: start` est indispensable : la hauteur minimale évite que
+       la page saute quand on change de système, mais une grille ÉTIRE ses
+       items par défaut. Le bouton s'allongeait alors à 53 px pour 39 de
+       contenu, son texte restant calé en haut, ce qui se lit comme une marge
+       ajoutée en dessous. */
+    .install {
+      display: grid;
+      justify-items: center;
+      align-items: start;
+      min-height: 92px;
+    }
+    .way {
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 8px;
+    }
+    /* Sans installeur Windows fourni, la voie n'a rien à proposer : le
+       sélecteur disparaît avec elle plutôt que d'offrir un onglet vide. */
+    .way--win:not(:has(a)) { display: none; }
+    .seg:has(+ .install .way--win:not(:has(a))) { display: none; }
+    .way__alt {
+      font-size: 12px;
+      color: var(--text-faint);
+      text-decoration: none;
+    }
+    a.way__alt:hover { color: var(--text-muted); text-decoration: underline; }
+    /* Une seule voie à l'écran, celle du système choisi. Sans JavaScript,
+       aucune classe n'est posée et les deux restent visibles : la page garde
+       tout son sens. */
+    body.js .way { display: none; }
+    body.js[data-os='mac'] .way--mac,
+    body.js[data-os='windows'] .way--win { display: grid; }
+    body[data-os='windows'] .way--win .btn {
+      background: var(--accent-solid);
+      border-color: var(--accent-solid);
+      color: #fff;
+    }
+    body[data-os='windows'] .way--win .btn:hover { background: var(--accent); }
+
+    .ways { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
     .btn {
       display: inline-block;
-      padding: 12px 36px;
-      border-radius: 10px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: background 0.15s ease, transform 0.15s ease;
-    }
-    .btn:hover { background: var(--accent-bright); transform: translateY(-1px); }
-    .btn-alt { background: rgba(255, 255, 255, 0.14); }
-    .btn-alt:hover { background: rgba(255, 255, 255, 0.22); }
-    .hero-meta {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      opacity: 0.7;
-    }
-
-    /* Chevron en bas du hero : signale le contenu plus bas. */
-    .hero-scroll {
-      position: absolute;
-      bottom: 180px;
-      left: 50%;
-      z-index: 2;
-      color: var(--cover-text);
-      opacity: 0.65;
-      animation: hero-scroll-bob 2.2s ease-in-out infinite;
-    }
-    .hero-scroll:hover { opacity: 1; }
-    .hero-scroll svg { width: 24px; height: 24px; display: block; }
-    @keyframes hero-scroll-bob {
-      0%, 100% { transform: translate(-50%, 0); }
-      50% { transform: translate(-50%, 7px); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .hero-scroll { animation: none; transform: translateX(-50%); }
-      html { scroll-behavior: auto; }
-    }
-
-    /* --- Sous la ligne de flottaison --- */
-    /* Continuité des couleurs du hero : l'effet est un calque AU-DESSUS du
-       contenu (z-index), inerte au clic (pointer-events none). */
-    .below-bg { position: relative; }
-    .below-bg::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: url('web_bg_effect.png') top center / 100% auto no-repeat;
-      pointer-events: none;
-      z-index: 2;
-    }
-    /* Padding haut généreux : le contenu démarre sous l'effet de couleurs. */
-    .below { max-width: 640px; margin: 0 auto; padding: 208px 24px 0; }
-
-    .note {
-      padding: 18px 20px;
+      padding: 9px 18px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface);
-      font-size: 13.5px;
+      border-radius: var(--radius-md);
+      background: var(--elev-1);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn:hover { background: var(--elev-2); border-color: var(--border-strong); }
+    .btn-alt { background: var(--elev-1); }
+    .hero-meta, .meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+    }
+
+    /* ============================================================
+       La fenêtre : l'application en grand, et le contenu vit dedans.
+       ============================================================ */
+    .stage { padding: 0 24px 90px; }
+    .win {
+      max-width: 1080px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--elev-0);
+      box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+    }
+
+    /* La barre de sessions : congés inversés et pastilles de couleur. */
+    .win__sessions {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--radius-md);
+      padding: 6px calc(var(--radius-md) + 4px) 0;
+      background: var(--elev-1);
+      border-bottom: 1px solid var(--border);
+    }
+    .stab {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 14px 8px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      font-size: 12.5px;
+      font-weight: 600;
       color: var(--text-muted);
     }
-    .note + .note { margin-top: 12px; }
-    .note strong { color: var(--text); }
+    .stab i { width: 7px; height: 7px; border-radius: 2px; background: var(--s1); }
+    .stab--on {
+      position: relative;
+      background: var(--elev-0);
+      color: var(--text);
+    }
+    /* Congés inversés, comme la barre de sessions de l'app : un quart de
+       cercle transparent laisse voir la barre, le reste porte la couleur de
+       l'onglet, et le raccord se fait en courbe. */
+    .stab--on::before,
+    .stab--on::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: var(--radius-md);
+      height: var(--radius-md);
+    }
+    .stab--on::before {
+      left: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 0 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--elev-0) var(--radius-md)
+      );
+    }
+    .stab--on::after {
+      right: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 100% 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--elev-0) var(--radius-md)
+      );
+    }
+    .stab--plus { color: var(--text-faint); font-weight: 400; }
+
+    .win__body {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 6px;
+      padding: 6px;
+    }
+
+    /* Un panneau du dock : élévation 1, filet, grand rayon, barre d'onglets. */
+    .pane {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--elev-1);
+      overflow: hidden;
+    }
+    .pane__bar {
+      display: flex;
+      align-items: center;
+      gap: var(--radius-md);
+      /* La gouttière tient le congé de l'onglet actif, qui déborde de sa
+         boîte du rayon : plus petite, il serait rogné. */
+      padding: 5px calc(var(--radius-md) + 4px) 0;
+      /* La barre s'ÉLOIGNE du panneau, et l'onglet actif y revient en peignant
+         sa surface exacte. Un voile noir sur la barre compensé par un voile
+         blanc sur l'onglet ne revient PAS au point de départ : les deux
+         compositions se cumulent et l'onglet finit plus clair que le panneau
+         qu'il prolonge (#252930 au lieu de #171b22). Le même piège que dans
+         l'application, corrigé de la même façon. */
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .ptab {
+      padding: 6px 11px 7px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .ptab--on {
+      position: relative;
+      background: var(--elev-1);
+      color: var(--text);
+    }
+    .ptab--on::before,
+    .ptab--on::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      width: var(--radius-md);
+      height: var(--radius-md);
+    }
+    .ptab--on::before {
+      left: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 0 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--elev-1) var(--radius-md)
+      );
+    }
+    .ptab--on::after {
+      right: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 100% 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--elev-1) var(--radius-md)
+      );
+    }
+    .pane__in { padding: 10px; }
+
+    /* Les fonctionnalités, listées comme les fichiers d'un dossier : c'est le
+       geste de l'app, et chaque ligne ouvre son aperçu. */
+    .feat-list { display: flex; flex-direction: column; gap: 1px; }
+    .feat-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: none;
+      color: var(--text);
+      font: inherit;
+      font-size: 13.5px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .feat-row:hover { background: rgba(255, 255, 255, 0.05); }
+    .feat-row[aria-selected='true'] {
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+    .feat-row svg { width: 15px; height: 15px; flex: none; color: var(--accent); }
+    .feat-row small {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--text-faint);
+    }
+
+    /* L'aperçu : le panneau de droite montre ce qui est sélectionné. */
+    .look { display: flex; flex-direction: column; min-height: 300px; }
+    .look__head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 12px 14px 0;
+    }
+    .look__head h2 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+    .look__head span { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
+    .look__body { padding: 8px 14px 16px; color: var(--text-muted); font-size: 14px; }
+    .look__body p + p { margin-top: 10px; }
+    .look__kbd {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 3px 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--text);
+    }
+
+    .win__foot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 32px;
+      padding: 0 12px;
+      border-top: 1px solid var(--border);
+      background: var(--elev-1);
+      font-size: 11px;
+      color: var(--text-faint);
+    }
+    .chip {
+      padding: 1px 7px;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent);
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .win__foot .right { margin-left: auto; font-family: var(--mono); }
+
+    @media (max-width: 860px) {
+      .win__body { grid-template-columns: 1fr; }
+      .pane--side { display: none; }
+    }
+
+    /* ============================================================
+       Le bas : installation, journal, pied.
+       ============================================================ */
+    .below { max-width: 1080px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* Le gabarit de l'`Alert` de l'application : bordure et fond teintés de
+       la nature, icône à gauche, rayon moyen. Le filet latéral qu'avait cette
+       carte n'existe nulle part dans Charon. */
+    .note {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 18px;
+      border: 1px solid color-mix(in srgb, var(--fixed) 30%, transparent);
+      border-radius: var(--radius-md);
+      background: var(--fixed-bg);
+      color: var(--text-muted);
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+    .note__ic {
+      flex: none;
+      width: 17px;
+      height: 17px;
+      margin-top: 2px;
+      background: var(--fixed);
+      /* Le triangle d'alerte de lucide, celui de l'app. */
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+    }
+    .note + .note { margin-top: 10px; }
+    /* Chaque note appartient à un système : afficher l'avertissement
+       Gatekeeper à quelqu'un sous Windows le fait douter pour rien. Sans
+       JavaScript, les deux restent, chacune annoncée par son intitulé. */
+    body.js[data-os='mac'] .note--win,
+    body.js[data-os='windows'] .note--mac { display: none; }
+    .note__title {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--fixed);
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .note strong { color: var(--fixed); }
+    /* La commande à taper mérite le même traitement que celle du haut : un
+       champ, et un bouton qui la copie. La recopier à la main est le moment
+       où l'on se trompe. */
+    .note__cmd {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: fit-content;
+      max-width: 100%;
+      margin-top: 10px;
+      padding: 5px 5px 5px 12px;
+      border: 1px solid color-mix(in srgb, var(--fixed) 24%, transparent);
+      border-radius: var(--radius-md);
+      background: var(--elev-0);
+    }
+    .note__cmd input {
+      flex: 1;
+      min-width: 0;
+      /* La commande fait 33 caractères : plus court, elle se coupe, et une
+         commande tronquée est pire que pas de commande du tout. */
+      width: 34ch;
+      border: 0;
+      background: none;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12.5px;
+      outline: none;
+    }
+    .note__cmd button {
+      display: grid;
+      place-items: center;
+      width: 28px; height: 28px;
+      flex: none;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--fixed) 20%, transparent);
+      color: var(--fixed);
+      cursor: pointer;
+    }
+    .note__cmd button:hover { background: color-mix(in srgb, var(--fixed) 32%, transparent); }
+    .note__cmd svg { width: 14px; height: 14px; }
+    .note__cmd .ic-check { display: none; }
+    .note__cmd button.copied .ic-copy { display: none; }
+    .note__cmd button.copied .ic-check { display: block; }
     .note code {
-      padding: 1px 6px;
-      border-radius: 5px;
-      background: #171b21;
-      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-      font-size: 12px;
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      background: var(--elev-0);
+      font-family: var(--mono);
+      font-size: 13px;
       color: var(--text);
     }
 
     .section-title {
-      margin: 48px 0 16px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
+      margin: 54px 0 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--text-faint);
     }
+
+    /* Le journal : la présentation de la modale des nouveautés. */
     .release {
-      padding: 18px 20px;
+      padding: 20px 22px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface);
+      border-radius: var(--radius-lg);
+      background: var(--elev-1);
     }
-    .release + .release { margin-top: 12px; }
-    .release-head { display: flex; align-items: baseline; gap: 10px; }
-    .release-version { font-size: 14px; font-weight: 700; }
-    .release-date { font-size: 11px; color: var(--text-faint); }
+    .release + .release { margin-top: 10px; }
+    .release-head {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .release-name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+    .release-version { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+    .release-name + .release-version {
+      padding: 1px 7px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .release-date { font-size: 12px; color: var(--text-faint); }
     .release-latest {
-      padding: 1px 8px;
-      border-radius: 20px;
-      background: rgba(91, 127, 166, 0.16);
-      color: var(--accent-bright);
-      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: var(--radius-sm);
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent);
+      font-size: 9.5px;
       font-weight: 700;
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
-    .release ul { margin: 10px 0 0; padding-left: 20px; }
-    .release li { font-size: 13px; color: var(--text-muted); }
-    .release li + li { margin-top: 3px; }
 
-    footer {
-      margin-top: 64px;
-      padding: 28px 24px 40px;
-      border-top: 1px solid var(--border);
-      text-align: center;
-      font-size: 12px;
+    /* L'illustration de la version, au ratio de l'app : vue en entier. */
+    .release-cover {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 4.5 / 1;
+      margin: 14px 0 4px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(115deg, rgba(125, 163, 204, 0.2), transparent 60%),
+        repeating-linear-gradient(135deg, var(--elev-3) 0 12px, var(--elev-2) 12px 24px);
+    }
+    .release-cover img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .release-groups { margin-top: 14px; columns: 2; column-gap: 34px; }
+    @media (max-width: 720px) { .release-groups { columns: 1; } }
+    .release-group { break-inside: avoid; margin: 0 0 16px; }
+    .release-group h3 {
+      margin: 0 0 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
       color: var(--text-faint);
     }
-    footer a { color: var(--text-muted); text-decoration: none; }
-    footer a:hover { color: var(--text); }
+    .release ul { margin: 0; padding-left: 16px; list-style: none; }
+    .release li {
+      position: relative;
+      padding: 3px 0;
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text-muted);
+    }
+    /* La puce porte la nature : le titre du groupe l'a dit une fois. */
+    .release li::before {
+      content: "";
+      position: absolute;
+      left: -14px; top: 10px;
+      width: 5px; height: 5px;
+      border-radius: 1px;
+      background: var(--text-faint);
+    }
+    .g-new li::before { background: var(--new); }
+    .g-better li::before { background: var(--better); }
+    .g-fixed li::before { background: var(--fixed); }
+
+    footer {
+      padding: 26px 24px 60px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--text-faint);
+    }
+    footer a { color: var(--text-muted); }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; animation: none !important; }
+    }
   </style>
 </head>
 <body>
 
-  <header class="hero">
-    <img class="hero-bg" src="web_bg.png" alt="" />
-    <p class="hero-version">v.{{VERSION}}</p>
-    <div class="hero-content">
-      <svg class="hero-mark" viewBox="0 0 154 154" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Logo Charon">
-        <path d="M0 150.391C0 152.384 1.61597 154 3.60938 154H150.391C152.384 154 154 152.384 154 150.391V114.207C154 111.535 151.202 109.797 148.847 111.058C131.409 120.398 115.858 132.801 102.914 147.548C101.452 149.213 98.8528 149.247 97.3482 147.621C85.7932 135.132 72.3173 124.445 57.3898 116.031C55.8837 115.183 55.1605 113.403 55.6468 111.744C64.9152 80.1252 64.361 45.8956 54.1745 14.5996C53.0553 11.1614 57.204 7.84425 60.3117 9.69265C87.4329 25.824 119.022 33.8462 150.602 32.6413C152.511 32.5684 154 30.9844 154 29.0738V3.60938C154 1.61597 152.384 0 150.391 0H3.60938C1.61597 0 0 1.61597 0 3.60938V150.391Z" fill="#E5EDF5"/>
+  <!-- Le seuil : ce que Charon montre au lancement. -->
+  <header class="seuil">
+    <div class="sky" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="seuil__in">
+      <svg class="mark" viewBox="0 0 154 154" fill="none" role="img" aria-label="Logo Charon">
+        <path d="M0 150.391C0 152.384 1.61597 154 3.60938 154H150.391C152.384 154 154 152.384 154 150.391V114.207C154 111.535 151.202 109.797 148.847 111.058C131.409 120.398 115.858 132.801 102.914 147.548C101.452 149.213 98.8528 149.247 97.3482 147.621C85.7932 135.132 72.3173 124.445 57.3898 116.031C55.8837 115.183 55.1605 113.403 55.6468 111.744C64.9152 80.1252 64.361 45.8956 54.1745 14.5996C53.0553 11.1614 57.204 7.84425 60.3117 9.69265C87.4329 25.824 119.022 33.8462 150.602 32.6413C152.511 32.5684 154 30.9844 154 29.0738V3.60938C154 1.61597 152.384 0 150.391 0H3.60938C1.61597 0 0 1.61597 0 3.60938V150.391Z" fill="currentColor"/>
       </svg>
-      <p class="hero-tagline">Le passeur de fichiers</p>
-      <div class="hero-download">
-        <div class="brew-field">
-          <input class="brew-input" id="brew-cmd" type="text" readonly
-                 value="brew install --cask lucasraffalli/charon/charon"
-                 aria-label="Commande d'installation Homebrew"
-                 onclick="this.select()" />
-          <button class="brew-copy" type="button" onclick="copyBrew(this)" aria-label="Copier la commande">
+      <h1 class="name">Charon</h1>
+      <p class="tagline">Plusieurs serveurs, une fenêtre.</p>
+      <!-- Une seule voie à la fois, choisie par le sélecteur segmenté de
+           l'application. Côte à côte, les deux blocs n'avaient ni la même
+           largeur ni le même poids, et donnaient à choisir alors que la
+           réponse dépend de la machine du visiteur. -->
+      <div class="seg" role="tablist" aria-label="Système">
+        <span class="seg__pill" aria-hidden="true"></span>
+        <button class="seg__opt seg__opt--on" role="tab" aria-selected="true" data-os-tab="mac">macOS</button>
+        <button class="seg__opt" role="tab" aria-selected="false" data-os-tab="windows">Windows</button>
+      </div>
+
+      <div class="install">
+        <div class="way way--mac">
+          <div class="brew">
+            <input id="brew-cmd" type="text" readonly value="brew install --cask lucasraffalli/charon/charon" aria-label="Commande d'installation Homebrew" />
+            <button type="button" onclick="copyField(this, 'brew-cmd')" aria-label="Copier la commande">
+              <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
+          </div>
+          <a class="way__alt" href="{{DMG_NAME}}" download>ou télécharger le .dmg · Apple Silicon</a>
+        </div>
+
+        <div class="way way--win">
+          {{WINDOWS_BTN}}
+          <span class="way__alt">installeur x64 · pas encore de commande</span>
+        </div>
+      </div>
+      <p class="hero-meta">{{VERSION}} · {{DATE}}</p>
+    </div>
+  </header>
+
+  <!-- L'application en grand : le contenu du site vit dans ses panneaux. -->
+  <section class="stage" id="app">
+    <div class="win">
+      <div class="win__sessions">
+        <span class="stab stab--on"><i></i> portfolio</span>
+        <span class="stab"><i style="background: var(--s2)"></i> api-prod</span>
+        <span class="stab stab--plus">+</span>
+      </div>
+
+      <div class="win__body">
+        <div class="pane pane--side">
+          <div class="pane__bar">
+            <span class="ptab ptab--on">Favoris</span>
+            <span class="ptab">Local</span>
+          </div>
+          <div class="pane__in">
+            <div class="feat-list" style="font-size: 13px; color: var(--text-muted)">
+              <div class="feat-row" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M4 20V8l8-4 8 4v12"/></svg>
+                www
+              </div>
+              <div class="feat-row" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M4 20V8l8-4 8 4v12"/></svg>
+                nginx
+              </div>
+              <div class="feat-row" style="cursor: default">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M4 20V8l8-4 8 4v12"/></svg>
+                deploy
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane">
+          <div class="pane__bar">
+            <span class="ptab ptab--on">Ce que fait Charon</span>
+            <span class="ptab">Aperçu</span>
+          </div>
+          <div class="win__body" style="grid-template-columns: 1fr 1fr; gap: 0; padding: 0">
+            <div class="pane__in" role="tablist" aria-label="Fonctionnalités">
+              <div class="feat-list">
+                <button class="feat-row" role="tab" aria-selected="true" data-feat="sessions">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>
+                  Plusieurs serveurs <small>⌘T</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="split">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
+                  La vue double
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="bridge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h9a3 3 0 0 1 0 6H7a3 3 0 0 0 0 6h9"/><path d="m14 3 3 3-3 3M10 15l-3 3 3 3"/></svg>
+                  Le pont entre serveurs
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="editor">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="m9 15 2 2 4-4"/></svg>
+                  Un aperçu qui édite <small>⌘S</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="search">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                  Chercher partout <small>⌘⇧F</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="terminal">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></svg>
+                  Le terminal intégré <small>⌃`</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="trash">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  Supprimer sans risque <small>⌘⌫</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="keyboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg>
+                  Tout au clavier <small>⌘K</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="marks">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/><circle cx="12" cy="5" r="3"/></svg>
+                  Des repères par serveur <small>⌘←</small>
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="transfers">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m17 3 4 4-4 4"/><path d="M21 7H9"/><path d="m7 21-4-4 4-4"/><path d="M3 17h12"/></svg>
+                  Des transferts qu'on oublie
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="yours">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
+                  À votre main
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="modules">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect width="7" height="7" x="14" y="3" rx="1"/><path d="M10 21V8a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3"/></svg>
+                  Extensible
+                </button>
+                <button class="feat-row" role="tab" aria-selected="false" data-feat="safe">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>
+                  Vos secrets restent chez vous
+                </button>
+              </div>
+            </div>
+
+            <div class="look" style="border-left: 1px solid var(--border)">
+              <div class="look__head">
+                <h2 id="look-title">Plusieurs serveurs</h2>
+                <span id="look-meta">session</span>
+              </div>
+              <div class="look__body" id="look-body">
+                <p>Chaque serveur vit dans son onglet, avec sa connexion, son historique, ses transferts et son terminal. Ce qui télécharge dans un onglet en veille continue de courir.</p>
+                <p>Recharger la fenêtre restaure les onglets, la vue double et le focus : les sessions se rattachent à leurs connexions, restées vivantes.</p>
+                <span class="look__kbd" id="look-kbd">⌘T</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="win__foot">
+        <span class="chip">prod</span>
+        <span>sftp · 22 · clé ed25519</span>
+        <span class="right">{{VERSION}}</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="below" id="infos">
+    <div class="note note--mac">
+      <span class="note__ic" aria-hidden="true"></span>
+      <div>
+        <strong class="note__title">« Charon est endommagé et ne peut pas être ouvert » ?</strong>
+        L'app n'est pas cassée : elle n'est pas notarisée Apple, et macOS bloque par défaut
+        les apps téléchargées non notarisées. Le clic droit → Ouvrir ne suffit pas pour ce
+        message. Glisse Charon dans Applications, puis lance une seule fois&nbsp;:
+        <div class="note__cmd">
+          <input id="xattr-cmd" type="text" readonly value="xattr -cr /Applications/Charon.app" aria-label="Commande à lancer dans le Terminal" />
+          <button type="button" onclick="copyField(this, 'xattr-cmd')" aria-label="Copier la commande">
             <svg class="ic-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
             <svg class="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
           </button>
         </div>
-        <a class="dmg-link" href="{{DMG_NAME}}" download>ou télécharger le .dmg directement</a>
-        {{WINDOWS_BTN}}
-        <p class="hero-meta">{{DATE}} · Apple Silicon · Windows x64</p>
+        <p style="margin-top: 8px">
+          Une seule fois : les mises à jour suivantes s'installent depuis l'app. Et
+          l'installation par Homebrew s'en charge toute seule.
+        </p>
       </div>
-    </div>
-    <a class="hero-scroll" href="#infos" aria-label="Voir les informations et l'historique des versions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-    </a>
-  </header>
-
-  <div class="below-bg" id="infos">
-  <main class="below">
-    <div class="note">
-      <strong>« charon est endommagé et ne peut pas être ouvert » ?</strong>
-      L'app n'est pas cassée : elle n'est pas notarisée Apple, et macOS bloque
-      par défaut les apps téléchargées non notarisées (le clic droit → Ouvrir
-      ne suffit pas pour ce message). Après avoir glissé charon dans
-      Applications, lance une seule fois dans le Terminal&nbsp;:
-      <code>xattr -cr /Applications/charon.app</code> puis ouvre l'app
-      normalement. Les mises à jour suivantes s'installent automatiquement
-      depuis l'app, sans refaire cette manipulation.
     </div>
 
     {{WINDOWS_NOTE}}
@@ -326,19 +883,213 @@
   </main>
 
   <footer>
-    Charon client SFTP privé pour macOS ·
+    <strong>Charon</strong> client SFTP privé pour macOS et Windows ·
+    <a href="https://github.com/LucasRaffalli/charon/releases">Toutes les versions sur GitHub</a> ·
     <a href="https://lucasraffalli.com">lucasraffalli.com</a>
   </footer>
-  </div>
 
   <script>
-    function copyBrew(btn) {
-      const input = document.getElementById('brew-cmd');
+    /* Un seul copieur pour les deux champs : la commande d'installation et
+       celle du Terminal. Recopier une commande à la main est le moment où
+       l'on se trompe. */
+    function copyField(btn, id) {
+      const input = document.getElementById(id);
       navigator.clipboard.writeText(input.value).then(() => {
         btn.classList.add('copied');
         setTimeout(() => { btn.classList.remove('copied'); }, 1600);
       });
     }
+
+    /* La liste des fonctionnalités se parcourt comme un dossier, et le panneau
+       de droite montre ce qui est sélectionné : c'est le geste de l'app, pas
+       une animation décorative. Sans JavaScript, la première reste affichée et
+       la page garde tout son sens. */
+    const FEATS = {
+      sessions: {
+        title: 'Plusieurs serveurs',
+        meta: 'session',
+        kbd: '⌘T',
+        text: [
+          "Chaque serveur vit dans son onglet, avec sa connexion, son historique, ses transferts et son terminal. Ce qui télécharge dans un onglet en veille continue de courir.",
+          "Recharger la fenêtre restaure les onglets, la vue double et le focus : les sessions se rattachent à leurs connexions, restées vivantes.",
+        ],
+      },
+      split: {
+        title: 'La vue double',
+        meta: 'côte à côte',
+        kbd: 'clic droit sur un onglet',
+        text: [
+          "Deux serveurs côte à côte, chacun son panneau et son terminal, chacun sa couleur pour ne jamais les confondre.",
+          "Glisser un fichier de l'un vers l'autre suffit : le transfert part directement d'un serveur à l'autre.",
+        ],
+      },
+      bridge: {
+        title: 'Le pont entre serveurs',
+        meta: 'transfert direct',
+        kbd: '⌘C puis ⌘V',
+        text: [
+          "Copier, couper, coller ou glisser des fichiers d'un serveur vers un autre, en flux par blocs, sans jamais toucher le disque local.",
+          "Le compte d'octets est vérifié avant de mettre le fichier en place : un transfert interrompu ne laisse pas un fichier tronqué à la place du bon.",
+        ],
+      },
+      editor: {
+        title: 'Un aperçu qui édite',
+        meta: 'éditeur',
+        kbd: '⌘S',
+        text: [
+          "Onglets de fichiers, coloration syntaxique, numéros de ligne, recherche interne, et le formatage à l'enregistrement pour le JS, le TS, le JSON, le CSS, le HTML, le Markdown et le YAML.",
+          "Le même fichier sur deux serveurs se compare côte à côte, sans rien télécharger.",
+        ],
+      },
+      search: {
+        title: 'Chercher partout',
+        meta: 'récursif',
+        kbd: '⌘⇧F',
+        text: [
+          "Recherche récursive sur le serveur, par nom de fichier ou dans le contenu, avec les résultats qui arrivent au fil de l'eau.",
+          "Rien n'est tronqué en silence : la recherche dit toujours pourquoi elle s'est arrêtée.",
+        ],
+      },
+      terminal: {
+        title: 'Le terminal intégré',
+        meta: 'ssh',
+        kbd: '⌃`',
+        text: [
+          "Un shell sur la session déjà authentifiée, sans se reconnecter. Il suit le dossier affiché, et le panneau se rafraîchit quand une commande a fini.",
+          "Un exit ne condamne pas l'onglet : un bouton relance la session.",
+        ],
+      },
+      trash: {
+        title: 'Supprimer sans risque',
+        meta: 'corbeille',
+        kbd: '⌘⌫',
+        text: [
+          "Une corbeille distante par point de montage : supprimer redevient réversible, avec un panneau pour récupérer et une purge par âge.",
+          "Les droits d'un fichier se lisent et se changent sans quitter l'app, avec une escalade sudo proposée en cas de refus.",
+        ],
+      },
+      keyboard: {
+        title: 'Tout au clavier',
+        meta: 'palette',
+        kbd: '⌘K',
+        text: [
+          "Une palette qui cherche les profils, les chemins, les fichiers du dossier et les commandes, avec des filtres et un mode expression régulière.",
+          "Trente-trois raccourcis sur toute l'application, dont la liste se consulte par ⌘/ au lieu de s'apprendre par cœur.",
+        ],
+      },
+      marks: {
+        title: 'Des repères par serveur',
+        meta: 'favoris',
+        kbd: '⌘← et ⌘→',
+        text: [
+          "Des favoris de dossiers rangés dans le profil du serveur, avec le nom et l'icône de votre choix, et une ancre qui décide où la connexion vous dépose.",
+          "Chaque panneau garde son historique de navigation : les flèches, ou les boutons latéraux de la souris.",
+        ],
+      },
+      transfers: {
+        title: "Des transferts qu'on oublie",
+        meta: 'file persistée',
+        kbd: '⌘D et ⌘U',
+        text: [
+          "Un transfert coupé reprend là où il s'était arrêté, et ceux qui tournaient à la fermeture reviennent au lancement suivant.",
+          "Empreinte sha256 vérifiée des deux côtés si vous l'activez, débit affiché pendant le transfert, et un dialogue qui propose de comparer plutôt que d'écraser à l'aveugle.",
+        ],
+      },
+      yours: {
+        title: 'À votre main',
+        meta: 'mode design',
+        kbd: '⌘,',
+        text: [
+          "Les panneaux se déplacent, s'empilent en onglets et se redimensionnent où vous voulez, et la disposition se retrouve au lancement suivant.",
+          "Thème et accent sont séparés, et le mode design se règle en voyant la vraie interface : fond, translucidité, rayon des angles, taille du texte.",
+        ],
+      },
+      modules: {
+        title: 'Extensible',
+        meta: 'modules',
+        kbd: 'sandbox',
+        text: [
+          "Des extensions qui tournent isolées, sans DOM ni réseau, et dont chaque capacité est soumise à une permission déclarée. Elles ne dessinent pas de HTML : elles décrivent, l'application rend.",
+          "Un moniteur de serveur est livré avec l'app, désactivé : disque, mémoire, charge et processus, avec une alerte quand un disque se remplit.",
+        ],
+      },
+      safe: {
+        title: 'Vos secrets restent chez vous',
+        meta: 'sécurité',
+        kbd: 'trousseau macOS',
+        text: [
+          "Mots de passe et passphrases vivent dans le trousseau du système. Aucune commande ne les renvoie à l'interface, et l'export de configuration n'en contient aucun.",
+          "L'empreinte du serveur est vérifiée à la première connexion, et les mises à jour sont signées puis vérifiées avant d'être installées.",
+        ],
+      },
+    };
+
+    /* La plateforme du visiteur choisit la voie d'installation, et le
+       sélecteur permet d'en changer : une détection se trompe parfois, et on
+       peut vouloir le lien de l'autre système. La classe `js` n'est posée
+       qu'ici : sans script, les deux voies restent visibles. */
+    const seg = document.querySelector('.seg');
+    const pill = seg?.querySelector('.seg__pill');
+
+    /* La pastille se cale sur le segment actif, mesuré. Elle est repositionnée
+       une fois les polices chargées : leurs largeurs changent au swap, et une
+       pastille posée avant se retrouverait à côté du mot. */
+    const placePill = (btn) => {
+      if (!pill || !btn) return;
+      pill.style.width = btn.offsetWidth + 'px';
+      pill.style.transform = 'translateX(' + (btn.offsetLeft - 3) + 'px)';
+    };
+
+    const setOs = (os) => {
+      document.body.dataset.os = os;
+      if (seg) {
+        seg.dataset.on = os;
+        let active = null;
+        seg.querySelectorAll('[data-os-tab]').forEach((b) => {
+          const on = b.dataset.osTab === os;
+          b.setAttribute('aria-selected', String(on));
+          b.classList.toggle('seg__opt--on', on);
+          if (on) active = b;
+        });
+        placePill(active);
+        document.fonts?.ready.then(() => placePill(active));
+      }
+    };
+    window.addEventListener('resize', () => {
+      placePill(seg?.querySelector('.seg__opt--on'));
+    });
+    document.body.classList.add('js');
+    setOs(/Windows|Win64|Win32/.test(navigator.userAgent) ? 'windows' : 'mac');
+    requestAnimationFrame(() => seg?.classList.add('seg--ready'));
+    seg?.querySelectorAll('[data-os-tab]').forEach((b) => {
+      b.addEventListener('click', () => setOs(b.dataset.osTab));
+    });
+
+    const rows = document.querySelectorAll('[data-feat]');
+    const title = document.getElementById('look-title');
+    const meta = document.getElementById('look-meta');
+    const body = document.getElementById('look-body');
+    const kbd = document.getElementById('look-kbd');
+
+    rows.forEach((row) => {
+      row.addEventListener('click', () => {
+        const feat = FEATS[row.dataset.feat];
+        if (!feat) return;
+        rows.forEach((r) => r.setAttribute('aria-selected', String(r === row)));
+        title.textContent = feat.title;
+        meta.textContent = feat.meta;
+        body.innerHTML = '';
+        feat.text.forEach((t) => {
+          const p = document.createElement('p');
+          p.textContent = t;
+          body.appendChild(p);
+        });
+        const k = document.createElement('span');
+        k.className = 'look__kbd';
+        k.textContent = feat.kbd;
+        body.appendChild(k);
+      });
+    });
   </script>
 </body>
 </html>

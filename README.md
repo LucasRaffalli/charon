@@ -1,11 +1,12 @@
 # Charon
 
-**Le passeur de fichiers.** Client SFTP / FTPS / FTP privé pour macOS —
-backend **Rust** (Tauri v2), interface **Angular 20** (signals, zoneless-ready,
-OnPush). Pensé pour un usage personnel puis professionnel : la sécurité est un
-objectif de conception, pas une couche ajoutée après coup.
+**Le passeur de fichiers.** Client SFTP / FTPS / FTP privé pour macOS et
+Windows. Backend **Rust** (Tauri v2), interface **Angular 20** (signals,
+zoneless, OnPush). Pensé pour un usage personnel puis professionnel : la
+sécurité est un objectif de conception, pas une couche ajoutée après coup.
 
-Version : **1.0.0** · Plateforme : macOS · Mises à jour signées intégrées.
+Version : **1.2.0** « Légion » · macOS (Apple Silicon) et Windows x64 ·
+Mises à jour signées intégrées.
 
 ---
 
@@ -33,9 +34,23 @@ Version : **1.0.0** · Plateforme : macOS · Mises à jour signées intégrées.
 | **Pool persistant** | Un transfert long ne bloque ni la navigation ni les autres transferts ; keepalive 30 s ×3 |
 | **Fermeture d'inactivité** | Délai réglable (15 min par défaut, 0 = jamais) ; un transfert, un terminal, un suivi de log ou une édition en cours **suspendent** la fermeture |
 
+### Sessions
+
+Plusieurs serveurs dans la même fenêtre. Chaque session est complète et
+indépendante : sa connexion, son historique, ses transferts, son terminal.
+
+| | |
+|---|---|
+| **Onglets de session** | `Cmd+T` ouvre une session, `Cmd+W` la ferme, `Cmd+⌥+←/→` navigue. Les transferts d'un onglet en veille continuent de courir |
+| **Vue double** | Deux serveurs côte à côte, chacun avec son panneau et son terminal. Clic droit sur un onglet → « Côte à côte avec … » |
+| **Pont entre serveurs** | Copier, couper, coller et glisser des fichiers **d'un serveur à l'autre**, en flux direct par blocs de 1 Mio, sans jamais toucher le disque local |
+| **Couleurs d'identité** | Une teinte par session, portée par son onglet, son panneau, son terminal et ses lignes de transfert |
+| **Fenêtres multiples** | `Cmd+N` ouvre une seconde fenêtre complète ; le glissé traverse de l'une à l'autre, et thème, réglages, profils et modules restent synchronisés |
+| **Rattachement au reload** | Recharger la fenêtre restaure les onglets, la vue double et le focus : chaque session retrouve sa connexion, restée vivante |
+
 ### Explorateur — panneaux librement réagençables
 
-Un dock façon éditeur de code : 8 panneaux à glisser, empiler en onglets,
+Un dock façon éditeur de code : des panneaux à glisser, empiler en onglets,
 redimensionner, fermer et rouvrir — disposition persistée. Dépôt au **centre**
 d'un groupe = onglet ; sur un **bord** = split ; sur un **bord de la fenêtre**
 = le panneau prend tout le côté. Le DOM n'est jamais recréé : terminal, logs
@@ -46,11 +61,15 @@ et positions de scroll **survivent aux réagencements**.
 | **Serveur** | Fichiers distants, fil d'Ariane, drag & drop d'upload depuis le Finder |
 | **Local** | Cet ordinateur (navigation, envoi vers le serveur) |
 | **Arborescence** | Arbre complet du serveur (dossiers **et** fichiers, lignes de guidage, chargement paresseux) |
-| **Aperçu** | Double-clic sur un fichier : texte éditable, image, détection binaire |
+| **Aperçu** | Un éditeur : onglets de fichiers, coloration syntaxique, numéros de ligne, recherche interne, formatage à l'enregistrement, images zoomables, diff entre deux serveurs |
 | **Transferts** | File persistée : progression, annulation, **reprise** après coupure |
 | **Journal** | Historique local horodaté de toutes les actions |
 | **Logs** | Suivi live `tail -F` d'un fichier distant (filtre, auto-scroll) |
-| **Terminal** | Shell SSH intégré (xterm.js) sur la session déjà authentifiée |
+| **Terminal** | Shell SSH intégré (xterm.js) sur la session déjà authentifiée : il suit le dossier affiché, et le panneau se rafraîchit après une commande |
+| **Recherche** | Recherche récursive sur le serveur, par nom ou dans le contenu, résultats au fil de l'eau |
+| **Corbeille** | Ce qui a été jeté, par point de montage : âge, taille, restauration, purge |
+| **Favoris** | Raccourcis vers les dossiers du serveur, rangés dans son profil, avec nom et icône au choix |
+| **Modules** | Les vues contribuées par les extensions (voir plus bas) |
 
 ### Transferts
 
@@ -71,15 +90,35 @@ et positions de scroll **survivent aux réagencements**.
 | **Garde-fou « confirmation »** | Toute suppression distante exige de retaper le nom d'hôte (façon GitHub) |
 | **Garde-fou « lecture seule »** | Tout chemin d'écriture refusé côté service : upload, drag & drop, mkdir, renommage, suppression, édition |
 | **Clic droit complet** | Ouvrir, télécharger/envoyer, aperçu, éditer, suivre en direct, renommer, supprimer, nouveau dossier, copier le chemin |
+| **Sélection multiple** | Maj-clic, Cmd-clic, flèches, `Cmd+A` du visible ; copie, déplacement et glisser-déposer par lot |
+| **Corbeille distante** | Supprimer devient réversible (un `rename` par point de montage), avec purge par âge à la connexion |
+| **Permissions** | Voir et changer les droits sans quitter l'app ; escalade `sudo` proposée sur refus, mot de passe saisi dans une invite **native** qui ne passe jamais par la WebView |
+| **Recherche** | Récursive sur le serveur (noms ou contenu, `grep -E`), et dans le fichier ouvert |
+| **Historique et favoris** | `Cmd+←` / `Cmd+→` par panneau, plus les boutons latéraux de la souris ; favoris de dossiers par profil |
+| **Raccourcis** | Registre central, 33 raccourcis sans doublon, liste consultable par `Cmd+/` |
 
 ### Interface
 
 | | |
 |---|---|
-| **Thèmes** | Clair, sombre, contraste, licorne — custom properties CSS, changement à chaud |
+| **Thèmes et accents** | Le thème porte les gris et les niveaux, l'accent porte la couleur : clair / sombre / contraste × Charon, Unloved, Jade (et un quatrième qui se mérite) |
+| **Mode design** | Réglez le fond, la translucidité des panneaux, le rayon des angles et la taille du texte **en voyant la vraie interface** ; brouillon jusqu'à validation |
 | **Typographie** | **Satoshi** pour l'interface, **JetBrains Mono** pour les données (`0`/`O` et `1`/`l` dissociés) — polices embarquées, aucune ressource distante |
 | **Accessibilité** | Rôles ARIA (onglets, alertes, arbre), noms accessibles sur tous les contrôles, focus visible, `prefers-reduced-motion` respecté partout |
 | **Mises à jour** | Vérification et installation signées, intégrées aux réglages |
+
+### Modules
+
+Des extensions tierces, exécutées dans un **Web Worker** sans DOM ni réseau,
+qui ne peuvent rien faire d'autre qu'appeler une API dont chaque méthode est
+soumise à une permission déclarée dans leur manifeste (refus par défaut).
+Elles ne dessinent pas de HTML : elles émettent une structure que l'hôte rend
+lui-même, ce qui rend toute injection impossible.
+
+Charon en embarque un, **désactivé** (Réglages → Modules) : un moniteur de
+serveur qui relève disque, mémoire, charge et processus pendant la session, et
+alerte quand un disque se remplit. Il ne lance aucune commande : il lit ce que
+le backend accepte de donner, une liste fixe de lectures seules.
 
 ---
 
@@ -291,9 +330,15 @@ Publication :
 
 ```bash
 # 1. incrémenter "version" (tauri.conf.json, Cargo.toml, package.json)
-npm run release      # build signé : clé + mot de passe lus localement
-npm run deploy       # release + latest.json + upload scp vers le VPS
+# 2. rédiger l'entrée de version dans src/assets/changelog.json
+npm run deploy       # fait tout le reste
 ```
+
+`npm run deploy` enchaîne : build macOS signé, push de la branche et du tag
+(ce qui déclenche la CI Windows), **attente de l'installeur Windows** sur la
+release GitHub (sondage toutes les 60 s, 30 minutes au plus, `WAIT_WINDOWS=0`
+pour ne pas attendre), génération de `latest.json` et du site, envoi sur le
+VPS, puis mise à jour et push du tap Homebrew.
 
 - `scripts/release.sh` exporte le **contenu** de la clé
   (`TAURI_SIGNING_PRIVATE_KEY`) et lit le mot de passe du trousseau — aucun
@@ -303,6 +348,14 @@ npm run deploy       # release + latest.json + upload scp vers le VPS
 - L'endpoint de mise à jour est déclaré dans `tauri.conf.json`
   (`plugins.updater.endpoints`) ; l'app vérifie/installe depuis Réglages →
   Mises à jour.
+- `src/assets/changelog.json` est la **source unique** du journal : il alimente
+  la modale des nouveautés, l'onglet Mises à jour, `latest.json` et la page de
+  téléchargement. Une version peut porter un titre et une illustration
+  (`cover`, WebP 1800 × 400, embarquée dans l'app).
+- **Distribution sans notarisation** : le bundle est signé ad-hoc, donc macOS
+  affiche « endommagé » au premier téléchargement direct. La page de
+  téléchargement donne la commande `xattr -cr`, et le tap Homebrew
+  (`brew install --cask lucasraffalli/charon/charon`) l'applique tout seul.
 
 ---
 

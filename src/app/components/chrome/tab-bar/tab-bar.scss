@@ -6,7 +6,13 @@
   display: flex;
   align-items: flex-end;
   gap: var(--space-2xs);
-  padding: 6px var(--space-sm) 0;
+  // La gouttière latérale tient les onglets à distance des coins de la
+  // fenêtre : leur arrondi ne vient pas se loger dans celui de la fenêtre,
+  // deux courbes voisines de rayons différents se contredisent. Elle doit
+  // aussi tenir le congé de l'onglet actif, qui déborde de sa boîte du rayon
+  // courant : au thème « rond » celui-ci passe à 15 px et une gouttière fixe
+  // de 12 px ne suffirait plus.
+  padding: 6px max(var(--space-sm), calc(var(--radius-md) + var(--space-2xs))) 0;
   background: var(--elev-1);
   border-bottom: 1px solid var(--border);
 }

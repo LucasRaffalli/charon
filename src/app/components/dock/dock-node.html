@@ -21,7 +21,14 @@
     [class.group--server]="g.panels.includes('server')"
     [class.group--closing]="willClose(g)"
   >
-    <div class="group__tabs" [attr.data-dock-tabs]="g.id">
+    <div
+      class="group__tabs"
+      [attr.data-dock-tabs]="g.id"
+      [class.group__tabs--tinted]="tintOf(g)"
+      [class.group__tabs--mirror]="tintFrom(g) === '100%'"
+      [style.--tab-tint]="tintOf(g)"
+      [style.--tab-from]="tintFrom(g)"
+    >
       <div class="group__tabs-strip" role="tablist" [class.group__tabs-strip--dense]="g.panels.length > 4">
         @for (panel of g.panels; track panel) {
           <button

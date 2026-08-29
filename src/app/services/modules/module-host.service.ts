@@ -112,6 +112,7 @@ export class ModuleHostService {
   readonly panelViews = this._panelViews.asReadonly();
 
   private prevConnected = false;
+  private prevPanelVisible = false;
 
   constructor() {
     // Les modules ne tournent que dans la fenêtre principale : un Web Worker
@@ -163,6 +164,19 @@ export class ModuleHostService {
     effect(() => {
       const path = this.sftp.currentPath();
       this.broadcast('path-changed', { path });
+    });
+
+    // Le panneau des modules est-il sous les yeux de quelqu'un ? Un module qui
+    // relève des mesures n'a aucune raison de continuer quand son panneau est
+    // fermé ou en second plan derrière un autre onglet : ce serait du travail
+    // réseau pour personne, et sur un serveur, du bruit dans les journaux.
+    // C'est à l'hôte de le dire, le module ne voyant rien de l'interface.
+    effect(() => {
+      const visible = this.dock.activePanels().has('modules');
+      if (visible !== this.prevPanelVisible) {
+        this.prevPanelVisible = visible;
+        this.broadcast('panel-visibility', { visible });
+      }
     });
 
     // Transferts terminés : signalés une seule fois chacun.

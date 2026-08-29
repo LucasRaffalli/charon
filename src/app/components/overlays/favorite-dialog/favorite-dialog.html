@@ -1,0 +1,40 @@
+@if (edit.state(); as state) {
+  <app-modal
+    title="Modifier le favori"
+    subtitle="Le nom et l'icône ne servent qu'ici : le dossier du serveur n'est pas touché."
+    icon="anchor"
+    size="md"
+    (closed)="edit.close()"
+  >
+    <div class="edit" (keydown)="onKeydown($event)">
+      <app-text-field label="Nom" placeholder="Nom du raccourci" [autofocus]="true" [(value)]="label" />
+
+      <div class="edit__field">
+        <span class="edit__label">Icône</span>
+        <div class="edit__icons">
+          @for (name of icons; track name) {
+            <button
+              type="button"
+              class="edit__icon"
+              [class.edit__icon--on]="icon() === name"
+              [attr.aria-pressed]="icon() === name"
+              [attr.aria-label]="name"
+              (click)="icon.set(name)"
+            >
+              <app-icon [name]="name" [size]="15" />
+            </button>
+          }
+        </div>
+      </div>
+
+      <app-text-field label="Chemin" placeholder="/var/www" hint="Chemin absolu sur le serveur." [(value)]="path" />
+    </div>
+
+    <ng-container modal-foot>
+      <app-button variant="ghost" (click)="remove()">Retirer</app-button>
+      <span class="edit__spacer"></span>
+      <app-button variant="ghost" (click)="edit.close()">Annuler</app-button>
+      <app-button variant="primary" [disabled]="!valid() || !dirty()" [loading]="saving()" (click)="apply()"> Enregistrer </app-button>
+    </ng-container>
+  </app-modal>
+}

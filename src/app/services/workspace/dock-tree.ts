@@ -20,10 +20,32 @@ export const ALL_PANELS: readonly DockPanelId[] = [
   'search',
   // Fermé par défaut : on l'ouvre quand on cherche à récupérer quelque chose.
   'trash',
+  // Fermé par défaut : on l'ouvre quand on veut ses raccourcis sous la main.
+  'favorites',
+  // Seconds panneaux de la vue double : jamais dans la disposition par
+  // défaut, mais ils DOIVENT figurer ici. C'est la liste de référence pour
+  // `closedPanels` (d'où leur bouton de réouverture, filtré hors split par
+  // l'explorateur) et surtout pour `isValidTree` : sans eux, une disposition
+  // enregistrée alors que la vue double était posée serait jugée invalide au
+  // redémarrage et le dock repartirait de zéro.
+  'server2',
+  'terminal2',
 ];
 
 /** Part de l'espace donnée à un panneau déposé sur un bord de la fenêtre. */
 export const ROOT_DROP_SHARE = 0.24;
+
+/**
+ * La part d'ouverture de certains panneaux, quand le quart de l'espace de
+ * travail serait absurde pour ce qu'ils montrent. Un panneau dont le contenu
+ * est une liste courte n'a pas besoin de la même place qu'un listing de
+ * fichiers, et s'ouvrir trop grand oblige à le redimensionner à chaque fois.
+ * La poignée de resize reste maîtresse ensuite : ce n'est qu'un point de
+ * départ, pas un plafond.
+ */
+export const PANEL_OPEN_SHARE: Partial<Record<DockPanelId, number>> = {
+  favorites: 0.14,
+};
 
 let nextId = 0;
 const id = (): string => `n${++nextId}-${Math.random().toString(36).slice(2, 7)}`;
@@ -228,14 +250,17 @@ export const insertAtZone = (
 };
 
 /** Enveloppe l'arbre : `panel` prend le bord `zone` de l'espace de travail. */
-export const wrapRoot = (tree: DockNode, panel: DockPanelId, zone: DockZone): DockNode => {
+export const wrapRoot = (
+  tree: DockNode,
+  panel: DockPanelId,
+  zone: DockZone,
+  share = ROOT_DROP_SHARE,
+): DockNode => {
   const dir: 'row' | 'column' = zone === 'left' || zone === 'right' ? 'row' : 'column';
   const before = zone === 'left' || zone === 'top';
   const fresh = group([panel]);
   const children = before ? [fresh, tree] : [tree, fresh];
-  const sizes = before
-    ? [ROOT_DROP_SHARE, 1 - ROOT_DROP_SHARE]
-    : [1 - ROOT_DROP_SHARE, ROOT_DROP_SHARE];
+  const sizes = before ? [share, 1 - share] : [1 - share, share];
   return split(dir, children, sizes);
 };
 

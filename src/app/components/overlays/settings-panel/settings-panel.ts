@@ -7,7 +7,7 @@ import { TextField } from '@app/components/ui/text-field/text-field';
 import { Toggle } from '@app/components/ui/toggle/toggle';
 import changelogData from '../../../../assets/changelog.json';
 
-import { ChangelogEntry } from '@app/interfaces';
+import { ChangeKind, ChangelogEntry } from '@app/interfaces';
 import { ConfigExportService } from '@app/services/system/config-export.service';
 import { DesignService } from '@app/services/appearance/design.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
@@ -17,14 +17,17 @@ import { SettingsService } from '@app/services/system/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
 import { UpdaterService } from '@app/services/system/updater.service';
 
-type SettingsTab =
-  | 'design'
-  | 'files'
-  | 'connection'
-  | 'shortcuts'
-  | 'data'
-  | 'modules'
-  | 'updates';
+/** Titre d'un groupe, au pluriel : c'est un compte qu'on annonce. */
+const GROUP_LABELS: Record<ChangeKind, [string, string]> = {
+  new: ['nouveauté', 'nouveautés'],
+  better: ['amélioration', 'améliorations'],
+  fixed: ['correctif', 'correctifs'],
+};
+
+/** L'ordre de lecture : ce qui est nouveau d'abord, ce qui est réparé ensuite. */
+const KIND_ORDER: ChangeKind[] = ['new', 'better', 'fixed'];
+
+type SettingsTab = 'design' | 'files' | 'connection' | 'shortcuts' | 'data' | 'modules' | 'updates';
 
 interface TabOption {
   id: SettingsTab;
@@ -60,6 +63,51 @@ export class SettingsPanel {
   // CSS a de toute façon une puce de repli si une nature inconnue s'y glissait.
   protected readonly changelog = changelogData as ChangelogEntry[];
 
+  /**
+   * Le journal, prêt à afficher : une ligne par version, avec la répartition
+   * par nature et les notes déjà groupées. Tout est calculé ici plutôt que
+   * dans le gabarit, qui ne doit pas refaire ces boucles à chaque cycle.
+   */
+  protected readonly versions = computed(() => {
+    const installed = this.updater.currentVersion();
+    return this.changelog.map((entry) => {
+      const groups = KIND_ORDER.map((kind) => {
+        const notes = entry.notes.filter((note) => note.kind === kind);
+        const [one, many] = GROUP_LABELS[kind];
+        return { kind, title: `${notes.length} ${notes.length > 1 ? many : one}`, notes };
+      }).filter((group) => group.notes.length > 0);
+      return {
+        version: entry.version,
+        title: entry.title,
+        date: entry.date,
+        installed: entry.version === installed,
+        total: entry.notes.length,
+        parts: groups.map((group) => ({ kind: group.kind, count: group.notes.length })),
+        groups,
+      };
+    });
+  });
+
+  /**
+   * Les versions dépliées. Plusieurs à la fois : comparer deux versions est un
+   * usage courant, et un accordéon qui referme la précédente l'interdirait.
+   */
+  private readonly openVersions = signal<ReadonlySet<string>>(new Set());
+
+  protected isVersionOpen(version: string): boolean {
+    return this.openVersions().has(version);
+  }
+
+  protected toggleVersion(version: string): void {
+    this.openVersions.update((current) => {
+      const next = new Set(current);
+      if (!next.delete(version)) {
+        next.add(version);
+      }
+      return next;
+    });
+  }
+
   protected readonly tabs: readonly TabOption[] = [
     { id: 'design', icon: 'palette', label: 'Design' },
     { id: 'files', icon: 'folder', label: 'Fichiers' },
@@ -71,9 +119,7 @@ export class SettingsPanel {
   ];
 
   /** Titre de la section affichée (en-tête du contenu). */
-  protected readonly activeLabel = computed(
-    () => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '',
-  );
+  protected readonly activeLabel = computed(() => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '');
 
   constructor() {
     // (Re)scanne les modules à l'ouverture de leur onglet.

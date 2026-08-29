@@ -45,8 +45,10 @@
   padding: var(--space-2xs) var(--space-xs);
   border-radius: var(--radius-md);
 
+  // Annulé : la ligne passe au second plan sans devenir illisible. Une
+  // opacité posée sur du texte déjà `muted` se multiplie avec lui.
   &--muted {
-    opacity: 0.6;
+    opacity: 0.78;
   }
 }
 

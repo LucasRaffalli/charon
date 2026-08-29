@@ -35,5 +35,15 @@ export interface ChangelogEntry {
   date: string;
   /** Ce que la version apporte, en une formule. Facultatif. */
   title?: string;
+  /**
+   * L'illustration de la version, chemin d'asset (`assets/webp/...`).
+   * Facultative, et volontairement EMBARQUÉE plutôt que servie depuis un
+   * hôte distant : la CSP n'autorise aucune source externe, la modale
+   * s'ouvre au premier lancement après mise à jour (le pire moment pour
+   * dépendre du réseau), et une cover de version ne change plus une fois
+   * la version sortie. Format conseillé : WebP 1200 × 630, recadré en
+   * bandeau à l'affichage.
+   */
+  cover?: string;
   notes: ChangeNote[];
 }

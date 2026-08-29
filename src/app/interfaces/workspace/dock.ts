@@ -8,6 +8,8 @@ export type DockPanelId =
   | 'journal'
   | 'logs'
   | 'terminal'
+  | 'favorites'
+  | 'server2'
   | 'terminal2'
   | 'modules'
   | 'search'

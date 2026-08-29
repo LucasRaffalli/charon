@@ -147,9 +147,7 @@ function findStructuralError(source: string): { message: string; index: number }
  * légende annonçait « un nombre de fois » au lieu de « zéro ou une fois ».
  */
 function bareQuantifier(quantifier: string): string {
-  return quantifier.length > 1 && quantifier.endsWith('?')
-    ? quantifier.slice(0, -1)
-    : quantifier;
+  return quantifier.length > 1 && quantifier.endsWith('?') ? quantifier.slice(0, -1) : quantifier;
 }
 
 /** Lit le quantificateur qui suit la position donnée, s'il y en a un. */
@@ -285,7 +283,10 @@ function tokenize(source: string, seen: Map<string, string>): Token[] {
       if (branches.length > 1) {
         seen.set('(a|b)', "l'un ou l'autre");
       }
-      const text = branches.map((b) => describe(b, seen)).filter(Boolean).join(' ou ');
+      const text = branches
+        .map((b) => describe(b, seen))
+        .filter(Boolean)
+        .join(' ou ');
       const quantifier = readQuantifier(source, end + 1);
       if (quantifier) {
         seen.set(legendKey(quantifier), quantifierMeaning(quantifier));
@@ -394,9 +395,7 @@ function describe(source: string, seen: Map<string, string>): string {
   if (!tokens.length) {
     return '';
   }
-  return tokens
-    .map((token) => applyQuantifier(token.text, token.quantifier))
-    .join(', puis ');
+  return tokens.map((token) => applyQuantifier(token.text, token.quantifier)).join(', puis ');
 }
 
 /** De quoi remplir un raccourci de classe quand on fabrique un exemple. */
@@ -613,7 +612,10 @@ export function explainPattern(source: string): RegexExplanation {
   const seen = new Map<string, string>();
   const branches = splitAlternatives(source);
   const anchored = source.startsWith('^') && source.endsWith('$');
-  const body = branches.map((b) => describe(b, seen)).filter(Boolean).join(', ou bien ');
+  const body = branches
+    .map((b) => describe(b, seen))
+    .filter(Boolean)
+    .join(', ou bien ');
 
   if (branches.length > 1) {
     seen.set('(a|b)', "l'un ou l'autre");

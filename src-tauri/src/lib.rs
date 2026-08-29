@@ -29,6 +29,11 @@ pub fn run() {
             // dev (clic droit → Inspecter, ou Cmd+Option+I) ; verrouillés en
             // build release de toute façon.
 
+            // Les modules fournis avec l'application sont posés au premier
+            // lancement, désactivés : ils s'installent comme n'importe quel
+            // module et se mettent à jour indépendamment ensuite.
+            modules::install_bundled_modules(app.handle());
+
             // Fermeture des connexions inactives (vérification toutes les 30 s
             // — les sessions interactives (terminal, tail, édition) posent un
             // « hold » qui suspend la fermeture).

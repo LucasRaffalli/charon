@@ -1,0 +1,35 @@
+@if (!connected()) {
+  <p class="empty">Connecte-toi pour retrouver tes raccourcis.</p>
+} @else if (!hasProfile()) {
+  <p class="empty">Cette connexion n'a pas de profil : les favoris se rangent dans un profil, enregistre-la pour en garder.</p>
+} @else {
+  <div class="head">
+    <button
+      type="button"
+      class="add"
+      [disabled]="currentIsSaved()"
+      [title]="currentIsSaved() ? 'Ce dossier est déjà dans tes favoris' : 'Ajouter le dossier affiché'"
+      (click)="addCurrent()"
+    >
+      <app-icon name="plus" [size]="13" />
+      Ajouter ce dossier
+    </button>
+  </div>
+
+  <ul class="list">
+    @for (favorite of favorites(); track favorite.path) {
+      <li class="row">
+        <button type="button" class="fav" [title]="favorite.path" (click)="go(favorite)" (contextmenu)="openMenu($event, favorite)">
+          <app-icon class="fav__icon" [name]="iconOf(favorite)" [size]="14" />
+          <span class="fav__label">{{ favorite.label }}</span>
+          <span class="fav__path">{{ favorite.path }}</span>
+        </button>
+        <button type="button" class="row__edit" aria-label="Modifier ce favori" title="Modifier" (click)="edit(favorite)">
+          <app-icon name="pencil" [size]="12" />
+        </button>
+      </li>
+    } @empty {
+      <li class="empty">Aucun favori. « Ajouter ce dossier » garde l'endroit où tu es, le crayon permet ensuite de le renommer ou de changer son icône.</li>
+    }
+  </ul>
+}

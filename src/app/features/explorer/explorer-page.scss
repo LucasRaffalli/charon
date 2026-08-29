@@ -127,7 +127,7 @@
   border-right: 1px solid var(--border);
 
   .explorer__status-btn {
-    opacity: 0.6;
+    opacity: 0.75;
 
     &:hover {
       opacity: 1;
@@ -280,6 +280,137 @@
 }
 
 // État vide d'un panneau (aperçu sans fichier, terminal non démarré).
+/*
+   La découpe : ce qui se passe quand deux serveurs se mettent côte à côte.
+   Dans l'ordre, et chaque étape a sa raison : le bloc recule d'un cran (il
+   prend du recul), son contenu s'estompe (la place est tenue, ça travaille),
+   un tracé descend au milieu (il annonce OÙ ça va couper), sa disparition
+   fait la coupe d'un coup (nette, sinon on verrait une moitié rétrécir au
+   lieu d'un bloc se fendre), les deux moitiés se décollent du centre, puis
+   tout revient à sa taille avec le contenu.
+*/
+.explorer__cut {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 0;
+  margin-left: -1px;
+  background: var(--border-strong);
+  opacity: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.explorer__main--cutting {
+  animation: cut-zoom 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+
+  .explorer__cut {
+    animation: cut-blade 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+}
+
+// Les fentes et la pouponnière des panneaux serveur.
+.explorer__srv {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.explorer__srv-nursery {
+  display: none;
+}
+
+.srv-cell {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+
+  &.pane-off {
+    display: none !important;
+  }
+}
+
+/*
+   Le recul est RENDU avant que Serveur 2 arrive (à 44 % du temps, voir
+   CUT_BLADE_MS). Sans ça, le panneau de gauche restait réduit pendant que le
+   second s'ouvrait à taille pleine à côté : les deux moitiés ne s'accordaient
+   pas et la séparation paraissait bancale.
+*/
+@keyframes cut-zoom {
+  0% {
+    transform: none;
+  }
+  20%,
+  70% {
+    transform: scale(0.965);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+// Le tracé descend, tient un instant, puis s'efface : c'est à cet instant
+// que Serveur 2 s'ouvre (voir CUT_BLADE_MS) et écarte son voisin.
+@keyframes cut-blade {
+  0%,
+  10% {
+    height: 0;
+    opacity: 0;
+  }
+  16% {
+    height: 0;
+    opacity: 1;
+  }
+  62% {
+    height: 100%;
+    opacity: 1;
+  }
+  78% {
+    height: 100%;
+    opacity: 1;
+  }
+  92%,
+  100% {
+    height: 100%;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__main--cutting,
+  .explorer__main--cutting .explorer__cut {
+    animation: none;
+  }
+}
+
+// Bascule d'onglet : le contenu qui arrive se fond. Très court à dessein,
+// on change d'onglet des dizaines de fois par heure et une transition qui
+// se remarque deviendrait une attente.
+.explorer__panel--swap {
+  animation: panel-swap 0.18s ease;
+}
+
+@keyframes panel-swap {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer__panel--swap {
+    animation: none;
+  }
+}
+
 .explorer__panel-empty {
   display: flex;
   flex-direction: column;
@@ -335,26 +466,9 @@
     min-height: 0;
   }
 
-  // Le voile de coin : la couleur de la session fondue depuis le haut droit,
-  // le nom posé dedans. Le terminal est toujours sombre, la couleur du texte
-  // est fixe à dessein.
-  > .pane-tag {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 5;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    padding: 4px 10px 14px 36px;
-    color: #f5f8fb;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
-    font-size: calc(10.5px * var(--text-scale));
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    pointer-events: none;
-  }
+  // Le voile de coin des terminaux a été RETIRÉ le 29/08/2026 : leur panneau
+  // porte déjà la couleur de session sur sa barre d'onglets, et la redire ici
+  // faisait deux dégradés pour une seule information.
 }
 
 @keyframes pane-in {
@@ -411,7 +525,7 @@
 // donc pas de masque monochrome).
 :host-context([data-accent='unicorn']) .explorer--logo::before {
   background-color: transparent;
-  background-image: url('/assets/png/unicorn.webp');
+  background-image: url('/assets/webp/unicorn.webp');
   background-repeat: no-repeat;
   background-position: center;
   background-size: min(46vmin, 500px);

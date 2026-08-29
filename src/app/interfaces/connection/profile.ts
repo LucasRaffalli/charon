@@ -31,6 +31,23 @@ export interface ServerProfile {
    * chaque connexion est une corvée que rien ne justifie.
    */
   anchor?: string | null;
+  /**
+   * Raccourcis vers les dossiers où l'on retourne sans cesse.
+   *
+   * Dans le profil et non dans un stockage à part : ce sont des chemins DE CE
+   * SERVEUR, ils n'ont aucun sens ailleurs. Ils s'exportent donc avec la
+   * configuration et se synchronisent entre les fenêtres sans rien de plus.
+   */
+  favorites?: Favorite[];
+}
+
+/** Un raccourci vers un dossier du serveur. */
+export interface Favorite {
+  path: string;
+  /** Nom affiché : le dernier segment du chemin par défaut, renommable. */
+  label: string;
+  /** Nom d'icône du registre (`folder`, `server`, `logs`…). */
+  icon?: string | null;
 }
 
 /**

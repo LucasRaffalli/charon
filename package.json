@@ -10,7 +10,7 @@
     "dev": "tauri dev --config src-tauri/tauri.dev.conf.json",
     "release": "bash scripts/release.sh",
     "deploy": "bash scripts/deploy.sh",
-    "verify": "node scripts/verify/modules-purs.cjs && node scripts/verify/session-registry.cjs && node scripts/verify/sftp-tree.cjs && node scripts/verify/dock.cjs",
+    "verify": "node scripts/verify/modules-purs.cjs && node scripts/verify/session-registry.cjs && node scripts/verify/sftp-tree.cjs && node scripts/verify/dock.cjs && node scripts/verify/monitor.cjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

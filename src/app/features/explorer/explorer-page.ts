@@ -19,6 +19,7 @@ import { listen } from '@tauri-apps/api/event';
 
 import { ActivityLog } from '@app/components/panels/activity-log/activity-log';
 import { Dock } from '@app/components/dock/dock';
+import { FavoritesPane } from '@app/components/panels/favorites-pane/favorites-pane';
 import { FilePane } from '@app/components/panels/file-pane/file-pane';
 import { Icon } from '@app/components/ui/icon/icon';
 import { LogPane } from '@app/components/panels/log-pane/log-pane';
@@ -71,6 +72,21 @@ const PANEL_ORDER: readonly DockPanelId[] = [
 ];
 
 /**
+ * Durée de la découpe (voir `.explorer__main--cutting`) : recul du bloc,
+ * contenu estompé, tracé qui descend et s'efface. Tout doit être TERMINÉ
+ * avant l'ouverture de Serveur 2 : cette ouverture réécrit l'arbre du dock,
+ * qui déplace alors le panneau dans son nouveau slot, et un élément déplacé
+ * dans le DOM redémarre ses animations CSS. La séquence se rejouait donc une
+ * seconde fois, en plein milieu.
+ */
+const CUT_MS = 600;
+
+/** Serveur 2 s'ouvre juste après, et son arrivée écarte son voisin (voir
+ *  `@starting-style` sur `.split__cell`). C'est cette ouverture qui produit
+ *  le décollement, on ne le simule pas. */
+const CUT_BLADE_MS = 620;
+
+/**
  * L'espace de travail : le dock et ses panneaux, la barre de statut, les
  * raccourcis, et les relais qui ne peuvent être que de niveau fenêtre (dépôt
  * du Finder, glissé venu d'une autre fenêtre).
@@ -87,6 +103,7 @@ const PANEL_ORDER: readonly DockPanelId[] = [
     Dock,
     RemoteEditBar,
     PreviewPanel,
+    FavoritesPane,
     FilePane,
     Icon,
     LogPane,
@@ -153,6 +170,11 @@ export class ExplorerPage {
   /** Le corps du dock, pour rejouer l'animation de bascule d'onglet. */
   private readonly stageBody = viewChild<ElementRef<HTMLElement>>('stageBody');
 
+  /** Les fentes des panneaux serveur et leur pouponnière (voir le template). */
+  private readonly srvNursery = viewChild<ElementRef<HTMLElement>>('srvNursery');
+  private readonly srvSlotA = viewChild<ElementRef<HTMLElement>>('srvSlotA');
+  private readonly srvSlotB = viewChild<ElementRef<HTMLElement>>('srvSlotB');
+
   /** Les fentes des terminaux et leur pouponnière (voir le template). */
   private readonly termNursery = viewChild<ElementRef<HTMLElement>>('termNursery');
   private readonly termSlotA = viewChild<ElementRef<HTMLElement>>('termSlotA');
@@ -160,13 +182,14 @@ export class ExplorerPage {
 
   /** Terminal 2 n'existe que le temps d'une vue double : hors split, son
    *  bouton de réouverture n'a rien à rouvrir. */
-  protected readonly visibleClosedPanels = computed(() =>
-    this.dock
+  /** Les seconds panneaux n'existent que le temps d'une vue double : hors
+   *  split, leur bouton de réouverture n'aurait rien à rouvrir. */
+  protected readonly visibleClosedPanels = computed(() => {
+    const split = this.sessionRegistry.displayed().length > 1;
+    return this.dock
       .closedPanels()
-      .filter(
-        (panel) => panel !== 'terminal2' || this.sessionRegistry.displayed().length > 1,
-      ),
-  );
+      .filter((panel) => (panel !== 'terminal2' && panel !== 'server2') || split);
+  });
 
   protected readonly localEntries = computed(() =>
     this.withoutHidden(this.localFs.filteredEntries()),
@@ -236,6 +259,40 @@ export class ExplorerPage {
       });
     });
 
+    // Le déménageur des panneaux serveur : la deuxième session affichée va
+    // dans Serveur 2, la première dans Serveur. appendChild et non
+    // re-création : le défilement de la liste et la sélection survivent.
+    afterRenderEffect(() => {
+      const displayed = this.sessionRegistry.displayed();
+      const nursery = this.srvNursery()?.nativeElement;
+      const slotA = this.srvSlotA()?.nativeElement;
+      const slotB = this.srvSlotB()?.nativeElement;
+      if (!nursery || !slotA) {
+        return;
+      }
+      const roots = [nursery, slotA, ...(slotB ? [slotB] : [])];
+      const cells = roots.flatMap((root) =>
+        Array.from(root.querySelectorAll<HTMLElement>('[data-srv-session]')),
+      );
+      // Serveur 2 s'ouvre 400 ms APRÈS le début de la découpe : d'ici là son
+      // slot n'existe pas, et sans cette garde le second panneau se posait
+      // aussitôt à côté du premier dans le slot A. On voyait donc le split
+      // arriver d'un coup, puis le panneau sauter ailleurs quand son vrai
+      // panneau s'ouvrait : c'est ce qui cassait l'animation de découpe. Tant
+      // qu'il n'a pas sa place, il attend, caché.
+      const slotBReady = !!slotB && this.dock.activePanels().has('server2');
+      for (const cell of cells) {
+        const id = cell.dataset['srvSession'];
+        const second = displayed.length > 1 && displayed[1].id === id;
+        const target = second && slotBReady ? slotB! : slotA;
+        if (cell.parentElement !== target) {
+          target.appendChild(cell);
+        }
+        const shown = displayed.some((session) => session.id === id) && (!second || slotBReady);
+        cell.classList.toggle('pane-off', !shown);
+      }
+    });
+
     // Le déménageur des terminaux : chaque cellule rejoint sa fente : la
     // deuxième session affichée va dans Terminal 2, tout le reste dans le
     // panneau Terminal (masqué si sa session n'est pas affichée). appendChild
@@ -266,20 +323,113 @@ export class ExplorerPage {
       }
     });
 
-    // La vue double a besoin de largeur : l'arborescence se range quand le
-    // split se pose, et revient quand il se défait, seulement si c'est nous
-    // qui l'avions rangée, un panneau fermé à la main le reste.
-    let treeClosedForSplit = false;
+    // Les panneaux de session s'identifient sur leur barre d'onglets : leur
+    // couleur ET le nom du serveur, qui devient « Serveur · portfolio ». Un
+    // « Serveur » tout court ne dit pas lequel quand deux sont côte à côte.
+    // Le dock ne connaît pas les sessions, on lui donne cette table et il se
+    // contente de l'afficher. Rien hors vue double : une seule session à
+    // l'écran n'a personne avec qui être confondue.
+    effect(() => {
+      const displayed = this.sessionRegistry.displayed();
+      const identity = (session: Session, side: 'left' | 'right') => ({
+        tint: this.sessionTone(session),
+        name: this.sessionTitle(session),
+        side,
+      });
+      const identities =
+        displayed.length > 1
+          ? {
+              server: identity(displayed[0], 'left' as const),
+              terminal: identity(displayed[0], 'left' as const),
+              server2: identity(displayed[1], 'right' as const),
+              terminal2: identity(displayed[1], 'right' as const),
+            }
+          : {};
+      untracked(() => this.dock.setIdentities(identities));
+    });
+
+    // L'arborescence ne se referme PLUS à la pose du split (retiré le
+    // 29/08/2026). Elle le faisait pour libérer de la largeur, du temps où la
+    // vue double était une colonne dans le panneau serveur. Depuis que
+    // Serveur 2 est un panneau du dock à part entière, l'utilisateur arrange
+    // sa disposition lui-même, et la fermeture surprenait : l'arborescence
+    // partage sa colonne avec le panneau local, qui prenait alors toute la
+    // hauteur et semblait surgir à côté du serveur.
+    // La découpe se joue à la CRÉATION de la paire, et là seulement. Se
+    // déclencher sur « deux sessions affichées » la rejouait chaque fois
+    // qu'on revenait sur l'onglet fusionné après un détour par un onglet
+    // simple : le split n'était pas posé de nouveau, on le retrouvait.
+    let cutUntil = 0;
+    let hadPair = false;
+    effect(() => {
+      const pair = this.sessionRegistry.pair();
+      untracked(() => {
+        if (pair && !hadPair) {
+          const main = this.document.querySelector<HTMLElement>('.explorer__main');
+          if (main) {
+            main.classList.remove('explorer__main--cutting');
+            void main.offsetWidth; // force le redémarrage de la séquence
+            main.classList.add('explorer__main--cutting');
+            setTimeout(() => main.classList.remove('explorer__main--cutting'), CUT_MS);
+            cutUntil = Date.now() + CUT_BLADE_MS;
+          }
+        }
+        hadPair = !!pair;
+      });
+    });
+
+    // Serveur 2 suit la vue double : ouvert quand elle est à l'écran, rangé
+    // sinon. Son ouverture attend la fin de la découpe quand celle-ci vient
+    // d'être lancée, et part tout de suite dans les autres cas (retour sur
+    // l'onglet fusionné, réouverture à la main).
     effect(() => {
       const split = this.sessionRegistry.displayed().length > 1;
       untracked(() => {
-        if (split && this.dock.activePanels().has('tree')) {
-          this.dock.closePanel('tree');
-          treeClosedForSplit = true;
-        } else if (!split && treeClosedForSplit) {
-          treeClosedForSplit = false;
-          this.dock.openPanel('tree');
+        const open = this.dock.activePanels().has('server2');
+        if (split && !open) {
+          setTimeout(
+            () => {
+              if (
+                this.sessionRegistry.displayed().length > 1 &&
+                !this.dock.activePanels().has('server2')
+              ) {
+                this.dock.openBeside('server2', 'server', 'right');
+              }
+            },
+            Math.max(0, cutUntil - Date.now()),
+          );
+        } else if (!split && open) {
+          this.dock.closePanel('server2');
         }
+      });
+    });
+
+    // Bascule entre onglets d'un groupe (Transferts vers Journal…) : le
+    // contenu qui arrive se fond au lieu de se substituer sèchement. On ne
+    // peut pas s'appuyer sur une transition CSS, le masquage passe par
+    // `[hidden]` donc par `display: none`, qui les coupe ; on rejoue donc
+    // l'animation sur le panneau devenu actif. Le premier passage sert
+    // seulement à mémoriser l'état de départ, sinon tout clignoterait à
+    // l'ouverture de l'application.
+    let shownPanels: ReadonlySet<DockPanelId> | null = null;
+    effect(() => {
+      const active = this.dock.activePanels();
+      untracked(() => {
+        if (shownPanels) {
+          for (const panel of active) {
+            if (!shownPanels.has(panel)) {
+              const el = this.document.querySelector<HTMLElement>(
+                `[data-dock-panel="${panel}"]`,
+              );
+              if (el) {
+                el.classList.remove('explorer__panel--swap');
+                void el.offsetWidth; // force le redémarrage de l'animation
+                el.classList.add('explorer__panel--swap');
+              }
+            }
+          }
+        }
+        shownPanels = new Set(active);
       });
     });
 
@@ -314,10 +464,9 @@ export class ExplorerPage {
     return this.tabBar.titleOf(session);
   }
 
-  /** Le voile de coin d'une session, pour la vignette de son terminal. */
-  protected sessionWash(session: Session): string {
-    const tone = this.sessionRegistry.toneOf(session);
-    return `linear-gradient(225deg, color-mix(in srgb, var(--session-${tone}) 40%, transparent), transparent 72%)`;
+  /** La couleur brute d'une session, pour teinter la barre de son panneau. */
+  private sessionTone(session: Session): string {
+    return `var(--session-${this.sessionRegistry.toneOf(session)})`;
   }
 
   /** Le panneau serveur de la session focalisée, s'il est monté. */
@@ -590,6 +739,20 @@ export class ExplorerPage {
       },
 
       // --- Naviguer ---
+      {
+        keys: 'mod+arrowleft',
+        label: 'Dossier précédent',
+        group: 'Naviguer',
+        when: () => connected() && this.sftp.canGoBack(),
+        run: () => void this.sftp.goBack(),
+      },
+      {
+        keys: 'mod+arrowright',
+        label: 'Dossier suivant',
+        group: 'Naviguer',
+        when: () => connected() && this.sftp.canGoForward(),
+        run: () => void this.sftp.goForward(),
+      },
       {
         keys: 'mod+arrowup',
         label: 'Dossier parent',

@@ -27,3 +27,19 @@ export const formatClock = (at: number): string => CLOCK.format(at);
 
 /** `dd/MM/yy HH:mm` (dialogue d'écrasement). */
 export const formatStamp = (at: number): string => STAMP.format(at).replace(',', '');
+
+const RELEASE_DAY = new Intl.DateTimeFormat('fr-FR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+
+/**
+ * `29 août 2026` — la date d'une version, telle qu'on la dit. Le changelog la
+ * stocke en ISO (triable, non ambiguë) ; l'afficher ainsi donnerait un numéro
+ * de série là où on attend une date.
+ */
+export const formatReleaseDate = (iso: string): string => {
+  const at = Date.parse(iso);
+  return Number.isNaN(at) ? iso : RELEASE_DAY.format(at);
+};

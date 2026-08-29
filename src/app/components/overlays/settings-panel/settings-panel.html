@@ -1,12 +1,6 @@
 @if (settings.panelOpen()) {
   <div class="overlay" (click)="close()">
-    <section
-      class="panel"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Réglages"
-      (click)="$event.stopPropagation()"
-    >
+    <section class="panel" role="dialog" aria-modal="true" aria-label="Réglages" (click)="$event.stopPropagation()">
       <!-- Navigation latérale -->
       <aside class="panel__nav">
         <h2 class="panel__brand">
@@ -64,8 +58,7 @@
                 <div class="setting__text">
                   <span class="setting__name">Vérifier les transferts</span>
                   <span class="setting__desc">
-                    Comparer les empreintes sha256 après chaque transfert. Coûte une lecture
-                    complète des deux côtés. SFTP uniquement.
+                    Comparer les empreintes sha256 après chaque transfert. Coûte une lecture complète des deux côtés. SFTP uniquement.
                   </span>
                 </div>
                 <app-toggle
@@ -79,8 +72,7 @@
                 <div class="setting__text">
                   <span class="setting__name">Formater à l'enregistrement</span>
                   <span class="setting__desc">
-                    Prettier repasse sur le fichier quand tu enregistres depuis l'aperçu
-                    (JS/TS, JSON, CSS, HTML, Markdown, YAML). Une erreur de syntaxe
+                    Prettier repasse sur le fichier quand tu enregistres depuis l'aperçu (JS/TS, JSON, CSS, HTML, Markdown, YAML). Une erreur de syntaxe
                     n'empêche jamais d'enregistrer.
                   </span>
                 </div>
@@ -95,8 +87,8 @@
                 <div class="setting__text">
                   <span class="setting__name">Corbeille distante</span>
                   <span class="setting__desc">
-                    Supprimer déplace vers un dossier .charon-trash au lieu d'effacer. Purgée à la
-                    connexion au-delà de ce nombre de jours. 0 = ne jamais purger.
+                    Supprimer déplace vers un dossier .charon-trash au lieu d'effacer. Purgée à la connexion au-delà de ce nombre de jours. 0 = ne jamais
+                    purger.
                   </span>
                 </div>
                 <app-text-field
@@ -112,9 +104,7 @@
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">Éditeur externe</span>
-                  <span class="setting__desc">
-                    Application pour « Éditer (éditeur système) ». Vide = défaut du système.
-                  </span>
+                  <span class="setting__desc"> Application pour « Éditer (éditeur système) ». Vide = défaut du système. </span>
                 </div>
                 <app-text-field
                   ariaLabel="Éditeur externe"
@@ -129,9 +119,7 @@
               <div class="setting">
                 <div class="setting__text">
                   <span class="setting__name">Fermeture après inactivité</span>
-                  <span class="setting__desc">
-                    Minutes avant fermeture d'une session inutilisée. 0 = jamais.
-                  </span>
+                  <span class="setting__desc"> Minutes avant fermeture d'une session inutilisée. 0 = jamais. </span>
                 </div>
                 <app-text-field
                   class="setting__minutes"
@@ -147,9 +135,7 @@
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">Raccourcis clavier</span>
-                  <span class="setting__desc">
-                    Tout ce que Charon écoute au clavier. Accessible aussi par ⌘/.
-                  </span>
+                  <span class="setting__desc"> Tout ce que Charon écoute au clavier. Accessible aussi par ⌘/. </span>
                 </div>
               </div>
               <app-shortcuts-list />
@@ -159,8 +145,7 @@
                 <div class="setting__text">
                   <span class="setting__name">Exporter la configuration</span>
                   <span class="setting__desc">
-                    Un fichier JSON dans ton dossier Téléchargements : apparence, disposition des
-                    panneaux, réglages et coordonnées de tes serveurs.
+                    Un fichier JSON dans ton dossier Téléchargements : apparence, disposition des panneaux, réglages et coordonnées de tes serveurs.
                   </span>
                 </div>
                 <app-button variant="ghost" (click)="exporter.run()">
@@ -173,9 +158,8 @@
                 <div class="setting__text">
                   <span class="setting__name">Ce qui n'y est pas</span>
                   <span class="setting__desc">
-                    Aucun mot de passe, aucune passphrase. Ils vivent dans le trousseau du système
-                    et ne sont jamais lisibles depuis l'application. Un profil exporté indique
-                    seulement qu'un secret existe, pour savoir lesquels le redemanderont.
+                    Aucun mot de passe, aucune passphrase. Ils vivent dans le trousseau du système et ne sont jamais lisibles depuis l'application. Un profil
+                    exporté indique seulement qu'un secret existe, pour savoir lesquels le redemanderont.
                   </span>
                 </div>
               </div>
@@ -196,9 +180,7 @@
               <div class="setting">
                 <div class="setting__text">
                   <span class="setting__name">Dossier des modules</span>
-                  <span class="setting__desc">
-                    Installe un module en déposant son dossier ici, puis actualise.
-                  </span>
+                  <span class="setting__desc"> Installe un module en déposant son dossier ici, puis actualise. </span>
                 </div>
                 <app-button variant="ghost" (click)="modules.openFolder()">
                   <app-icon name="folder" [size]="14" />
@@ -230,11 +212,7 @@
                         </div>
 
                         @if (!module.error) {
-                          <app-toggle
-                            [ariaLabel]="'Activer ' + module.name"
-                            [checked]="module.enabled"
-                            (checkedChange)="toggleModule(module.slug, $event)"
-                          />
+                          <app-toggle [ariaLabel]="'Activer ' + module.name" [checked]="module.enabled" (checkedChange)="toggleModule(module.slug, $event)" />
                         }
                       </div>
 
@@ -246,12 +224,7 @@
                         </div>
                       }
 
-                      <button
-                        type="button"
-                        class="module__delete"
-                        title="Supprimer ce module"
-                        (click)="deleteModule(module.slug, module.name)"
-                      >
+                      <button type="button" class="module__delete" title="Supprimer ce module" (click)="deleteModule(module.slug, module.name)">
                         <app-icon name="trash" [size]="13" />
                         Supprimer
                       </button>
@@ -259,9 +232,7 @@
                   }
                 </ul>
               } @else {
-                <p class="panel__update-status">
-                  Aucun module installé. Dépose un dossier de module dans le dossier ci-dessus.
-                </p>
+                <p class="panel__update-status">Aucun module installé. Dépose un dossier de module dans le dossier ci-dessus.</p>
               }
             }
             @case ('updates') {
@@ -286,8 +257,7 @@
                         Version {{ status.version }} disponible :
                       }
                     }
-                    l'installation vérifie la signature avant d'appliquer quoi
-                    que ce soit.
+                    l'installation vérifie la signature avant d'appliquer quoi que ce soit.
                   </p>
                   @if (updater.notes(); as notes) {
                     <div class="panel__changelog">
@@ -333,32 +303,53 @@
                 Vérifier les mises à jour
               </app-button>
 
-              <!-- Historique embarqué au build : survit aux mises à jour. -->
+              <!-- Historique embarqué au build : survit aux mises à jour.
+                   Une ligne par version, dépliable : on ne vient pas ici
+                   découvrir (c'est le rôle des Nouveautés) mais retrouver,
+                   donc voir beaucoup de versions à la fois prime sur la mise
+                   en scène de la dernière. -->
               @if (changelog.length > 0) {
                 <div class="panel__history">
                   <span class="panel__history-title">Historique des versions</span>
-                  <div class="panel__log">
-                    @for (entry of changelog; track entry.version) {
-                      <div
-                        class="panel__history-entry"
-                        [class.panel__history-entry--current]="entry.version === updater.currentVersion()"
+                  <div class="log">
+                    @for (entry of versions(); track entry.version) {
+                      <button
+                        type="button"
+                        class="vrow"
+                        [class.vrow--now]="entry.installed"
+                        [class.vrow--open]="isVersionOpen(entry.version)"
+                        [attr.aria-expanded]="isVersionOpen(entry.version)"
+                        (click)="toggleVersion(entry.version)"
                       >
-                        <div class="panel__history-head">
-                          <span class="panel__history-version data">{{ entry.version }}</span>
-                          <span class="panel__history-date data">{{ entry.date }}</span>
-                          @if (entry.version === updater.currentVersion()) {
-                            <span class="panel__history-current">installée</span>
+                        <span class="vrow__v data">{{ entry.version }}</span>
+                        <span class="vrow__name">{{ entry.title || '·' }}</span>
+                        @if (entry.installed) {
+                          <span class="vrow__badge">installée</span>
+                        }
+                        <!-- La répartition avant l'ouverture : elle dit la
+                             nature d'une version sans qu'on la déplie. -->
+                        <span class="vrow__bars" [attr.aria-hidden]="true">
+                          @for (part of entry.parts; track part.kind) {
+                            <i class="vrow__bar vrow__bar--{{ part.kind }}" [style.flex]="part.count"></i>
                           }
-                          @if (entry.title) {
-                            <span class="panel__history-name">{{ entry.title }}</span>
+                        </span>
+                        <span class="vrow__n data">{{ entry.total }}</span>
+                        <app-icon class="vrow__chev" name="chevron-down" [size]="13" />
+                      </button>
+
+                      @if (isVersionOpen(entry.version)) {
+                        <div class="drawer">
+                          <span class="drawer__date data">{{ entry.date }}</span>
+                          @for (group of entry.groups; track group.kind) {
+                            <h4 class="drawer__title">{{ group.title }}</h4>
+                            <ul class="drawer__list drawer__list--{{ group.kind }}">
+                              @for (note of group.notes; track note.text) {
+                                <li>{{ note.text }}</li>
+                              }
+                            </ul>
                           }
                         </div>
-                        <ul class="panel__history-notes">
-                          @for (note of entry.notes; track $index) {
-                            <li class="panel__note panel__note--{{ note.kind }}">{{ note.text }}</li>
-                          }
-                        </ul>
-                      </div>
+                      }
                     }
                   </div>
                 </div>

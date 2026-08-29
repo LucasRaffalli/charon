@@ -15,6 +15,7 @@ import { DesignPanel } from '@app/components/overlays/design-panel/design-panel'
 import { ContextMenu } from '@app/components/overlays/context-menu/context-menu';
 import { DialogHost } from '@app/components/overlays/dialog-host/dialog-host';
 import { OverwriteDialog } from '@app/components/overlays/overwrite-dialog/overwrite-dialog';
+import { FavoriteDialog } from '@app/components/overlays/favorite-dialog/favorite-dialog';
 import { PermissionsDialog } from '@app/components/overlays/permissions-dialog/permissions-dialog';
 import { SessionRecap } from '@app/components/overlays/session-recap/session-recap';
 import { WhatsNew } from '@app/components/overlays/whats-new/whats-new';
@@ -51,6 +52,7 @@ import { UpdaterService } from '@app/services/system/updater.service';
     SettingsPanel,
     DialogHost,
     OverwriteDialog,
+    FavoriteDialog,
     PermissionsDialog,
     ShortcutsSheet,
     SessionRecap,

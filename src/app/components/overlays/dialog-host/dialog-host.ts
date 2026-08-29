@@ -1,18 +1,16 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/ui/button/button';
+import { Modal } from '@app/components/ui/modal/modal';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { DialogService } from '@app/services/workspace/dialog.service';
 
 /** Rendu des dialogues confirm/prompt. À placer une seule fois, à la racine. */
 @Component({
   selector: 'app-dialog-host',
-  imports: [Button, TextField],
+  imports: [Button, Modal, TextField],
   templateUrl: './dialog-host.html',
   styleUrl: './dialog-host.scss',
-  host: {
-    '(document:keydown.escape)': 'cancel()',
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DialogHost {

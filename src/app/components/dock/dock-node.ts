@@ -71,6 +71,17 @@ export class DockNodeView {
 
   protected readonly meta = PANEL_META;
 
+  /** La couleur du panneau actif de ce groupe, s'il appartient à une session. */
+  protected tintOf(node: DockGroup): string | null {
+    return this.dock.identities()[node.active]?.tint ?? null;
+  }
+
+  /** Le bord d'où part la couleur : les deux panneaux d'une vue double se
+   *  font face, leurs teintes se posent vers l'extérieur. */
+  protected tintFrom(node: DockGroup): string {
+    return this.dock.identities()[node.active]?.side === 'right' ? '100%' : '0%';
+  }
+
   /**
    * La croix ne s'affiche que s'il reste de quoi fermer : le DERNIER panneau
    * ouvert est protégé par le service, et proposer un geste sans effet serait
@@ -89,7 +100,10 @@ export class DockNodeView {
       const active = this.activeTransfers();
       return active > 0 ? `Transferts · ${active}` : 'Transferts';
     }
-    return PANEL_META[panel].label;
+    // Un panneau qui montre une session porte son nom : « Serveur » tout
+    // court ne dit pas LEQUEL quand deux serveurs sont côte à côte.
+    const name = this.dock.identities()[panel]?.name;
+    return name ? `${PANEL_META[panel].label} · ${name}` : PANEL_META[panel].label;
   }
 
   /** Active un onglet et le ramène en vue (la bande peut défiler). */

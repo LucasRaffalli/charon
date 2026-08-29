@@ -27,8 +27,19 @@
   flex: 1 1 0; // flex-grow surchargé inline par la fraction du nœud
   min-width: 0;
   min-height: 0;
-  // Les réagencements (drop, reset) glissent en douceur…
-  transition: flex-grow 220ms ease;
+  // Les réagencements (drop, reset) glissent en douceur, avec le rebond léger
+  // de l'ouverture d'un panneau.
+  transition: flex-grow 0.42s cubic-bezier(0.34, 1.32, 0.5, 1);
+}
+
+// Un panneau qui s'OUVRE : ses voisins lui font de la place plutôt qu'il ne
+// se pose par-dessus. La cellule naît à `flex-grow: 0` et rejoint sa taille
+// par la transition ci-dessus. Là où `@starting-style` n'est pas supporté,
+// elle apparaît directement à sa taille : rien ne casse, l'animation manque.
+@starting-style {
+  .split__cell {
+    flex-grow: 0;
+  }
 }
 
 // …mais le resize manuel reste instantané (suit la souris).
@@ -68,13 +79,98 @@
   --panel-alpha-local: 88%;
 }
 
+/*
+   Des onglets « chrome » : la surface de l'onglet actif rejoint celle du
+   panneau, sans bordure entre les deux, comme dans un navigateur. L'onglet
+   fait alors corps avec ce qu'il montre, au lieu d'être une étiquette posée
+   au-dessus. C'est aussi le vocabulaire de la barre de sessions, qui emploie
+   déjà les congés inversés : les deux barres parlent la même langue.
+
+   La barre porte un voile sombre (ce qui est DERRIÈRE les onglets) et
+   l'onglet actif un voile clair qui le compense : impossible de « soustraire »
+   un fond en CSS, on remonte donc au niveau du panneau. Des voiles et non des
+   couleurs fixes, pour que ça tienne sur les trois thèmes et sous n'importe
+   quel réglage de translucidité.
+*/
 .group__tabs {
+  // La couleur de l'onglet actif, nommée une fois : les congés inversés
+  // doivent peindre exactement la même, sans quoi le raccord se voit.
+  //
+  // C'est la surface EXACTE du panneau, pas un voile. Un voile sombre sur la
+  // barre compensé par un voile clair sur l'onglet ne revient pas au point de
+  // départ : les deux compositions se cumulent (0,93·S puis +7 % de blanc),
+  // et l'onglet actif finissait plus CLAIR que le panneau qu'il est censé
+  // prolonger. Ici il y revient par construction, quel que soit le thème et
+  // le réglage de translucidité.
+  --tab-face: color-mix(
+    in srgb,
+    var(--surface) min(var(--panel-alpha), var(--panel-alpha-local, 100%)),
+    transparent
+  );
+
   display: flex;
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
-  padding: 4px 6px 3px;
-  border-bottom: 1px solid var(--border);
+  // Aucune gouttière ici : c'est la BANDE qui porte la sienne (voir plus bas),
+  // pour que les congés de l'onglet actif tiennent dedans au lieu d'être
+  // rognés par son défilement.
+  padding: 5px 0 0;
+  // La barre s'éloigne du panneau (elle s'éclaircit en sombre, s'assombrit en
+  // clair) et l'onglet actif la perce : le même rapport que la barre de
+  // sessions, où la barre est en `--elev-1` et l'onglet actif en `--elev-0`.
+  background: var(--tab-bar-veil);
+}
+
+// Un panneau qui appartient à une session porte sa couleur ICI, sur la barre
+// où se trouvent déjà son nom, sa poignée et sa croix : c'est la ligne qui
+// identifie le panneau. Le dégradé s'éteint vers la droite pour ne pas
+// disputer la lisibilité aux onglets, et la bordure du bas le prolonge.
+// Miroir complet pour le panneau de droite : ses onglets passent du côté
+// d'où vient sa couleur, la poignée et la croix de l'autre. Les deux barres
+// se regardent alors comme leurs dégradés.
+.group__tabs--mirror {
+  flex-direction: row-reverse;
+
+  // La bande occupe toute la largeur restante : sans cette ligne, ses onglets
+  // restent collés à gauche et seul le couple poignée/croix change de côté.
+  .group__tabs-strip {
+    justify-content: flex-end;
+  }
+
+  .group__grip {
+    margin-left: 0;
+    margin-right: auto;
+  }
+
+  .group__close {
+    margin-right: 0;
+    margin-left: var(--space-xs);
+  }
+}
+
+.group__tabs--tinted {
+  position: relative;
+  // Un halo ELLIPTIQUE ancré sur un bord, pas un dégradé linéaire : le
+  // linéaire s'éteint sur une ligne franche qu'on devine au milieu de la
+  // barre, là où l'ellipse se dilue dans les deux directions à la fois. Elle
+  // est large et très haute (220 %) pour que la barre n'en traverse que le
+  // ventre, sans laisser voir sa courbure.
+  //
+  // `--tab-from` vaut 0 % ou 100 % : en vue double, les deux panneaux se font
+  // face et leurs couleurs se posent vers l'EXTÉRIEUR, ce qui laisse calme le
+  // centre où ils se touchent.
+  // Deux couches : le halo par-dessus le voile de barre. Une seule valeur
+  // `background` remplacerait le voile, et une barre teintée n'aurait plus le
+  // même niveau qu'une barre ordinaire.
+  background:
+    radial-gradient(
+        ellipse 62% 220% at var(--tab-from, 0%) 50%,
+        color-mix(in srgb, var(--tab-tint) 80%, transparent),
+        color-mix(in srgb, var(--tab-tint) 28%, transparent) 44%,
+        transparent 80%
+      )
+      var(--tab-bar-veil);
 }
 
 // Bande d'onglets : défile horizontalement si le groupe en empile beaucoup
@@ -84,6 +180,10 @@
   gap: 2px;
   flex: 1;
   min-width: 0;
+  // La gouttière tient le congé de l'onglet actif (qui déborde de sa boîte du
+  // rayon) PLUS un peu d'air : au rayon exact, le congé occupe toute la
+  // gouttière et l'onglet vient buter contre le bord du panneau.
+  padding-inline: calc(var(--radius-md) + var(--space-2xs));
   overflow-x: auto;
   scrollbar-width: none;
 
@@ -103,9 +203,12 @@
   gap: 6px;
   flex-shrink: 0; // la bande défile, les onglets ne s'écrasent pas
   min-width: 0;
-  padding: 3px 9px;
+  padding: 5px 11px 6px;
   border: none;
-  border-radius: var(--radius-sm);
+  // Le rayon suit celui du panneau d'un cran en dessous (md contre lg) :
+  // un petit arrondi posé à l'intérieur d'un grand ne se répond pas, les
+  // deux courbes se contredisent.
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: none;
   color: var(--text-muted);
   font-size: calc(11.5px * var(--text-scale));
@@ -123,12 +226,48 @@
     color: var(--text-faint);
   }
 
-  // Actif : marqué par la couleur seule (pas de fond).
+  // Actif : sa surface remonte au niveau du panneau et le rejoint.
   &--active {
+    position: relative;
     color: var(--text);
+    background: var(--tab-face);
 
     app-icon {
       color: var(--accent);
+    }
+
+    // Les congés inversés, même technique que la barre de sessions : de part
+    // et d'autre du pied de l'onglet, un carré dont le quart de cercle
+    // transparent laisse voir la barre, le reste portant la couleur de
+    // l'onglet. Le raccord se fait en courbe au lieu d'un angle droit, et
+    // l'onglet coule dans la surface du dessous. Le rayon suit le thème : en
+    // « net » il est petit et la forme redevient carrée d'elle-même.
+    &::before,
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      width: var(--radius-md);
+      height: var(--radius-md);
+      pointer-events: none;
+    }
+
+    &::before {
+      left: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 0 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--tab-face) var(--radius-md)
+      );
+    }
+
+    &::after {
+      right: calc(-1 * var(--radius-md));
+      background: radial-gradient(
+        circle var(--radius-md) at 100% 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        var(--tab-face) var(--radius-md)
+      );
     }
   }
 
@@ -167,8 +306,10 @@
   }
 }
 
-// Fermeture du panneau actif.
+// Fermeture du panneau actif. Elle porte la gouttière du bord, du côté où la
+// barre se termine : en miroir, c'est l'autre.
 .group__close {
+  margin-right: var(--space-xs);
   display: grid;
   place-items: center;
   flex-shrink: 0;

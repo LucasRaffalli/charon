@@ -42,6 +42,22 @@ pub struct Profile {
     /// arrive au dossier personnel puis, à défaut, à la racine.
     #[serde(default)]
     pub anchor: Option<String>,
+    /// Raccourcis vers les dossiers où l'on retourne sans cesse. Ils vivent
+    /// dans le profil et non dans un stockage à part : ce sont des chemins
+    /// DE CE SERVEUR, ils s'exportent avec lui et suivent les fenêtres.
+    #[serde(default)]
+    pub favorites: Vec<Favorite>,
+}
+
+/// Un raccourci vers un dossier du serveur.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Favorite {
+    pub path: String,
+    /// Nom affiché : le dernier segment du chemin par défaut, renommable.
+    pub label: String,
+    /// Nom d'icône du registre de l'app (`folder`, `server`, `logs`…).
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 // ---------- Helpers ----------

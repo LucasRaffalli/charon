@@ -1,19 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/ui/button/button';
+import { Modal } from '@app/components/ui/modal/modal';
 import { Toggle } from '@app/components/ui/toggle/toggle';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
-import {
-  PERM_BITS,
-  PERM_CLASSES,
-  PermBit,
-  PermClass,
-  hasPerm,
-  toOctal,
-  toSymbolic,
-  togglePerm,
-} from '@app/services/files/permissions';
+import { PERM_BITS, PERM_CLASSES, PermBit, PermClass, hasPerm, toOctal, toSymbolic, togglePerm } from '@app/services/files/permissions';
 import { PermissionsService } from '@app/services/files/permissions.service';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { ToastService } from '@app/services/workspace/toast.service';
@@ -51,7 +43,7 @@ const PRESETS: readonly { mode: string; hint: string }[] = [
  */
 @Component({
   selector: 'app-permissions-dialog',
-  imports: [Button, Toggle],
+  imports: [Button, Modal, Toggle],
   templateUrl: './permissions-dialog.html',
   styleUrl: './permissions-dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -85,9 +77,7 @@ export class PermissionsDialog {
   protected readonly symbolic = computed(() => toSymbolic(this.draft()));
 
   /** Rien à appliquer tant que le brouillon égale ce que le serveur a déjà. */
-  protected readonly dirty = computed(
-    () => this.draft() !== (this.permissions.state()?.entry.mode ?? 0),
-  );
+  protected readonly dirty = computed(() => this.draft() !== (this.permissions.state()?.entry.mode ?? 0));
 
   constructor() {
     // Ouvrir sur un autre fichier repart de SES droits, jamais du brouillon
@@ -114,15 +104,9 @@ export class PermissionsDialog {
     this.draft.set(special | Number.parseInt(mode, 8));
   }
 
-  /**
-   * Entrée applique, Échap ferme : les deux réflexes d'une modale. Entrée
-   * n'applique que s'il y a quelque chose à appliquer.
-   */
+  /** Entrée applique, s'il y a quelque chose à appliquer. Échap est à la modale. */
   protected onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.permissions.close();
-    } else if (event.key === 'Enter' && this.dirty() && !this.saving()) {
+    if (event.key === 'Enter' && this.dirty() && !this.saving()) {
       event.preventDefault();
       void this.apply();
     }
@@ -138,12 +122,7 @@ export class PermissionsDialog {
     const mode = this.octal();
     try {
       await this.sftp.chmod(request.path, mode, this.recursive());
-      this.activity.log(
-        'rename',
-        'remote',
-        request.path,
-        `permissions ${mode}${this.recursive() ? ' (récursif)' : ''}`,
-      );
+      this.activity.log('rename', 'remote', request.path, `permissions ${mode}${this.recursive() ? ' (récursif)' : ''}`);
       this.toasts.success(`Permissions ${mode}`, { detail: request.entry.name });
       this.permissions.close();
       await this.sftp.refresh();

@@ -77,6 +77,104 @@ fn modules_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+// ---------- Modules fournis avec l'application ----------
+//
+// Charon embarque quelques modules, installés au premier lancement et
+// DÉSACTIVÉS : un module fourni est une proposition, pas un supplément qu'on
+// s'ajoute sans l'avoir demandé (le store `enabled` n'a pas d'entrée pour eux,
+// et l'absence d'entrée vaut « éteint »).
+//
+// Ils s'installent comme n'importe quel module, dans le même dossier et avec
+// le même manifeste : rien ne les distingue une fois posés, et l'utilisateur
+// peut les modifier ou les supprimer. C'est ce qui permettra de les mettre à
+// jour indépendamment de l'application.
+struct BundledModule {
+    slug: &'static str,
+    manifest: &'static str,
+    main: &'static str,
+}
+
+const BUNDLED: &[BundledModule] = &[BundledModule {
+    slug: "monitor",
+    manifest: include_str!("../../modules/monitor/manifest.json"),
+    main: include_str!("../../modules/monitor/main.js"),
+}];
+
+/// Modules fournis qui ont changé de dossier : l'ancien est retiré pour ne pas
+/// laisser un doublon mort dans la liste. Le retrait ne se fait QUE si le
+/// manifeste présent porte bien l'identifiant attendu : un dossier du même nom
+/// posé par l'utilisateur ne doit jamais être emporté par ce ménage.
+const SUPERSEDED: &[(&str, &str)] = &[("vps-monitor", "com.charon.moniteur-vps")];
+
+/// Compare deux versions segment par segment (`1.10.0` est après `1.9.0`, ce
+/// qu'une comparaison de chaînes rendrait faux).
+fn version_is_newer(candidate: &str, installed: &str) -> bool {
+    let parse = |v: &str| -> Vec<u32> {
+        v.split('.')
+            .map(|part| part.trim().parse::<u32>().unwrap_or(0))
+            .collect()
+    };
+    let (a, b) = (parse(candidate), parse(installed));
+    for i in 0..a.len().max(b.len()) {
+        let (x, y) = (a.get(i).copied().unwrap_or(0), b.get(i).copied().unwrap_or(0));
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
+/// La version déclarée par un `manifest.json` déjà posé sur le disque.
+fn installed_version(dir: &std::path::Path) -> Option<String> {
+    let raw = std::fs::read_to_string(dir.join("manifest.json")).ok()?;
+    let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    Some(parsed.get("version")?.as_str()?.to_string())
+}
+
+/// Pose les modules fournis. Silencieux : un module qui ne s'installe pas ne
+/// doit pas empêcher l'application de démarrer.
+///
+/// Un module déjà présent n'est réécrit que si la version embarquée est plus
+/// RÉCENTE. Une version installée plus récente est laissée intacte : c'est
+/// elle qui compte, et c'est ce qui rend une mise à jour hors de l'application
+/// possible sans qu'un lancement la piétine.
+pub fn install_bundled_modules(app: &AppHandle) {
+    let Ok(root) = modules_dir(app) else {
+        return;
+    };
+
+    for (slug, expected_id) in SUPERSEDED {
+        let dir = root.join(slug);
+        let same_module = std::fs::read_to_string(dir.join("manifest.json"))
+            .ok()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+            .and_then(|v| v.get("id").and_then(|v| v.as_str()).map(String::from))
+            .is_some_and(|id| id == *expected_id);
+        if same_module {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+    for module in BUNDLED {
+        let dir = root.join(module.slug);
+        let embedded = serde_json::from_str::<serde_json::Value>(module.manifest)
+            .ok()
+            .and_then(|v| v.get("version").and_then(|v| v.as_str()).map(String::from))
+            .unwrap_or_default();
+
+        if dir.exists() {
+            match installed_version(&dir) {
+                Some(current) if !version_is_newer(&embedded, &current) => continue,
+                _ => {}
+            }
+        }
+        if std::fs::create_dir_all(&dir).is_err() {
+            continue;
+        }
+        let _ = std::fs::write(dir.join("manifest.json"), module.manifest);
+        let _ = std::fs::write(dir.join("main.js"), module.main);
+    }
+}
+
 fn read_enabled(app: &AppHandle) -> HashMap<String, bool> {
     app.store(STORE_FILE)
         .ok()

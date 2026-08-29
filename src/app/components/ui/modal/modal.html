@@ -1,0 +1,39 @@
+<div class="scrim" (click)="onScrim()">
+  <div
+    class="modal"
+    [class]="'modal--' + size()"
+    tabindex="-1"
+    [attr.role]="role()"
+    aria-modal="true"
+    [attr.aria-label]="title() || null"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    @if (title()) {
+      <header class="modal__head">
+        @if (icon(); as name) {
+          <span class="modal__icon" [class.modal__icon--danger]="tone() === 'danger'"><app-icon [name]="name" [size]="15" /></span>
+        }
+        <div class="modal__titles">
+          <h2 class="modal__title">{{ title() }}</h2>
+          @if (subtitle()) {
+            <p class="modal__sub">{{ subtitle() }}</p>
+          }
+        </div>
+        @if (dismissible()) {
+          <button type="button" class="modal__x" aria-label="Fermer" (click)="close()">
+            <app-icon name="close" [size]="14" />
+          </button>
+        }
+      </header>
+    }
+
+    <div class="modal__body" [class.modal__body--padded]="padded()">
+      <ng-content />
+    </div>
+
+    <footer class="modal__foot">
+      <ng-content select="[modal-foot]" />
+    </footer>
+  </div>
+</div>

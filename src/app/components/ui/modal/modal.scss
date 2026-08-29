@@ -1,0 +1,163 @@
+// La base commune des modales : voile, carte, en-tête, pied. Tout ce qui est
+// ici ne doit plus être redessiné par un dialogue.
+
+:host {
+  display: contents;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--modal-z, 108);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(2px);
+  animation: scrim-in 0.14s ease;
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  // La carte ne dépasse jamais la fenêtre : c'est le corps qui défile, pour
+  // que l'en-tête et le pied restent atteignables sur un petit écran.
+  max-height: min(86vh, 100%);
+  background: var(--elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: modal-in 0.18s cubic-bezier(0.2, 1, 0.4, 1);
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  // Quatre largeurs nommées plutôt qu'une valeur libre par dialogue.
+  &--sm {
+    width: min(340px, 100%);
+  }
+  &--md {
+    width: min(460px, 100%);
+  }
+  &--lg {
+    width: min(640px, 100%);
+  }
+  &--xl {
+    width: min(880px, 100%);
+  }
+}
+
+// --- En-tête ---
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  flex: none;
+  padding: var(--space-sm) var(--space-sm) 0;
+}
+
+.modal__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+
+  &--danger {
+    background: color-mix(in srgb, var(--danger) 15%, transparent);
+    color: var(--danger);
+  }
+}
+
+.modal__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 650;
+  color: var(--text);
+}
+
+.modal__sub {
+  margin: 2px 0 0;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+  // Un sous-titre porte souvent un chemin : il va à la ligne plutôt que de
+  // pousser la carte au-delà de sa largeur.
+  overflow-wrap: anywhere;
+}
+
+.modal__x {
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+// --- Corps ---
+
+.modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  &--padded {
+    padding: var(--space-sm);
+  }
+}
+
+// --- Pied ---
+
+// Rien de projeté : le pied disparaît au lieu de laisser sa gouttière. Les
+// ancres de projection d'Angular sont des commentaires, `:empty` ne suffirait
+// donc pas, d'où le `:has`.
+.modal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: none;
+  padding: 0 var(--space-sm) var(--space-sm);
+
+  &:not(:has(*)) {
+    display: none;
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .modal {
+    animation: none;
+  }
+}

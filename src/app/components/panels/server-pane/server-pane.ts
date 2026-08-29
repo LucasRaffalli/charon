@@ -64,6 +64,9 @@ const DRAG_FEED_MS = 40;
     // Toucher un panneau focalise sa session : c'est le focus de n'importe
     // quelle app, pas un sélecteur. Le clavier et la palette suivent.
     '(pointerdown)': 'adopt()',
+    // Les deux boutons latéraux de la souris font ce qu'ils font partout
+    // ailleurs : reculer et avancer dans l'historique.
+    '(auxclick)': 'onAux($event)',
     '[attr.data-session-pane]': 'session().id',
     '[class.pane--picking]': 'comparePick.armed()',
   },
@@ -114,6 +117,17 @@ export class ServerPane {
     this.registry.focus(this.session().id);
   }
 
+  /** Boutons 3 et 4 de la souris : précédent et suivant. */
+  protected onAux(event: MouseEvent): void {
+    if (event.button === 3) {
+      event.preventDefault();
+      void this.sftp.goBack();
+    } else if (event.button === 4) {
+      event.preventDefault();
+      void this.sftp.goForward();
+    }
+  }
+
   /** En vue double seulement : seule, la vignette radoterait. */
   protected readonly inSplit = computed(() => this.registry.displayed().length > 1);
 
@@ -125,10 +139,16 @@ export class ServerPane {
     return profile?.name ?? (this.sftp.host() || 'Connexion');
   });
 
-  /** Le voile de coin : la couleur de la session, fondue depuis le haut droit. */
-  protected readonly paneWash = computed(() => {
-    const tone = this.registry.toneOf(this.session());
-    return `linear-gradient(225deg, color-mix(in srgb, var(--session-${tone}) 34%, transparent), transparent 70%)`;
+  /** Les infobulles nomment la destination : un bouton « précédent » qui ne
+   *  dit pas où il ramène oblige à essayer pour savoir. */
+  protected readonly backTitle = computed(() => {
+    const target = this.sftp.backTarget();
+    return target ? `Retour à ${target}` : 'Aucun dossier précédent';
+  });
+
+  protected readonly forwardTitle = computed(() => {
+    const target = this.sftp.forwardTarget();
+    return target ? `Aller à ${target}` : 'Aucun dossier suivant';
   });
 
   protected readonly toneColor = computed(
@@ -908,6 +928,36 @@ export class ServerPane {
       icon: 'search',
       action: () => void this.palette.searchIn(path),
     });
+
+    // Les favoris se rangent dans le profil : une connexion de passage n'a
+    // nulle part où les écrire, l'entrée n'apparaît donc pas.
+    const profile = this.sftp.profileId();
+    if (profile) {
+      const profileId = profile;
+      const known = this.profiles.favoritesOf(profileId).some((item) => item.path === path);
+      items.push(
+        known
+          ? {
+              label: 'Retirer des favoris',
+              icon: 'anchor',
+              action: () => void this.profiles.removeFavorite(profileId, path),
+            }
+          : {
+              label: 'Ajouter aux favoris',
+              icon: 'anchor',
+              action: () => {
+                const label = path.split('/').filter(Boolean).pop() ?? '/';
+                void this.profiles
+                  .addFavorite(profileId, { path, label, icon: 'folder' })
+                  .then((done) => {
+                    if (done) {
+                      this.dock.openPanel('favorites');
+                    }
+                  });
+              },
+            },
+      );
+    }
 
     items.push({
       label: 'Rechercher en profondeur…',

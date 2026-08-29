@@ -13,14 +13,9 @@
   border-radius: inherit;
 }
 
-// En vue double, chaque moitié est un VRAI panneau : sa carte, sa bordure,
-// ses coins, pas deux colonnes dans une même boîte.
-:host-context(.explorer__main--split) {
-  background: var(--elev-1);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
+// La carte (fond, bordure, coins) vient désormais du GROUPE du dock : depuis
+// que le second serveur est un panneau à part entière (Serveur 2), chacun a
+// déjà la sienne, et en redessiner une ici ferait une double bordure.
 
 // Le focus se lit par la surface qui se soulève, pas par un cadre : la
 // bordure claire faisait crier le panneau au lieu de le désigner.
@@ -344,15 +339,24 @@
 
 // L'identité du panneau en vue double : un voile de la couleur de session
 // fondu depuis le coin haut droit, et le nom posé dedans, en bout d'en-tête.
-.pane-wash {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 0;
-  width: min(46%, 220px);
-  height: 40px;
-  pointer-events: none;
-  animation: badge-in 0.25s ease;
+// Le voile de coin a été RETIRÉ le 29/08/2026 : la couleur de session vit
+// maintenant sur la barre d'onglets du panneau, là où se trouvent déjà son
+// nom, sa poignée et sa croix. La redoubler ici salissait le coin du panneau
+// pour redire la même chose.
+// Miroir : dans le panneau de droite, la pastille et le nom de session
+// passent en TÊTE d'en-tête, du côté d'où vient la couleur. Les deux moitiés
+// se regardent alors vraiment, au lieu d'avoir des couleurs symétriques et
+// des textes alignés pareil.
+:host-context([data-dock-panel='server2']) {
+  .pane-dot {
+    order: -2;
+    margin-left: 0;
+    margin-right: var(--space-2xs);
+  }
+
+  .pane-name {
+    order: -1;
+  }
 }
 
 .pane-dot {
@@ -379,6 +383,41 @@
 // L'entrée d'un panneau (le split qui se pose) : il glisse depuis la droite.
 :host {
   animation: pane-in 0.24s cubic-bezier(0.2, 1, 0.4, 1);
+}
+
+// Pendant la découpe, c'est explorer-page qui met en scène l'arrivée des deux
+// moitiés : l'animation d'entrée ordinaire ne doit pas s'y superposer.
+:host-context(.explorer__main--cutting) {
+  animation: none;
+}
+
+// Le contenu s'efface le temps de la coupe : la place est tenue, le panneau
+// travaille. Il revient une fois les deux moitiés posées.
+:host-context(.explorer__main--cutting) .explorer__list,
+:host-context(.explorer__main--cutting) .explorer__server-head {
+  animation: cut-dim 0.6s ease both;
+}
+
+// Le contenu se rallume À L'INSTANT où le second panneau arrive (44 %), pas
+// après : un panneau encore éteint à côté d'un panneau net se voit.
+@keyframes cut-dim {
+  0% {
+    opacity: 1;
+  }
+  20%,
+  70% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host-context(.explorer__main--cutting) .explorer__list,
+  :host-context(.explorer__main--cutting) .explorer__server-head {
+    animation: none;
+  }
 }
 
 @keyframes pane-in {

@@ -1,0 +1,62 @@
+// La carte, le voile et le pied viennent d'`app-modal` : il ne reste ici que
+// ce qui est propre à l'édition d'un favori.
+
+.edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  // L'hôte d'un champ est inline par défaut : sans ça il ne prend pas la
+  // largeur de la colonne et son libellé ne s'aligne pas sur les autres.
+  app-text-field {
+    display: block;
+  }
+}
+
+.edit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.edit__label {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.edit__icons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.edit__icon {
+  display: grid;
+  place-items: center;
+  padding: 7px 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  &:hover {
+    background: var(--state-hover);
+    color: var(--text);
+  }
+
+  &--on {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+  }
+}
+
+// Pousse Annuler et Enregistrer à droite, Retirer restant à gauche : l'action
+// qui détruit ne se trouve jamais sous le doigt qui valide.
+.edit__spacer {
+  flex: 1;
+}

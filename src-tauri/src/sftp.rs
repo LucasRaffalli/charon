@@ -297,6 +297,22 @@ pub(crate) async fn get_connection(
     conn.touch();
     Ok(conn)
 }
+/// Comme `get_connection`, mais SANS `touch()` : pour les lectures que
+/// personne n'a demandées (relevés périodiques d'un module). Voir
+/// `sftp_system_stats`.
+pub(crate) async fn get_connection_idle(
+    pool: &State<'_, ConnectionPool>,
+    connection_id: &str,
+) -> Result<Arc<ActiveConnection>, String> {
+    pool.inner()
+        .0
+        .lock()
+        .await
+        .get(connection_id)
+        .cloned()
+        .ok_or_else(|| format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))
+}
+
 
 /// Délai d'inactivité (en secondes) avant fermeture d'une connexion,
 /// réglable depuis les paramètres de l'app. 0 = jamais.
@@ -1124,7 +1140,13 @@ pub async fn sftp_system_stats(
     pool: State<'_, ConnectionPool>,
     connection_id: String,
 ) -> Result<SystemStats, String> {
-    let conn = get_connection(&pool, &connection_id).await?;
+    // `get_connection_idle` et NON `get_connection` : un relevé automatique ne
+    // doit pas réarmer le chrono d'inactivité. Un moniteur qui sonde toutes les
+    // dix secondes maintiendrait sinon la session ouverte indéfiniment, et le
+    // réglage « fermer après 15 minutes » ne se déclencherait plus jamais sans
+    // que rien ne l'explique. L'inactivité parle de l'utilisateur, pas des
+    // automates qui le regardent travailler.
+    let conn = get_connection_idle(&pool, &connection_id).await?;
     const SEP: &str = "@@@CHARON@@@";
     // Commandes read-only, séparées par un marqueur ; `LC_ALL=C` pour un
     // format stable. Aucune entrée utilisateur n'entre dans cette commande.

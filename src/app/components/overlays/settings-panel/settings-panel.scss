@@ -303,124 +303,6 @@
   color: var(--text-muted);
 }
 
-// Le fil : il s'éteint vers le bas, les versions anciennes s'éloignant.
-.panel__log {
-  position: relative;
-  padding-left: 22px;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 5px;
-    bottom: 4px;
-    width: 1px;
-    background: linear-gradient(180deg, var(--border-strong), transparent);
-  }
-}
-
-.panel__history-entry {
-  position: relative;
-  padding-bottom: var(--space-md);
-
-  // Le nœud sur le fil. Carré, comme tout le reste de l'application.
-  &::before {
-    content: '';
-    position: absolute;
-    left: -22px;
-    top: 6px;
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-    background: var(--border-strong);
-    box-shadow: 0 0 0 3px var(--surface);
-  }
-
-  // La version installée est celle qu'on cherche en premier.
-  &--current::before {
-    background: var(--accent);
-  }
-
-  &:last-child {
-    padding-bottom: 0;
-  }
-}
-
-.panel__history-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2xs) var(--space-xs);
-  margin-bottom: var(--space-2xs);
-}
-
-.panel__history-version {
-  font-size: calc(13px * var(--text-scale));
-  font-weight: 600;
-  color: var(--text);
-}
-
-.panel__history-date {
-  font-size: calc(11px * var(--text-scale));
-  color: var(--text-faint);
-}
-
-.panel__history-name {
-  width: 100%;
-  font-size: calc(12.5px * var(--text-scale));
-  color: var(--text-muted);
-}
-
-.panel__history-current {
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--accent-solid) 12%, transparent);
-  font-size: calc(10px * var(--text-scale));
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-}
-
-.panel__history-notes {
-  margin: var(--space-2xs) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-// Chaque note porte sa nature dans une puce carrée : ce qu'on cherche dans un
-// journal, c'est « qu'est-ce qui est nouveau » ou « est-ce que c'est corrigé ».
-.panel__note {
-  position: relative;
-  padding: 3px 0 3px 14px;
-  font-size: calc(12px * var(--text-scale));
-  line-height: 1.5;
-  color: var(--text-muted);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 10px;
-    width: 5px;
-    height: 5px;
-    border-radius: 1px;
-    background: var(--kind, var(--text-faint));
-  }
-
-  &--new {
-    --kind: var(--success);
-  }
-
-  &--better {
-    --kind: var(--accent);
-  }
-
-  &--fixed {
-    --kind: var(--warning);
-  }
-}
-
 // Changelog de la mise à jour disponible.
 .panel__changelog {
   margin: var(--space-2xs) 0 var(--space-xs);
@@ -557,5 +439,182 @@
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
+  }
+}
+
+// --- Journal des versions : une ligne par version, dépliable ---------------
+//
+// On ne vient pas ici découvrir (c'est le rôle de la modale des nouveautés)
+// mais retrouver : quand un correctif est sorti, ce qu'apportait une version.
+// Voir dix versions à la fois prime donc sur la mise en scène de la dernière.
+
+.log {
+  margin-top: var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  padding: 9px var(--space-xs);
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+
+  & + .vrow,
+  & + .drawer {
+    border-top: 1px solid var(--border);
+  }
+}
+
+.vrow--now {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.vrow__v {
+  flex: none;
+  width: 46px;
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+}
+
+.vrow__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: calc(12.5px * var(--text-scale));
+}
+
+.vrow__badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: calc(9px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+// La répartition par nature, lisible avant d'ouvrir : une version de
+// correctifs et une version de nouveautés ne se ressemblent pas.
+.vrow__bars {
+  display: flex;
+  gap: 3px;
+  flex: none;
+  width: 76px;
+}
+
+.vrow__bar {
+  height: 5px;
+  border-radius: 2px;
+
+  &--new {
+    background: var(--success);
+  }
+  &--better {
+    background: var(--accent);
+  }
+  &--fixed {
+    background: var(--warning);
+  }
+}
+
+.vrow__n {
+  flex: none;
+  width: 26px;
+  text-align: right;
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.vrow__chev {
+  flex: none;
+  color: var(--text-faint);
+  transition: transform var(--transition-fast);
+}
+
+.vrow--open .vrow__chev {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vrow__chev {
+    transition: none;
+  }
+}
+
+.drawer {
+  padding: var(--space-2xs) var(--space-xs) var(--space-sm) 56px;
+  border-top: 1px solid var(--border);
+}
+
+.drawer__date {
+  display: block;
+  margin-bottom: var(--space-2xs);
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.drawer__title {
+  margin: var(--space-xs) 0 4px;
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+
+  &:first-of-type {
+    margin-top: 0;
+  }
+}
+
+// La puce porte la nature : le titre de groupe l'a déjà dit une fois.
+.drawer__list {
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
+
+  li {
+    position: relative;
+    padding: 2px 0;
+    font-size: calc(12px * var(--text-scale));
+    color: var(--text-muted);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 8px;
+      width: 4px;
+      height: 4px;
+      border-radius: 1px;
+      background: var(--text-faint);
+    }
+  }
+
+  &--new li::before {
+    background: var(--success);
+  }
+  &--better li::before {
+    background: var(--accent);
+  }
+  &--fixed li::before {
+    background: var(--warning);
   }
 }

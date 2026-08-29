@@ -40,20 +40,45 @@
       <app-server-tree />
     </div>
 
+    <!--
+      Serveur 2 : le second serveur de la vue double est un PANNEAU du dock à
+      part entière, pas une colonne dans le panneau Serveur. Il se déplace, se
+      redimensionne et se ferme comme les autres. Même patron que Terminal 2.
+    -->
+    <div class="explorer__panel" data-dock-panel="favorites" [hidden]="!dock.activePanels().has('favorites')">
+      <app-favorites-pane />
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="server2" [hidden]="!dock.activePanels().has('server2')">
+      <div class="explorer__srv" #srvSlotB></div>
+    </div>
+
     <section
       class="explorer__panel explorer__main"
       data-dock-panel="server"
       [hidden]="!dock.activePanels().has('server')"
       [class.explorer__main--split]="sessionRegistry.displayed().length > 1"
     >
-      @for (session of sessionRegistry.displayed(); track session.id) {
-        <app-server-pane
-          [session]="session"
-          [class.server-pane--focused]="
-            sessionRegistry.displayed().length > 1 && session === sessionRegistry.focused()
-          "
-        />
-      }
+      <div class="explorer__srv" #srvSlotA></div>
+      <!--
+        Pouponnière : les panneaux serveur naissent ici puis sont DÉPLACÉS
+        (appendChild) vers la fente A ou celle de Serveur 2. Jamais recréés :
+        le défilement de la liste et la sélection survivent au voyage.
+      -->
+      <div class="explorer__srv-nursery" #srvNursery aria-hidden="true">
+        @for (session of sessionRegistry.sessions(); track session.id) {
+          <div class="srv-cell" [attr.data-srv-session]="session.id">
+            <app-server-pane
+              [session]="session"
+              [class.server-pane--focused]="
+                sessionRegistry.displayed().length > 1 && session === sessionRegistry.focused()
+              "
+            />
+          </div>
+        }
+      </div>
+      <!-- Le tracé de la découpe, quand la vue double se pose. -->
+      <i class="explorer__cut" aria-hidden="true"></i>
     </section>
 
     <div class="explorer__panel" data-dock-panel="preview" [hidden]="!dock.activePanels().has('preview')">
@@ -119,11 +144,6 @@
           @for (session of sessionRegistry.sessions(); track session.id) {
             @if (session.sftp.connected() && session.sftp.protocol() === 'sftp') {
               <div class="term-cell" [attr.data-term-session]="session.id">
-                @if (sessionRegistry.displayed().length > 1) {
-                  <span class="pane-tag" [style.background]="sessionWash(session)">
-                    {{ sessionTitle(session) }}
-                  </span>
-                }
                 <app-terminal-pane [session]="session" />
               </div>
             }

@@ -168,6 +168,58 @@ export abstract class FileBrowserState {
   /** Oublie les contenus mémorisés (déconnexion : ils appartenaient à la session). */
   protected clearSeen(): void {
     this.seen.clear();
+    this._back.set([]);
+    this._forward.set([]);
+  }
+
+  // --- Historique de navigation ---
+  //
+  // Deux piles, comme un navigateur : les dossiers d'où l'on vient et ceux
+  // d'où l'on est revenu. Une navigation ordinaire empile le dossier quitté
+  // et vide la pile avant (on repart dans une autre direction), alors que
+  // reculer et avancer se transvasent l'un dans l'autre sans rien perdre.
+  //
+  // Un rafraîchissement du MÊME dossier n'entre pas dans l'historique : ce
+  // n'est pas un déplacement, et il ferait un doublon à chaque touche F5.
+
+  private readonly _back = signal<string[]>([]);
+  private readonly _forward = signal<string[]>([]);
+
+  readonly canGoBack = computed(() => this._back().length > 0);
+  readonly canGoForward = computed(() => this._forward().length > 0);
+
+  /** Le dossier précédent, pour l'infobulle du bouton. */
+  readonly backTarget = computed(() => this._back().at(-1) ?? null);
+  readonly forwardTarget = computed(() => this._forward().at(-1) ?? null);
+
+  /** Revient au dossier précédent. */
+  async goBack(): Promise<boolean> {
+    const target = this._back().at(-1);
+    if (!target) {
+      return false;
+    }
+    const from = this._currentPath();
+    this._back.update((stack) => stack.slice(0, -1));
+    const ok = await this.listDir(target, { history: false });
+    if (ok) {
+      this._forward.update((stack) => [...stack, from]);
+    }
+    return ok;
+  }
+
+  /** Repart en avant, après un retour. */
+  async goForward(): Promise<boolean> {
+    const target = this._forward().at(-1);
+    if (!target) {
+      return false;
+    }
+    const from = this._currentPath();
+    this._forward.update((stack) => stack.slice(0, -1));
+    const ok = await this.listDir(target, { history: false });
+    if (ok) {
+      this._back.update((stack) => [...stack, from]);
+    }
+    return ok;
   }
 
   /** Récupère le contenu brut d'un dossier. */
@@ -178,9 +230,17 @@ export abstract class FileBrowserState {
   protected abstract removeEntry(path: string, isDir: boolean): Promise<void>;
   protected abstract renameEntry(from: string, to: string): Promise<void>;
 
-  async listDir(path: string): Promise<boolean> {
+  async listDir(path: string, options: { history?: boolean } = {}): Promise<boolean> {
     const remembered = this.seen.get(path);
     const changingDir = path !== this._currentPath();
+
+    // Un déplacement ordinaire empile le dossier quitté et ferme la voie
+    // d'en face : on vient de repartir dans une autre direction.
+    if (changingDir && options.history !== false) {
+      const from = this._currentPath();
+      this._back.update((stack) => [...stack.slice(-49), from]);
+      this._forward.set([]);
+    }
 
     // Dossier déjà vu : il s'affiche tout de suite, le vrai listing suit sans
     // indicateur de chargement. Le refresh du dossier courant, lui, garde le

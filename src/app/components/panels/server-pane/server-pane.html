@@ -1,7 +1,22 @@
-@if (inSplit()) {
-  <div class="pane-wash" [style.background]="paneWash()" aria-hidden="true"></div>
-}
 <header class="explorer__server-head">
+  <app-button
+    variant="ghost"
+    iconOnly
+    [title]="backTitle()"
+    [disabled]="!sftp.canGoBack()"
+    (click)="sftp.goBack()"
+  >
+    <app-icon name="chevron-left" [size]="14" />
+  </app-button>
+  <app-button
+    variant="ghost"
+    iconOnly
+    [title]="forwardTitle()"
+    [disabled]="!sftp.canGoForward()"
+    (click)="sftp.goForward()"
+  >
+    <app-icon name="chevron-right" [size]="14" />
+  </app-button>
   <app-button
     variant="ghost"
     iconOnly

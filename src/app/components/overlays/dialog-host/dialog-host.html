@@ -1,35 +1,20 @@
 @if (dialog.state(); as state) {
-  <div class="overlay" (click)="cancel()">
-    <section
-      class="dialog"
-      role="alertdialog"
-      aria-modal="true"
-      [attr.aria-label]="state.title"
-      (click)="$event.stopPropagation()"
-    >
-      <h2 class="dialog__title">{{ state.title }}</h2>
+  <app-modal role="alertdialog" [title]="state.title" [icon]="state.danger ? 'alert-circle' : null" (closed)="cancel()">
+    <form class="dialog" (submit)="onSubmit($event)" (keydown.enter)="onSubmit($event)">
       @if (state.message) {
         <p class="dialog__message">{{ state.message }}</p>
       }
+      @if (state.kind === 'prompt') {
+        <app-text-field label="Nom" name="dialog-value" [autofocus]="true" [placeholder]="state.placeholder ?? ''" [(value)]="input" />
+      }
+    </form>
 
-      <form class="dialog__form" (submit)="onSubmit($event)">
-        @if (state.kind === 'prompt') {
-          <app-text-field
-            label="Nom"
-            name="dialog-value"
-            [autofocus]="true"
-            [placeholder]="state.placeholder ?? ''"
-            [(value)]="input"
-          />
-        }
-
-        <div class="dialog__actions">
-          <app-button variant="ghost" type="button" (click)="cancel()">Annuler</app-button>
-          <app-button [variant]="state.danger ? 'danger-solid' : 'primary'" type="submit">
-            {{ state.confirmLabel }}
-          </app-button>
-        </div>
-      </form>
-    </section>
-  </div>
+    <ng-container modal-foot>
+      <span class="dialog__spacer"></span>
+      <app-button variant="ghost" type="button" (click)="cancel()">Annuler</app-button>
+      <app-button [variant]="state.danger ? 'danger-solid' : 'primary'" type="button" (click)="onSubmit($event)">
+        {{ state.confirmLabel }}
+      </app-button>
+    </ng-container>
+  </app-modal>
 }

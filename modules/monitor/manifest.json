@@ -1,0 +1,10 @@
+{
+  "id": "com.charon.moniteur",
+  "name": "Moniteur",
+  "version": "1.0.0",
+  "description": "Disque, mémoire, charge et processus du serveur, relevés pendant la session.",
+  "author": "Charon",
+  "main": "main.js",
+  "engine": "^1",
+  "permissions": ["system:read", "ui:panel", "ui:command", "events", "storage"]
+}

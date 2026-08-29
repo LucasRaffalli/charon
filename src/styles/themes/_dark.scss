@@ -20,8 +20,12 @@
 
   --text: #e2e4e8;
   --text-muted: #98a0aa;
-  --text-faint: #626b76;
+  --text-faint: #7b8591;
   // Texte posé sur un aplat de --text (segment actif, badges pleins).
+  // Le fond de la barre d'onglets d'un panneau. Il ECLAIRCIT en sombre et
+  // assombrit en clair : dans les deux cas la barre se distingue, et l'onglet
+  // actif la perce en revenant a la surface du panneau.
+  --tab-bar-veil: rgba(255, 255, 255, 0.05);
   --text-inverse: #14181f;
 
   // Accent par défaut (Charon). Un `data-accent` prend le relais.

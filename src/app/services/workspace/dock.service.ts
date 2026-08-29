@@ -13,11 +13,26 @@ import {
   insertAtZone,
   isValidTree,
   mapNode,
+  PANEL_OPEN_SHARE,
   removePanel,
   wrapRoot,
 } from '@app/services/workspace/dock-tree';
 
 /** Libellé + icône de chaque panneau dockable. */
+/** Ce qu'un panneau emprunte à la session qu'il montre. */
+export interface PanelIdentity {
+  /** Couleur de session, pour teinter la barre d'onglets. */
+  tint: string;
+  /** Nom du serveur, ajouté au libellé de l'onglet. */
+  name: string;
+  /**
+   * Le bord d'où part la couleur. En vue double les deux panneaux se font
+   * face : la couleur se pose sur leurs bords EXTÉRIEURS et le centre, là où
+   * ils se touchent, reste calme.
+   */
+  side: 'left' | 'right';
+}
+
 export const PANEL_META: Record<DockPanelId, { label: string; icon: IconName }> = {
   local: { label: 'Local', icon: 'monitor' },
   tree: { label: 'Arborescence', icon: 'server' },
@@ -27,6 +42,8 @@ export const PANEL_META: Record<DockPanelId, { label: string; icon: IconName }> 
   journal: { label: 'Journal', icon: 'info' },
   logs: { label: 'Logs', icon: 'logs' },
   terminal: { label: 'Terminal', icon: 'terminal' },
+  favorites: { label: 'Favoris', icon: 'anchor' },
+  server2: { label: 'Serveur 2', icon: 'server' },
   terminal2: { label: 'Terminal 2', icon: 'terminal' },
   modules: { label: 'Modules', icon: 'layout-grid' },
   search: { label: 'Recherche', icon: 'search' },
@@ -43,6 +60,8 @@ const REOPEN_ZONES: Record<DockPanelId, DockZone> = {
   journal: 'bottom',
   logs: 'bottom',
   terminal: 'bottom',
+  favorites: 'left',
+  server2: 'left',
   terminal2: 'bottom',
   modules: 'right',
   search: 'right',
@@ -137,6 +156,19 @@ export class DockService {
   readonly openPanels = computed<ReadonlySet<DockPanelId>>(() => new Set(collectPanels(this.tree())));
 
   /** Panneaux fermés (à proposer en réouverture). */
+  /**
+   * L'identité d'un panneau : la couleur de sa barre d'onglets et le nom qu'il
+   * porte. Le dock ne connaît pas les sessions, l'explorateur pose cette table
+   * et le dock se contente de l'afficher. Vide par défaut : un panneau
+   * ordinaire garde sa barre neutre et son libellé d'origine.
+   */
+  private readonly _identities = signal<Partial<Record<DockPanelId, PanelIdentity>>>({});
+  readonly identities = this._identities.asReadonly();
+
+  setIdentities(identities: Partial<Record<DockPanelId, PanelIdentity>>): void {
+    this._identities.set(identities);
+  }
+
   readonly closedPanels = computed<DockPanelId[]>(() => {
     const open = this.openPanels();
     return ALL_PANELS.filter((panel) => !open.has(panel));
@@ -365,7 +397,11 @@ export class DockService {
             candidate.panels.some((open) => REOPEN_ZONES[open] === 'bottom'),
           )
         : undefined;
-    this._tree.set(host ? insertAtZone(this.tree(), host.id, panel, 'center') : wrapRoot(this.tree(), panel, zone));
+    this._tree.set(
+      host
+        ? insertAtZone(this.tree(), host.id, panel, 'center')
+        : wrapRoot(this.tree(), panel, zone, PANEL_OPEN_SHARE[panel]),
+    );
   }
 
   /** Revient à la disposition par défaut. */

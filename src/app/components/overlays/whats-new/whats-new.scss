@@ -1,3 +1,6 @@
+// Les nouveautés : un héros qui appartient à Charon, puis ce que la version
+// apporte, groupé par nature. Maquettes 02 et 05 de `docs/mockups/changelog`.
+
 .scrim {
   position: fixed;
   inset: 0;
@@ -13,8 +16,10 @@
 .sheet {
   display: flex;
   flex-direction: column;
-  width: min(600px, 100%);
-  max-height: 80vh;
+  // Plus large que les autres modales, et c'est le sujet qui le demande : les
+  // notes se lisent en colonnes, ce qui ne tient pas dans 600 px.
+  width: min(860px, 100%);
+  max-height: 84vh;
   background: var(--elev-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -22,108 +27,176 @@
   overflow: hidden;
 }
 
-.sheet__head {
+// --- Le héros -------------------------------------------------------------
+//
+// Par défaut, le ciel de l'écran d'ouverture : la carte appartient à Charon
+// même quand la version n'a pas d'illustration, ce qui sera le cas de la
+// plupart des versions mineures. Une cover vient simplement le remplacer.
+
+.hero {
+  position: relative;
+  flex: none;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--elev-1);
+}
+
+// Le motif du fond tient la place d'une cover déclarée mais introuvable :
+// aucune logique à écrire, et jamais de trou dans la carte.
+//
+// Une cover a droit à de la HAUTEUR, sinon elle ne sert à rien : sans ce
+// ratio, le héros fait la hauteur de son texte (132 px pour 860 de large,
+// soit 6,5:1) et une illustration y serait réduite à une lanière. Le ciel,
+// lui, n'en a pas besoin : ce n'est qu'un fond.
+.hero--cover {
+  // 4,5:1 (1800 × 400), le format des covers de version : l'illustration est
+  // vue en ENTIER, sans recadrage, puisque le ratio du fichier est celui de
+  // l'affichage. Sans ce ratio, le héros ferait la hauteur de son texte
+  // (132 px pour 860 de large) et l'image y serait réduite à une lanière.
+  aspect-ratio: 4.5 / 1;
+  // Le texte doit tenir même dans une fenêtre étroite, où le ratio donnerait
+  // moins que sa hauteur.
+  min-height: 150px;
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    repeating-linear-gradient(135deg, var(--elev-3) 0 14px, var(--elev-2) 14px 28px);
+}
+
+.hero__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(46px);
+  mix-blend-mode: screen;
+
+  // Des largeurs en POURCENTAGE : la carte fait 860 px ici et 600 ailleurs,
+  // des lueurs en pixels y couvriraient deux surfaces très différentes.
+  &:nth-of-type(1) {
+    width: 46%;
+    height: 250px;
+    left: -8%;
+    top: -120px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-solid) 78%, transparent), transparent 66%);
+  }
+
+  &:nth-of-type(2) {
+    width: 40%;
+    height: 240px;
+    right: -6%;
+    top: -105px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, transparent), transparent 66%);
+  }
+}
+
+// En thème clair, un voile qui éclaircit ne se voit pas : les lueurs doivent
+// assombrir pour exister sur du blanc.
+:host-context([data-theme='light']) .hero__glow {
+  mix-blend-mode: multiply;
+  filter: blur(50px);
+}
+
+// Le fondu vers la surface de la carte : sans lui, le ciel s'arrête sur une
+// ligne franche et redevient un bandeau collé en haut. Il ne s'applique PAS à
+// une cover, dont il mangerait le bas : elle se montre telle qu'elle a été
+// composée, et c'est la ligne d'identité en dessous qui fait le raccord.
+.hero:not(.hero--cover)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 25%, var(--elev-2) 100%);
+}
+
+.hero__x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.5);
+  }
+}
+
+.hero__in {
+  position: relative;
+  z-index: 1;
   display: flex;
-  align-items: baseline;
-  gap: var(--space-xs);
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid var(--border);
+  align-items: flex-end;
+  gap: var(--space-sm);
+  padding: 84px var(--space-md) var(--space-sm);
 }
 
-.sheet__title {
-  font-size: calc(15px * var(--text-scale));
-  font-weight: 650;
+// La ligne d'identité sous une cover : même contenu que sur le ciel, posé sur
+// la surface de la carte au lieu de l'image.
+// Une cover porte déjà la marque : redoubler le glyphe juste en dessous ne
+// répète pas, ça encombre.
+.ident app-charon-glyph {
+  display: none;
 }
 
-.sheet__hint {
-  font-size: calc(11px * var(--text-scale));
-  color: var(--text-faint);
+.ident {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+  flex: none;
+  padding: var(--space-sm) var(--space-md) 0;
 }
 
-// Une donnée d'usage se dit, même locale : personne ne devrait avoir à
-// deviner ce qui est mesuré.
-.sheet__privacy {
-  font-size: calc(10.5px * var(--text-scale));
-  line-height: 1.4;
-  color: var(--text-faint);
-  max-width: 46ch;
+.hero__glyph {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  color: var(--accent);
 }
 
-.sheet__body {
-  padding: var(--space-md);
-  overflow-y: auto;
+// Le NOM porte, le numéro l'accompagne : c'est le nom qui donne son identité
+// à une version, le numéro qui la range.
+.hero__name {
+  font-size: calc(23px * var(--text-scale));
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
-.sheet__foot {
+.hero__meta {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  justify-content: space-between;
-  padding: var(--space-sm) var(--space-md);
-  border-top: 1px solid var(--border);
-}
-
-// Le fil du carnet de bord, comme dans les réglages : une même chose se
-// raconte de la même façon aux deux endroits.
-.log {
-  position: relative;
-  padding-left: 22px;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 4px;
-    top: 6px;
-    bottom: 4px;
-    width: 1px;
-    background: linear-gradient(180deg, var(--border-strong), transparent);
-  }
-}
-
-.rel {
-  position: relative;
-  padding-bottom: var(--space-md);
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: -22px;
-    top: 6px;
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-    background: var(--border-strong);
-    box-shadow: 0 0 0 3px var(--elev-2);
-  }
-
-  &--now::before {
-    background: var(--accent);
-  }
-
-  &:last-child {
-    padding-bottom: 0;
-  }
-}
-
-.rel__head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2xs) var(--space-xs);
-  margin-bottom: var(--space-2xs);
-}
-
-.rel__v {
-  font-size: calc(14px * var(--text-scale));
-  font-weight: 650;
-}
-
-.rel__date {
+  gap: var(--space-xs);
+  margin-top: 6px;
   font-size: calc(11px * var(--text-scale));
   color: var(--text-faint);
 }
 
-.rel__badge {
+.vpill {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: calc(11px * var(--text-scale));
+  font-weight: 600;
+}
+
+.badge {
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
@@ -134,70 +207,168 @@
   text-transform: uppercase;
 }
 
-// Une version plus récente que celle installée : livrée, mais pas encore ici.
-.rel__badge--soon {
+.badge--soon {
   background: var(--warning-bg);
   color: var(--warning);
 }
 
-.rel__title {
-  width: 100%;
+.data {
+  font-family: var(--font-mono);
+}
+
+// La date d'une version se lit en toutes lettres : ce n'est pas une donnée
+// qu'on aligne en colonnes, c'est une phrase.
+.date {
+  color: var(--text-faint);
+}
+
+// --- Le corps -------------------------------------------------------------
+
+.sheet__body {
+  padding: var(--space-md);
+  overflow-y: auto;
+}
+
+// Deux colonnes quand la place le permet, une seule sinon : un groupe ne se
+// coupe jamais en deux, `break-inside` le garde entier.
+.groups {
+  columns: 2;
+  column-gap: var(--space-lg);
+}
+
+@media (max-width: 720px) {
+  .groups {
+    columns: 1;
+  }
+}
+
+.group {
+  break-inside: avoid;
+  margin: 0 0 var(--space-md);
+}
+
+.group__title {
+  margin: 0 0 6px;
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.group__list {
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
+}
+
+// La puce porte la nature : plus besoin d'une étiquette par ligne, le groupe
+// l'a déjà dit une fois pour toutes.
+.line {
+  position: relative;
+  padding: 2px 0;
   font-size: calc(12.5px * var(--text-scale));
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 9px;
+    width: 4px;
+    height: 4px;
+    border-radius: 1px;
+    background: var(--text-faint);
+  }
+}
+
+.group--new .line::before {
+  background: var(--success);
+}
+.group--better .line::before {
+  background: var(--accent);
+}
+.group--fixed .line::before {
+  background: var(--warning);
+}
+
+.line__how-btn {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: calc(11px * var(--text-scale));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.line__how {
+  margin: 4px 0 6px;
+  padding-left: var(--space-xs);
+  border-left: 2px solid var(--border-strong);
+  font-size: calc(11.5px * var(--text-scale));
   color: var(--text-muted);
 }
 
-.rel__notes {
+// --- Les versions précédentes ---------------------------------------------
+
+.before {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+}
+
+.before__lab {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-size: calc(10.5px * var(--text-scale));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.past {
+  margin-bottom: var(--space-sm);
+}
+
+.past__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-xs);
+  margin-bottom: var(--space-2xs);
+}
+
+.past__name {
+  font-size: calc(13px * var(--text-scale));
+  font-weight: 650;
+}
+
+.past__date {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.past__notes {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-// Chaque note porte son étiquette : on cherche « quoi de neuf » ou « est-ce
-// que c'est corrigé », rarement la liste entière.
 .note {
   display: flex;
-  // En tête de bloc et non sur la ligne de base : la note peut désormais
-  // porter son mode d'emploi en dessous, l'étiquette doit rester en haut.
-  align-items: flex-start;
+  align-items: baseline;
   gap: var(--space-xs);
-  padding: 3px 0;
+  padding: 2px 0;
   font-size: calc(12.5px * var(--text-scale));
-  line-height: 1.5;
-  color: var(--text-muted);
-}
-
-// Le mode d'emploi, replié par défaut : une liste dont chaque ligne porterait
-// son paragraphe ne se lirait plus comme un journal.
-.note__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.note__how-btn {
-  align-self: flex-start;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-family: inherit;
-  font-size: calc(10.5px * var(--text-scale));
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.note__how {
-  margin: 2px 0 4px;
-  padding: var(--space-2xs) var(--space-xs);
-  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--state-hover);
-  font-size: calc(11.5px * var(--text-scale));
-  line-height: 1.5;
-  color: var(--text-muted);
 }
 
 .note__tag {
@@ -207,24 +378,38 @@
   border-radius: var(--radius-sm);
   font-size: calc(9.5px * var(--text-scale));
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   text-align: center;
-  background: var(--state-hover);
-  color: var(--text-faint);
 }
 
 .note--new .note__tag {
   background: var(--success-bg);
   color: var(--success);
 }
-
 .note--better .note__tag {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--accent);
 }
-
 .note--fixed .note__tag {
   background: var(--warning-bg);
   color: var(--warning);
+}
+
+// --- Le pied --------------------------------------------------------------
+
+.sheet__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex: none;
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+// Le pied ne porte que la sortie : l'historique est déjà dans la carte, sous
+// « Avant ça », et un lien vers les réglages renverrait donc à ce qu'on a sous
+// les yeux.
+.sheet__foot app-button {
+  margin-left: auto;
 }

@@ -339,7 +339,16 @@
 
                       @if (isVersionOpen(entry.version)) {
                         <div class="drawer">
-                          <span class="drawer__date data">{{ entry.date }}</span>
+                          <!-- L'illustration de la version, montrée à
+                               l'ouverture seulement : elle ne coûte rien à la
+                               liste au repos, et n'est plus réservée au seul
+                               premier lancement après la mise à jour. -->
+                          @if (entry.cover; as cover) {
+                            <div class="drawer__cover">
+                              <img [src]="cover" alt="" loading="lazy" />
+                            </div>
+                          }
+                          <span class="drawer__date">{{ formatDate(entry.date) }}</span>
                           @for (group of entry.groups; track group.kind) {
                             <h4 class="drawer__title">{{ group.title }}</h4>
                             <ul class="drawer__list drawer__list--{{ group.kind }}">

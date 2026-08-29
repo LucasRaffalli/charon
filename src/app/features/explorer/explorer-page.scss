@@ -107,8 +107,11 @@
   align-items: center;
   gap: var(--space-xs);
   flex-shrink: 0;
-  height: 26px;
-  padding: 0 var(--space-xs) 0 var(--space-sm);
+  // 26 px et des boutons de 20 donnaient une barre à l'étroit, où l'engrenage
+  // et les pastilles se touchaient presque. La gouttière est aussi la même des
+  // deux côtés : elle était plus serrée à droite, là où vivent les actions.
+  height: 32px;
+  padding: 0 var(--space-sm);
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
@@ -139,8 +142,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 20px;
-  padding: 0 7px;
+  height: 24px;
+  padding: 0 8px;
   border: none;
   border-radius: var(--radius-sm);
   background: none;
@@ -308,7 +311,6 @@
   .explorer__cut {
     animation: cut-blade 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
   }
-
 }
 
 // Les fentes et la pouponnière des panneaux serveur.

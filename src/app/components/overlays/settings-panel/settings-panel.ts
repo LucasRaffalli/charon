@@ -9,6 +9,7 @@ import changelogData from '../../../../assets/changelog.json';
 
 import { ChangeKind, ChangelogEntry } from '@app/interfaces';
 import { ConfigExportService } from '@app/services/system/config-export.service';
+import { formatReleaseDate } from '@app/services/system/date-format';
 import { DesignService } from '@app/services/appearance/design.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
 import { DockService } from '@app/services/workspace/dock.service';
@@ -62,6 +63,7 @@ export class SettingsPanel {
   // contient vraiment. Il est dans le dépôt, donc vérifié à la relecture, et le
   // CSS a de toute façon une puce de repli si une nature inconnue s'y glissait.
   protected readonly changelog = changelogData as ChangelogEntry[];
+  protected readonly formatDate = formatReleaseDate;
 
   /**
    * Le journal, prêt à afficher : une ligne par version, avec la répartition
@@ -80,6 +82,7 @@ export class SettingsPanel {
         version: entry.version,
         title: entry.title,
         date: entry.date,
+        cover: entry.cover,
         installed: entry.version === installed,
         total: entry.notes.length,
         parts: groups.map((group) => ({ kind: group.kind, count: group.notes.length })),

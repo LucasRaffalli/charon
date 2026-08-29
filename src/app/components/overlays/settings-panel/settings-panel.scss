@@ -564,6 +564,31 @@
   border-top: 1px solid var(--border);
 }
 
+// Même ratio que le héros des nouveautés (4,5:1) : l'illustration est vue en
+// entier, sans recadrage. Le motif du fond tient la place si le fichier
+// manque, sans une ligne de logique.
+.drawer__cover {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4.5 / 1;
+  // Elle échappe à l'indentation du tiroir, qui aligne le TEXTE sous le nom de
+  // version : une image décalée d'un côté seulement paraît mal posée.
+  margin: var(--space-2xs) 0 var(--space-xs) calc(var(--space-xs) - 56px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--accent) 20%, transparent), transparent 60%),
+    repeating-linear-gradient(135deg, var(--elev-3) 0 12px, var(--elev-2) 12px 24px);
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
 .drawer__date {
   display: block;
   margin-bottom: var(--space-2xs);

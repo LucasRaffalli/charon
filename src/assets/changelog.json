@@ -63,6 +63,10 @@
       },
       {
         "kind": "better",
+        "text": "En vue double, le second serveur est lui aussi un panneau à part entière : chacun se déplace et se redimensionne où vous voulez dans l'espace de travail"
+      },
+      {
+        "kind": "better",
         "text": "Recharger la fenêtre restaure tous les onglets, la vue double et le focus : chaque session se rattache à sa connexion, restée vivante"
       },
       {
@@ -148,6 +152,26 @@
         "how": "Réglages, onglet Données. Le fichier part dans votre dossier Téléchargements."
       },
       {
+        "kind": "new",
+        "text": "Revenir sur ses pas : chaque panneau garde son historique de navigation, avec ⌘← et ⌘→ ou les boutons latéraux de la souris",
+        "how": "Les deux chevrons de l'en-tête nomment leur destination au survol, pour savoir où l'on retourne avant de cliquer. Un simple rafraîchissement n'entre pas dans l'historique."
+      },
+      {
+        "kind": "new",
+        "text": "Des favoris de dossiers, rangés dans le profil du serveur : un panneau de raccourcis, avec le nom et l'icône de votre choix",
+        "how": "Clic droit sur un dossier puis « Ajouter aux favoris », ou le bouton « Ajouter ce dossier » du panneau Favoris. Le crayon au survol d'une ligne ouvre l'édition. Ils s'exportent avec la configuration."
+      },
+      {
+        "kind": "new",
+        "text": "Un moniteur de serveur livré avec l'application : disque, mémoire, charge et processus relevés pendant la session, avec une alerte quand un disque se remplit",
+        "how": "Réglages → Modules → activer « Moniteur ». Le panneau se met à jour tout seul, et continue de surveiller en fond quand il est fermé. La palette permet d'en changer la cadence et le seuil d'alerte."
+      },
+      {
+        "kind": "new",
+        "text": "Les nouveautés d'une version s'affichent après chaque mise à jour, avec son illustration et ce qu'elle apporte, groupé par nature",
+        "how": "Elle s'ouvre d'elle-même au premier lancement suivant une mise à jour. Sinon, cliquez la version en bas de l'écran de connexion, ou ⌘⇧W."
+      },
+      {
         "kind": "better",
         "text": "Nouvel écran d'ouverture, avec un mot d'accueil, la traversée annoncée et un bouton qui interrompt vraiment la connexion en cours"
       },
@@ -166,6 +190,34 @@
       {
         "kind": "better",
         "text": "Coller sur un fichier qui existe déjà propose de remplacer, de comparer, ou de garder les deux"
+      },
+      {
+        "kind": "better",
+        "text": "La vue double se met en scène : le panneau serveur se fend en deux, au lieu de voir un second panneau surgir à côté"
+      },
+      {
+        "kind": "better",
+        "text": "Les onglets des panneaux se glissent d'un groupe à l'autre, et l'onglet actif fait corps avec son panneau comme dans un navigateur ; en vue double, chaque barre porte la couleur de sa session et le nom de son serveur"
+      },
+      {
+        "kind": "better",
+        "text": "Rouvrir un panneau du bas le remet en onglet auprès des siens au lieu de tailler une nouvelle zone, et tirer une poignée jusqu'au bord ferme le panneau"
+      },
+      {
+        "kind": "better",
+        "text": "Un exit dans le terminal ne condamne plus l'onglet : un bouton relance la session, sans reconnexion ni authentification"
+      },
+      {
+        "kind": "better",
+        "text": "Les textes secondaires (chemins, tailles, horodatages) sont plus lisibles : leur contraste passait sous le seuil recommandé, en thème clair comme en sombre"
+      },
+      {
+        "kind": "better",
+        "text": "L'historique des versions, dans les réglages, tient en une ligne par version : la répartition entre nouveautés, améliorations et correctifs se lit avant même de l'ouvrir"
+      },
+      {
+        "kind": "better",
+        "text": "Les dialogues partagent la même carte : Échap ferme celui du dessus, et le focus revient là où il était"
       },
       {
         "kind": "fixed",

@@ -1,5 +1,10 @@
 {
   "compileOnSave": false,
+  // Projet « solution » : il ne compile aucun fichier lui-même, il porte les
+  // options partagées (héritées par extends) et pointe le vrai projet. Sans
+  // ce `files: []`, le motif par défaut `**/*` ramassait aussi les sorties
+  // de tsconfig.app.json dans out-tsc/, d'où les TS6305 de l'éditeur.
+  "files": [],
   "compilerOptions": {
     "strict": true,
     "noImplicitOverride": true,

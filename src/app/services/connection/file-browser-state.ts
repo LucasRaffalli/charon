@@ -254,6 +254,28 @@ export abstract class FileBrowserState {
     return this.listDir(this._currentPath());
   }
 
+  /**
+   * Relit le dossier courant SANS indicateur de chargement ni message
+   * d'erreur : pour les rafraîchissements que l'utilisateur n'a pas demandés
+   * (après une commande tapée dans le terminal, par exemple), où un
+   * clignotement à chaque Entrée serait pénible. Silencieux jusqu'au bout :
+   * personne n'attend de réponse, un échec laisse simplement l'affichage tel
+   * qu'il est.
+   */
+  async refreshQuietly(): Promise<void> {
+    const path = this._currentPath();
+    try {
+      const fresh = this.toEntries(await this.fetchEntries(path));
+      this.seen.set(path, fresh);
+      // L'utilisateur a pu naviguer ailleurs pendant le voyage de la réponse.
+      if (this._currentPath() === path) {
+        this._entries.set(fresh);
+      }
+    } catch {
+      // Rien à dire : ce rafraîchissement n'a été demandé par personne.
+    }
+  }
+
   async mkdir(name: string): Promise<boolean> {
     if (!(await this.runVoid(() => this.createDir(this.pathTo(name))))) {
       return false;

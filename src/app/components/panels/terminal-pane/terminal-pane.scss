@@ -116,10 +116,10 @@
   text-align: left;
 }
 
-// Cadre : porte le padding et le fond, pour que .term (mesuré par FitAddon)
-// soit une boîte NUE, sans padding. Certains moteurs incluent le padding dans
-// la hauteur calculée, ce qui faisait déborder la grille d'une ligne.
+// Cadre : porte le fond et la gouttière, et distribue sa hauteur au terminal.
 .term-frame {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
   padding: 10px 12px;
@@ -128,7 +128,31 @@
   overflow: hidden;
 }
 
+// La boîte que FitAddon mesure pour décider du nombre de lignes.
+//
+// En absolu, et surtout PAS en `height: 100%` : xterm ne donne aucune hauteur
+// à `.xterm`, qui prend donc celle de sa grille. Si cette boîte retombait sur
+// `auto` (il suffit qu'un maillon de la cascade de hauteurs n'ait pas de
+// hauteur résolue), elle épouserait la grille, FitAddon mesurerait la grille
+// pour calculer la grille, et la taille ne bougerait plus jamais. En absolu,
+// sa hauteur vient du cadre et de lui seul : la boucle est impossible.
+//
+// Boîte NUE, sans padding : certains moteurs comptent le padding dans la
+// hauteur calculée, ce qui faisait déborder la grille d'une ligne. La
+// gouttière est donc portée par `inset`, pas par un padding.
 .term {
-  height: 100%;
+  // `flex: 1 1 0` et pas `height: 100%` : c'est le cadre qui décide de la
+  // hauteur, jamais le contenu. xterm ne donne aucune hauteur à `.xterm`,
+  // qui prend donc celle de sa grille ; une boîte en hauteur automatique
+  // épouserait cette grille, et FitAddon mesurerait la grille pour calculer
+  // la grille (boucle : taille figée à jamais).
+  //
+  // L'absolu a été essayé et retiré le 29/08/2026 : il rendait le terminal
+  // INVISIBLE, ce qui prouve au passage qu'un maillon de la cascade de
+  // hauteurs au-dessus ne résout pas la sienne. Le flex, lui, dégrade
+  // proprement : au pire il retombe sur la hauteur du contenu, donc le
+  // terminal reste visible.
+  flex: 1 1 0;
+  min-height: 0;
   overflow: hidden;
 }

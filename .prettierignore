@@ -1,0 +1,16 @@
+# Sorties de build et dépendances
+dist
+out-tsc
+node_modules
+src-tauri/target
+dist-windows
+
+# Fichiers dont la forme est décidée ailleurs
+package-lock.json
+src-tauri/Cargo.lock
+src/assets/changelog.json
+site/index.html
+
+# Maquettes : du HTML jetable, écrit à la main
+docs/mockups
+docs/example-module

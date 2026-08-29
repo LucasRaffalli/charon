@@ -6,23 +6,14 @@
   (mouseleave)="setExpanded(false)"
 >
   @for (toast of toasts.toasts(); track toast.id) {
-    <div
-      #card
-      class="toast toast--{{ toast.kind }}"
-      [attr.role]="toast.kind === 'error' ? 'alert' : 'status'"
-    >
+    <div #card class="toast toast--{{ toast.kind }}" [attr.role]="toast.kind === 'error' ? 'alert' : 'status'">
       @if (!toast.sticky) {
         <span class="toast__life" [style.animation-duration.ms]="toast.life" aria-hidden="true"></span>
       }
       <div class="toast__top">
         <app-icon class="toast__ico" [name]="iconFor(toast.kind)" [size]="13" />
         <span class="toast__kind">{{ toast.title || wordFor(toast.kind) }}</span>
-        <button
-          type="button"
-          class="toast__close"
-          aria-label="Fermer"
-          (click)="toasts.dismiss(toast.id)"
-        >
+        <button type="button" class="toast__close" aria-label="Fermer" (click)="toasts.dismiss(toast.id)">
           <app-icon name="close" [size]="12" />
         </button>
       </div>

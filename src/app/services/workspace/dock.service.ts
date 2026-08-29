@@ -2,15 +2,7 @@ import { Injectable, computed, effect, signal } from '@angular/core';
 import { scopedKey } from '@app/services/system/window-scope';
 
 import { IconName } from '@app/components/ui/icon/icon';
-import {
-  DockDrag,
-  DockDropTarget,
-  DockGroup,
-  DockNode,
-  DockPanelId,
-  DockSplit,
-  DockZone,
-} from '@app/interfaces';
+import { DockDrag, DockDropTarget, DockGroup, DockNode, DockPanelId, DockSplit, DockZone } from '@app/interfaces';
 import {
   ALL_PANELS,
   DOCK_LAYOUTS,
@@ -64,6 +56,21 @@ const STORAGE_KEY = scopedKey('charon:dock');
 /** Fraction minimale d'un enfant de split (évite les zones écrasées). */
 const MIN_FRACTION = 0.08;
 
+/**
+ * Pendant le glissé, un panneau peut descendre jusqu'à cette largeur (px) :
+ * assez bas pour qu'on SENTE qu'on va au bout, sans disparaître d'un coup
+ * sous le curseur.
+ */
+const MIN_DRAG_PX = 48;
+
+/**
+ * Sous cette taille (px) AU RELÂCHEMENT, le panneau se ferme au lieu de rester
+ * en bande illisible où les boutons se chevauchent. Tirer une poignée jusqu'au
+ * bord est le geste naturel pour ranger un panneau ; il reste réouvrable
+ * depuis la barre de statut, ⌘1-9 ou la palette.
+ */
+const COLLAPSE_PX = 96;
+
 /** Cible de dépôt spéciale : les bords de tout l'espace de travail. */
 export const ROOT_TARGET = '#root';
 
@@ -77,6 +84,22 @@ interface StoredLayout {
  * onglets, persisté. Toutes les mutations passent par ici (drag & drop,
  * redimensionnement, activation d'onglet, réinitialisation).
  */
+/** Retrouve un split par son identifiant (pour la fermeture au relâchement). */
+const findSplit = (node: DockNode, id: string): DockSplit | null => {
+  if (node.kind === 'split') {
+    if (node.id === id) {
+      return node;
+    }
+    for (const child of node.children) {
+      const found = findSplit(child, id);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+};
+
 @Injectable({ providedIn: 'root' })
 export class DockService {
   private readonly _tree = signal<DockNode>(this.load());
@@ -97,9 +120,7 @@ export class DockService {
   readonly dropTarget = signal<DockDropTarget | null>(null);
 
   /** Panneaux actuellement visibles (onglet actif de leur groupe). */
-  readonly activePanels = computed<ReadonlySet<DockPanelId>>(
-    () => new Set(collectGroups(this.tree()).map((g) => g.active)),
-  );
+  readonly activePanels = computed<ReadonlySet<DockPanelId>>(() => new Set(collectGroups(this.tree()).map((g) => g.active)));
 
   /** Tous les groupes de l'arbre (ordre de parcours stable). */
   readonly groups = computed(() => collectGroups(this.tree()));
@@ -113,9 +134,7 @@ export class DockService {
   );
 
   /** Panneaux présents dans la disposition. */
-  readonly openPanels = computed<ReadonlySet<DockPanelId>>(
-    () => new Set(collectPanels(this.tree())),
-  );
+  readonly openPanels = computed<ReadonlySet<DockPanelId>>(() => new Set(collectPanels(this.tree())));
 
   /** Panneaux fermés (à proposer en réouverture). */
   readonly closedPanels = computed<DockPanelId[]>(() => {
@@ -155,9 +174,7 @@ export class DockService {
 
   /** Active un onglet dans son groupe. */
   activate(groupId: string, panel: DockPanelId): void {
-    this._tree.update((tree) =>
-      mapNode(tree, groupId, (n) => ({ ...(n as DockGroup), active: panel })),
-    );
+    this._tree.update((tree) => mapNode(tree, groupId, (n) => ({ ...(n as DockGroup), active: panel })));
   }
 
   /** Rend un panneau visible (active son onglet), où qu'il soit docké. */
@@ -214,21 +231,77 @@ export class DockService {
    * Redimensionne deux enfants adjacents d'un split : `startSizes` est la
    * photo des fractions au début du glissement, `deltaFraction` le déplacement.
    */
-  resizeSplit(splitId: string, index: number, startSizes: number[], deltaFraction: number): void {
+  /**
+   * Les panneaux qui se fermeraient si on relâchait maintenant. Le glissé les
+   * estompe : une fermeture sans préavis passerait pour une disparition.
+   */
+  private readonly _nearCollapse = signal<ReadonlySet<DockPanelId>>(new Set());
+  readonly nearCollapse = this._nearCollapse.asReadonly();
+
+  resizeSplit(
+    splitId: string,
+    index: number,
+    startSizes: number[],
+    deltaFraction: number,
+    containerPx = 0,
+  ): void {
     this._tree.update((tree) =>
       mapNode(tree, splitId, (n) => {
         const s = n as DockSplit;
         const pair = startSizes[index] + startSizes[index + 1];
-        const first = Math.min(
-          pair - MIN_FRACTION,
-          Math.max(MIN_FRACTION, startSizes[index] + deltaFraction),
-        );
+        // Le plancher se dit en PIXELS : une fraction fixe laisse un panneau
+        // devenir illisible sur un grand écran et bloque trop tôt sur un
+        // petit. Jamais plus que la moitié de la paire, sinon la poignée se
+        // retrouverait coincée dans une fenêtre étroite.
+        const min =
+          containerPx > 0
+            ? Math.min(pair / 2, MIN_DRAG_PX / containerPx)
+            : MIN_FRACTION;
+        const first = Math.min(pair - min, Math.max(min, startSizes[index] + deltaFraction));
         const sizes = [...startSizes];
         sizes[index] = first;
         sizes[index + 1] = pair - first;
+
+        // Annonce du sort réservé aux deux enfants concernés.
+        const doomed = new Set<DockPanelId>();
+        if (containerPx > 0) {
+          for (const i of [index, index + 1]) {
+            if (sizes[i] * containerPx < COLLAPSE_PX) {
+              collectPanels(s.children[i]).forEach((panel) => doomed.add(panel));
+            }
+          }
+        }
+        this._nearCollapse.set(doomed);
+
         return { ...s, sizes };
       }),
     );
+  }
+
+  /**
+   * Fin d'un glissé de poignée : un enfant réduit sous `COLLAPSE_PX` est
+   * FERMÉ plutôt que laissé en bande inutilisable. C'est le geste attendu
+   * d'un dock (tirer jusqu'au bord range le panneau), et ça évite l'état où
+   * les boutons d'un en-tête se marchent dessus faute de largeur.
+   *
+   * Tous les panneaux du sous-arbre concerné partent ensemble : un groupe
+   * réduit à rien emmène ses onglets, qui restent réouvrables.
+   */
+  collapseIfTiny(splitId: string, containerPx: number): void {
+    this._nearCollapse.set(new Set());
+    if (containerPx <= 0) {
+      return;
+    }
+    const target = findSplit(this.tree(), splitId);
+    if (!target) {
+      return;
+    }
+    const doomed = target.children
+      .filter((_, i) => (target.sizes[i] ?? 1) * containerPx < COLLAPSE_PX)
+      .flatMap((child) => collectPanels(child));
+    for (const panel of doomed) {
+      this.closePanel(panel);
+    }
   }
 
   /**
@@ -241,9 +314,7 @@ export class DockService {
       this.focusPanel(panel);
       return;
     }
-    const group = collectGroups(this.tree()).find((candidate) =>
-      candidate.panels.includes(anchor),
-    );
+    const group = collectGroups(this.tree()).find((candidate) => candidate.panels.includes(anchor));
     if (!group) {
       this.openPanel(panel);
       return;
@@ -252,24 +323,49 @@ export class DockService {
   }
 
   /** Ferme un panneau (la vue serveur reste toujours ouverte). */
+  /**
+   * Ferme un panneau. Le panneau serveur n'est plus une exception : il se
+   * ferme et se rouvre comme les autres, depuis la barre de statut ou ⌘1.
+   * `removePanel` rend `null` quand il ne resterait plus rien, ce qui protège
+   * le dernier panneau ouvert sans qu'il faille nommer lequel.
+   */
   closePanel(panel: DockPanelId): void {
-    if (panel === 'server') {
-      return;
-    }
     const without = removePanel(this.tree(), panel);
     if (without) {
       this._tree.set(without);
     }
   }
 
-  /** (R)ouvre un panneau : le focalise s'il est présent, sinon l'insère
-   *  sur son bord naturel (outils en bas, aperçu à droite, fichiers à gauche). */
+  /**
+   * (R)ouvre un panneau : le focalise s'il est déjà là, sinon il rejoint ses
+   * semblables.
+   *
+   * Un panneau rouvert cherche d'abord un groupe qui accueille déjà des
+   * panneaux du même bord et s'y range EN ONGLET. Rouvrir « Journal » quand
+   * « Transferts » et « Terminal » occupent le bas rend un troisième onglet,
+   * là où l'ancienne version taillait systématiquement un nouveau split et
+   * réduisait la zone à chaque réouverture. À défaut de semblable (tout a été
+   * fermé), le panneau reprend son bord naturel : outils en bas, aperçu à
+   * droite, fichiers à gauche.
+   */
   openPanel(panel: DockPanelId): void {
     if (this.openPanels().has(panel)) {
       this.focusPanel(panel);
       return;
     }
-    this._tree.set(wrapRoot(this.tree(), panel, REOPEN_ZONES[panel]));
+    const zone = REOPEN_ZONES[panel];
+    // Le regroupement ne vaut que pour la barre d'outils du BAS, dont les
+    // panneaux (transferts, journal, logs, terminal, corbeille) vivent
+    // ensemble par nature. À gauche et à droite chacun a sa colonne : y
+    // fusionner masquerait un voisin, et l'arborescence rouverte prenait
+    // ainsi la place du panneau local (ou pire, du panneau serveur).
+    const host =
+      zone === 'bottom'
+        ? collectGroups(this.tree()).find((candidate) =>
+            candidate.panels.some((open) => REOPEN_ZONES[open] === 'bottom'),
+          )
+        : undefined;
+    this._tree.set(host ? insertAtZone(this.tree(), host.id, panel, 'center') : wrapRoot(this.tree(), panel, zone));
   }
 
   /** Revient à la disposition par défaut. */

@@ -58,11 +58,7 @@
   overflow: hidden;
   // Le plus translucide des deux gagne : le réglage général des panneaux, ou
   // le voile local du filigrane (voir plus bas).
-  background: color-mix(
-    in srgb,
-    var(--surface) min(var(--panel-alpha), var(--panel-alpha-local, 100%)),
-    transparent
-  );
+  background: color-mix(in srgb, var(--surface) min(var(--panel-alpha), var(--panel-alpha-local, 100%)), transparent);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
@@ -114,7 +110,10 @@
   color: var(--text-muted);
   font-size: calc(11.5px * var(--text-scale));
   font-weight: 600;
-  cursor: pointer;
+  // Un onglet se clique ET se glisse : la main ouverte annonce la seconde
+  // possibilité, que rien ne laissait deviner.
+  cursor: grab;
+  touch-action: none;
   transition:
     background var(--transition-fast),
     color var(--transition-fast);
@@ -184,6 +183,13 @@
   &:hover {
     color: var(--danger);
   }
+}
+
+// Le glissé va fermer ce groupe s'il est relâché ici : on l'annonce en
+// l'estompant, une fermeture sans préavis passerait pour une disparition.
+.group--closing {
+  opacity: 0.45;
+  transition: opacity 0.12s ease;
 }
 
 .group__slot {

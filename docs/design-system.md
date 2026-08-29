@@ -32,22 +32,22 @@ teinte les fonds, donc bloquant pour les nouveaux accents.
 
 **Quatre élévations opaques**, qui disent à quelle hauteur on se trouve :
 
-| Variable | Usage |
-| --- | --- |
-| `--elev-0` | fond de l'application, derrière tout |
-| `--elev-1` | panneaux, barres, listes |
+| Variable   | Usage                                           |
+| ---------- | ----------------------------------------------- |
+| `--elev-0` | fond de l'application, derrière tout            |
+| `--elev-1` | panneaux, barres, listes                        |
 | `--elev-2` | zones dans un panneau : en-têtes, champs, cases |
 | `--elev-3` | surfaces flottantes : palette, dialogues, menus |
 
 **Trois états en voiles translucides**, valables sur n'importe quelle élévation :
 
 ```scss
---state-hover:    rgba(255, 255, 255, .05);   // fonds sombres
---state-active:   rgba(255, 255, 255, .09);
+--state-hover: rgba(255, 255, 255, 0.05); // fonds sombres
+--state-active: rgba(255, 255, 255, 0.09);
 --state-selected: color-mix(in srgb, var(--accent) 18%, transparent);
 
---state-hover:    rgba(20, 26, 35, .045);     // fonds clairs
---state-active:   rgba(20, 26, 35, .085);
+--state-hover: rgba(20, 26, 35, 0.045); // fonds clairs
+--state-active: rgba(20, 26, 35, 0.085);
 ```
 
 Les voiles sont écrits une fois pour les fonds sombres, une fois pour les
@@ -68,15 +68,15 @@ Le fond passe de 6 % à 9 % de luminosité : les surfaces se décollent du fond
 sans perdre le côté nocturne. `--text-muted` est relevé en conséquence, sinon
 les libellés secondaires deviennent trop discrets.
 
-| | Actuel | Adouci (retenu) |
-| --- | --- | --- |
-| fond | `#0c0e11` | `#101319` |
-| surface | `#12151a` | `#171b22` |
-| surface-hover | `#181c22` | `#1e232b` |
-| surface-active | `#1f242c` | `#252b34` |
-| border | `#1e2228` | `#262c35` |
-| text-muted | `#8f96a0` | `#98a0aa` |
-| text-faint | `#5f6670` | `#626b76` |
+|                | Actuel    | Adouci (retenu) |
+| -------------- | --------- | --------------- |
+| fond           | `#0c0e11` | `#101319`       |
+| surface        | `#12151a` | `#171b22`       |
+| surface-hover  | `#181c22` | `#1e232b`       |
+| surface-active | `#1f242c` | `#252b34`       |
+| border         | `#1e2228` | `#262c35`       |
+| text-muted     | `#8f96a0` | `#98a0aa`       |
+| text-faint     | `#5f6670` | `#626b76`       |
 
 Le reste est inchangé (text, accents, danger, ombres, palette de code).
 Référence complète avec le SCSS prêt à coller :
@@ -85,12 +85,12 @@ https://claude.ai/code/artifact/f68b3492-0fda-47e7-a482-b3c346506740
 
 ### Quatre accents
 
-| Accent | Solide | Clair (dark) | Note |
-| --- | --- | --- | --- |
-| Charon | `#5b7fa6` | `#7da3cc` | acier, défaut |
-| Unloved | `#d81e4a` | `#ff7f9d` | rouge à pointe rosée |
-| Jade | `#2f9e6e` | `#5fc79b` | nom encore ouvert |
-| Unicorn | `#e0559f` | `#f480c1` | caché, voir plus bas |
+| Accent  | Solide    | Clair (dark) | Note                 |
+| ------- | --------- | ------------ | -------------------- |
+| Charon  | `#5b7fa6` | `#7da3cc`    | acier, défaut        |
+| Unloved | `#d81e4a` | `#ff7f9d`    | rouge à pointe rosée |
+| Jade    | `#2f9e6e` | `#5fc79b`    | nom encore ouvert    |
+| Unicorn | `#e0559f` | `#f480c1`    | caché, voir plus bas |
 
 **Le piège d'Unloved.** Un accent rouge saturé entre en collision avec
 `--danger` : « Envoyer » et « Supprimer » deviennent la même couleur. La sortie
@@ -150,13 +150,13 @@ Stockage : deux valeurs hexadécimales dans les réglages, plus un drapeau
 
 Le motif dit **comment** les deux couleurs sont posées :
 
-| Motif | Description |
-| --- | --- |
-| Halo | deux foyers en diagonale, le plus discret |
-| Aube | montée de lumière depuis le bas |
-| Aurore | écharpe oblique, le plus graphique |
+| Motif  | Description                                  |
+| ------ | -------------------------------------------- |
+| Halo   | deux foyers en diagonale, le plus discret    |
+| Aube   | montée de lumière depuis le bas              |
+| Aurore | écharpe oblique, le plus graphique           |
 | Maille | quatre foyers en deux teintes, le plus riche |
-| Voûte | bords assombris, respiration au centre |
+| Voûte  | bords assombris, respiration au centre       |
 
 L'intensité (doux, marqué) est un réglage **séparé** du motif : « lequel » et
 « combien » ne se mélangent pas.

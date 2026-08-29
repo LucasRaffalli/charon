@@ -83,13 +83,26 @@ export class SftpTreeService {
 
     // La liste principale fait foi pour le dossier courant : après un
     // mkdir/suppression/renommage, l'arbre suit sans requête supplémentaire.
+    //
+    // Cet effet RÉPARE aussi le dépliage : si le dossier courant n'est pas
+    // dans l'arbre (chaîne abandonnée parce que la connexion n'était pas
+    // prête au tout début), l'arrivée d'un listing est l'occasion de rejouer
+    // le dépliage. Sans ce rattrapage, l'arbre restait figé sur sa racine
+    // jusqu'au premier clic de l'utilisateur.
     effect(() => {
       if (!this.sftp.connected()) {
         return;
       }
       const path = this.sftp.currentPath();
       const entries = this.sftp.entries();
-      untracked(() => this.mergeChildren(path, entries));
+      untracked(() => {
+        const node = findNode(this._root(), path);
+        if (!node || (node.children === null && !node.expanded)) {
+          this.revealQueue = this.revealQueue.then(() => this.reveal(path));
+          return;
+        }
+        this.mergeChildren(path, entries);
+      });
     });
   }
 
@@ -135,11 +148,19 @@ export class SftpTreeService {
   private async expand(path: string): Promise<void> {
     this.patch(path, (n) => ({ ...n, expanded: true, loading: true }));
     const children = await this.fetchChildren(path);
-    this.patch(path, (n) => ({
-      ...n,
-      loading: false,
-      children: children ?? n.children ?? [],
-    }));
+    if (children === null) {
+      // Échec de lecture (au démarrage, la connexion n'est pas toujours prête
+      // quand l'arbre se déplie ; ou dossier devenu illisible). On REPLIE en
+      // laissant `children` à null, c'est-à-dire « pas encore chargé ».
+      //
+      // L'ancienne version posait `[]` : le nœud restait déplié et
+      // FAUSSEMENT vide, la chaîne du dépliage automatique ne trouvait plus
+      // rien dessous et abandonnait, et plus personne ne retentait. L'arbre
+      // affichait un `/` vide jusqu'à ce qu'on clique dedans à la main.
+      this.patch(path, (n) => ({ ...n, loading: false, expanded: false }));
+      return;
+    }
+    this.patch(path, (n) => ({ ...n, loading: false, children }));
   }
 
   /**
@@ -159,8 +180,19 @@ export class SftpTreeService {
         return;
       }
       if (step === path) {
+        const entries = this.sftp.entries();
+        if (entries.length === 0) {
+          // Le listing de la vue principale n'est pas encore arrivé : au
+          // démarrage, l'arbre se déplie AVANT lui. S'en servir quand même
+          // figerait le dossier sur une liste vide, et plus rien ne le
+          // corrigerait (l'arbre affichait un « / » vide jusqu'au premier
+          // clic). On va donc le chercher. Une requête de trop quand le
+          // dossier est réellement vide, ce qui ne coûte rien.
+          await this.expand(step);
+          return;
+        }
         this.patch(step, (n) => ({ ...n, expanded: true }));
-        this.mergeChildren(step, this.sftp.entries());
+        this.mergeChildren(step, entries);
         return;
       }
       if (!node.expanded || node.children === null) {

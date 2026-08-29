@@ -93,9 +93,7 @@ export class ToastHost {
       // capte les clics en bas de l'écran bloquerait la barre de statut le
       // reste du temps.
       const host = cards[count - 1]?.nativeElement;
-      const height = open
-        ? offset
-        : (host?.offsetHeight ?? 0) + DEPTH_STEP * Math.min(count - 1, VISIBLE_DEPTH);
+      const height = open ? offset : (host?.offsetHeight ?? 0) + DEPTH_STEP * Math.min(count - 1, VISIBLE_DEPTH);
       const stack = host?.parentElement;
       if (stack) {
         stack.style.height = `${Math.max(0, height)}px`;

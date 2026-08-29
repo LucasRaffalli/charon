@@ -263,15 +263,31 @@ pub async fn shell_open(
     // Terminal ouvert = connexion maintenue (pas de fermeture d'inactivité).
     let hold = ConnectionHold::new(conn.clone());
 
-    // Un seul terminal par connexion : remplace l'éventuel existant.
-    if let Some(previous) = registry.inner().0.lock().unwrap().remove(&connection_id) {
-        let _ = previous;
+    // Un seul terminal par connexion : le précédent est fermé POUR DE BON.
+    //
+    // Le simple drop d'ici ne fermait rien : la moitié écriture disparaissait
+    // sans qu'aucun CHANNEL_CLOSE parte, la tâche de pompe restait suspendue
+    // sur sa lecture et le canal vivait côté serveur. Chaque « Relancer »
+    // après un exit en abandonnait donc un, jusqu'à cogner le MaxSessions du
+    // serveur (10 par défaut chez OpenSSH) et voir toute ouverture refusée.
+    // Le verrou est relâché AVANT d'attendre : c'est un mutex std.
+    let previous = {
+        let mut map = registry.inner().0.lock().unwrap();
+        map.remove(&connection_id)
+    };
+    if let Some(previous) = previous {
+        let _ = previous.write.eof().await;
+        let _ = previous.write.close().await;
     }
 
-    let channel = conn
-        .open_channel()
-        .await
-        .map_err(|e| format!("Ouverture du canal impossible : {e}"))?;
+    let channel = conn.open_channel().await.map_err(|e| {
+        format!(
+            "Ouverture du canal impossible : {e}.\n\nLe serveur a refusé un \
+             canal supplémentaire. C'est en général sa limite de sessions \
+             simultanées (MaxSessions, 10 par défaut) : ferme un terminal ou \
+             un suivi de log, ou reconnecte-toi."
+        )
+    })?;
     channel
         .request_pty(true, "xterm-256color", u32::from(cols), u32::from(rows), 0, 0, &[])
         .await

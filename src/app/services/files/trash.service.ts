@@ -44,6 +44,18 @@ export class TrashService {
   /** Le dernier lot jeté, pour l'annulation immédiate. */
   private readonly lastBatch = signal<Trashed[]>([]);
 
+  /**
+   * Incrémenté à chaque opération qui change le CONTENU de la corbeille.
+   * Le panneau s'y abonne pour se recharger : sans ça, il ne suivait que le
+   * dossier affiché, donc jeter un fichier ne le réveillait pas.
+   */
+  private readonly _version = signal(0);
+  readonly version = this._version.asReadonly();
+
+  private touched(): void {
+    this._version.update((n) => n + 1);
+  }
+
   constructor() {
     // La corbeille elle-même est un dossier du serveur et survit à tout, mais
     // le lot d'annulation est une mémoire de session : le garder ferait viser
@@ -86,6 +98,7 @@ export class TrashService {
     }
 
     this.lastBatch.set(done);
+    this.touched();
     await this.sftp.refresh();
 
     if (done.length) {
@@ -126,6 +139,7 @@ export class TrashService {
         this.activity.log('rename', 'remote', item.path, String(error), false);
       }
     }
+    this.touched();
     await this.sftp.refresh();
     if (restored) {
       this.toasts.success(`${restored} élément${restored > 1 ? 's' : ''} restauré${restored > 1 ? 's' : ''}`);
@@ -160,6 +174,7 @@ export class TrashService {
     try {
       await this.sftp.moveTo(entry.path, target);
       this.activity.log('rename', 'remote', target, 'restauré de la corbeille');
+      this.touched();
       await this.sftp.refresh();
       this.toasts.success(`« ${entry.name} » restauré`, { detail: dir });
       return true;
@@ -177,6 +192,7 @@ export class TrashService {
     try {
       await this.sftp.removeSilently(entry.path, entry.isDir);
       this.activity.log('remove', 'remote', entry.path, 'supprimé de la corbeille');
+      this.touched();
       return true;
     } catch (error) {
       this.activity.log('remove', 'remote', entry.path, String(error), false);

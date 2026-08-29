@@ -1,10 +1,5 @@
 @if (split(); as s) {
-  <div
-    #splitEl
-    class="split"
-    [class.split--row]="s.dir === 'row'"
-    [class.split--column]="s.dir === 'column'"
-  >
+  <div #splitEl class="split" [class.split--row]="s.dir === 'row'" [class.split--column]="s.dir === 'column'">
     @for (child of s.children; track child.id; let i = $index; let last = $last) {
       <div class="split__cell" [style.flex-grow]="s.sizes[i]">
         <app-dock-node [node]="child" />
@@ -24,13 +19,10 @@
     class="group"
     [attr.data-dock-group]="g.id"
     [class.group--server]="g.panels.includes('server')"
+    [class.group--closing]="willClose(g)"
   >
     <div class="group__tabs" [attr.data-dock-tabs]="g.id">
-      <div
-        class="group__tabs-strip"
-        role="tablist"
-        [class.group__tabs-strip--dense]="g.panels.length > 4"
-      >
+      <div class="group__tabs-strip" role="tablist" [class.group__tabs-strip--dense]="g.panels.length > 4">
         @for (panel of g.panels; track panel) {
           <button
             type="button"
@@ -42,6 +34,10 @@
             [attr.aria-selected]="g.active === panel"
             (click)="onTabClick($event, g, panel)"
             (contextmenu)="openTabMenu($event, g, panel)"
+            (pointerdown)="onTabPointerDown($event, g, panel)"
+            (pointermove)="onTabPointerMove($event)"
+            (pointerup)="onTabPointerUp()"
+            (pointercancel)="onTabPointerCancel()"
           >
             <app-icon [name]="meta[panel].icon" [size]="13" />
             <span class="group__tab-label">{{ tabLabel(panel) }}</span>
@@ -61,7 +57,7 @@
         <app-icon name="grip" [size]="13" />
       </span>
 
-      @if (g.active !== 'server') {
+      @if (canClose()) {
         <button
           type="button"
           class="group__close"

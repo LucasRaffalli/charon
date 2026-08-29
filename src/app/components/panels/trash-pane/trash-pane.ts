@@ -40,10 +40,13 @@ export class TrashPane {
   protected readonly dir = signal('/');
 
   constructor() {
-    // Suit le dossier de l'explorateur : c'est celui dont la corbeille compte.
+    // Suit le dossier de l'explorateur (c'est celui dont la corbeille compte)
+    // ET le compteur du service : sans lui, jeter un fichier ne rechargeait
+    // rien, puisque le dossier affiché, lui, n'avait pas changé.
     effect(() => {
       const path = this.sftp.currentPath();
       const connected = this.sftp.connected();
+      this.trash.version();
       if (connected) {
         void this.load(path);
       } else {

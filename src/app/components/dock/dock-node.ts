@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   forwardRef,
   inject,
@@ -33,6 +34,12 @@ const DRAG_THRESHOLD = 5;
 })
 export class DockNodeView {
   protected readonly dock = inject(DockService);
+
+  constructor() {
+    // Un nœud détruit en plein glissé (réagencement de l'arbre) laisserait la
+    // main fermée sur toute l'application.
+    inject(DestroyRef).onDestroy(() => document.body.classList.remove('is-dock-dragging'));
+  }
   private readonly sessionRegistry = inject(SessionRegistry);
 
   private readonly contextMenu = inject(ContextMenuService);
@@ -40,9 +47,7 @@ export class DockNodeView {
   /** Transferts actifs de TOUTES les sessions : le badge de l'onglet ne doit
    *  pas retomber à zéro parce qu'on a focalisé l'autre serveur. */
   private activeTransfers(): number {
-    return this.sessionRegistry
-      .sessions()
-      .reduce((total, session) => total + session.transfers.activeCount(), 0);
+    return this.sessionRegistry.sessions().reduce((total, session) => total + session.transfers.activeCount(), 0);
   }
 
   readonly node = input.required<DockNode>();
@@ -66,6 +71,19 @@ export class DockNodeView {
 
   protected readonly meta = PANEL_META;
 
+  /**
+   * La croix ne s'affiche que s'il reste de quoi fermer : le DERNIER panneau
+   * ouvert est protégé par le service, et proposer un geste sans effet serait
+   * mentir. Le panneau serveur, lui, n'est plus une exception.
+   */
+  protected readonly canClose = computed(() => this.dock.openPanels().size > 1);
+
+  /** Ce groupe se fermerait si la poignée était relâchée maintenant. */
+  protected willClose(node: DockGroup): boolean {
+    const doomed = this.dock.nearCollapse();
+    return doomed.size > 0 && node.panels.every((panel) => doomed.has(panel));
+  }
+
   protected tabLabel(panel: DockPanelId): string {
     if (panel === 'transfers') {
       const active = this.activeTransfers();
@@ -83,7 +101,10 @@ export class DockNodeView {
   /** Clic droit sur la barre d'onglets : fermer / rouvrir / réinitialiser. */
   protected openTabMenu(event: MouseEvent, node: DockGroup, panel: DockPanelId): void {
     const items: ContextMenuItem[] = [];
-    if (panel !== 'server') {
+    // Le panneau serveur se ferme comme les autres ; seul le DERNIER panneau
+    // ouvert reste protégé, et l'entrée disparaît alors du menu plutôt que
+    // d'y rester sans effet.
+    if (this.canClose()) {
       items.push({
         label: `Fermer « ${PANEL_META[panel].label} »`,
         icon: 'close',
@@ -122,12 +143,19 @@ export class DockNodeView {
   protected onResize(delta: number): void {
     const ctx = this.resizeCtx;
     if (ctx && ctx.px > 0) {
-      this.dock.resizeSplit(ctx.splitId, ctx.index, ctx.sizes, delta / ctx.px);
+      this.dock.resizeSplit(ctx.splitId, ctx.index, ctx.sizes, delta / ctx.px, ctx.px);
     }
   }
 
   protected endResize(): void {
     this.dock.resizing.set(false);
+    // Poignée tirée jusqu'au bord : le panneau devenu minuscule se ferme,
+    // plutôt que de rester en bande où son contenu se chevauche.
+    const ctx = this.resizeCtx;
+    if (ctx) {
+      this.dock.collapseIfTiny(ctx.splitId, ctx.px);
+    }
+    this.resizeCtx = null;
   }
 
   // --- Glissement du panneau actif via la poignée (grip) ---
@@ -160,13 +188,16 @@ export class DockNodeView {
         return;
       }
       this.draggingTab = true;
+      document.body.classList.add('is-dock-dragging');
       this.dockRect = document.querySelector('app-dock')?.getBoundingClientRect() ?? null;
-      this.groupRects = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-dock-group]'),
-      ).map((el) => ({ id: el.getAttribute('data-dock-group')!, rect: el.getBoundingClientRect() }));
-      this.tabsRects = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-dock-tabs]'),
-      ).map((el) => ({ id: el.getAttribute('data-dock-tabs')!, rect: el.getBoundingClientRect() }));
+      this.groupRects = Array.from(document.querySelectorAll<HTMLElement>('[data-dock-group]')).map((el) => ({
+        id: el.getAttribute('data-dock-group')!,
+        rect: el.getBoundingClientRect(),
+      }));
+      this.tabsRects = Array.from(document.querySelectorAll<HTMLElement>('[data-dock-tabs]')).map((el) => ({
+        id: el.getAttribute('data-dock-tabs')!,
+        rect: el.getBoundingClientRect(),
+      }));
       this.dock.beginDrag(this.pending.panel, this.pending.groupId, event.clientX, event.clientY);
     }
     this.dock.updateDrag(event.clientX, event.clientY);
@@ -177,6 +208,7 @@ export class DockNodeView {
     const wasDragging = this.draggingTab;
     this.pending = null;
     this.draggingTab = false;
+    document.body.classList.remove('is-dock-dragging');
     if (wasDragging) {
       this.dock.endDrag(true);
     }
@@ -185,6 +217,7 @@ export class DockNodeView {
   protected onTabPointerCancel(): void {
     this.pending = null;
     this.draggingTab = false;
+    document.body.classList.remove('is-dock-dragging');
     this.dock.endDrag(false);
   }
 
@@ -200,8 +233,7 @@ export class DockNodeView {
     const rect = this.dockRect;
     if (rect) {
       const m = DockNodeView.ROOT_EDGE;
-      const inside =
-        x >= rect.left - 16 && x <= rect.right + 16 && y >= rect.top - 16 && y <= rect.bottom + 16;
+      const inside = x >= rect.left - 16 && x <= rect.right + 16 && y >= rect.top - 16 && y <= rect.bottom + 16;
       if (inside) {
         const zone: DockZone | null =
           x - rect.left < m
@@ -220,8 +252,7 @@ export class DockNodeView {
       }
     }
 
-    const contains = (r: DOMRect): boolean =>
-      x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    const contains = (r: DOMRect): boolean => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 
     // 2. Sur une barre d'onglets : empilement direct (le geste naturel,
     //    comme déposer un onglet de navigateur à côté des autres).
@@ -248,8 +279,7 @@ export class DockNodeView {
       zone = 'center';
     } else {
       const nearest = Math.min(rx, 1 - rx, ry, 1 - ry);
-      zone =
-        nearest === rx ? 'left' : nearest === 1 - rx ? 'right' : nearest === ry ? 'top' : 'bottom';
+      zone = nearest === rx ? 'left' : nearest === 1 - rx ? 'right' : nearest === ry ? 'top' : 'bottom';
     }
     this.dock.dropTarget.set({ groupId: hit.id, zone });
   }

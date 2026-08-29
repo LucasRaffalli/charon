@@ -2,8 +2,13 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./out-tsc/app",
+    // Exigé de tout projet cible d'une `references` (voir tsconfig.json).
+    "composite": true,
     "types": []
   },
-  "include": ["src/**/*.ts"],
+  // Les .json sont dans la liste parce que `composite` exige que TOUT fichier
+  // du programme y figure, et le changelog est importé en dur (whats-new,
+  // panneau de réglages). resolveJsonModule était déjà activé.
+  "include": ["src/**/*.ts", "src/**/*.json"],
   "exclude": ["src/**/*.spec.ts"]
 }

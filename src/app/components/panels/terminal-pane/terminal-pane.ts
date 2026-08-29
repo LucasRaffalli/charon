@@ -12,12 +12,13 @@ import {
 } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import type { FitAddon } from '@xterm/addon-fit';
-import type { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { Terminal } from '@xterm/xterm';
 
 import { SftpService } from '@app/services/connection/sftp.service';
 import { Session } from '@app/services/connection/session-registry';
 import { TerminalService } from '@app/services/workspace/terminal.service';
+import { DockService } from '@app/services/workspace/dock.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
 
 interface TermEvent {
@@ -30,6 +31,25 @@ const OPENING_SETTLE_MS = 350;
 
 /** Un shell resté muet ne recevra rien : mieux vaut ne pas écrire à l'aveugle. */
 const OPENING_GIVE_UP_MS = 5000;
+
+/**
+ * Après une commande tapée dans le terminal, on relit le dossier affiché dès
+ * que le shell s'est tu pendant ce délai. Un `mkdir` ou un `rm` fait au
+ * clavier doit se voir dans le panneau : rien ne surveille le système de
+ * fichiers distant, c'est la frappe de l'utilisateur qui sert de signal.
+ */
+const REFRESH_SETTLE_MS = 400;
+
+/**
+ * Lignes laissées libres sous la dernière. Un terminal qui touche le bord se
+ * lit mal, et surtout la ligne du prompt ne doit jamais passer sous le bord du
+ * panneau : mieux vaut un peu de vide qu'une ligne coupée.
+ */
+const BOTTOM_MARGIN_ROWS = 1;
+
+/** En dessous, la marge ne se prend pas : mieux vaut deux lignes serrées que
+ *  rien du tout dans un panneau réduit à sa plus simple expression. */
+const MIN_ROWS = 2;
 
 /** Décode la sortie base64 du backend en octets bruts pour xterm. */
 const decode = (data: string): Uint8Array =>
@@ -53,6 +73,7 @@ export class TerminalPane {
   readonly session = input.required<Session>();
 
   private readonly theme = inject(ThemeService);
+  private readonly dock = inject(DockService);
   private readonly destroyRef = inject(DestroyRef);
 
   protected get sftp(): SftpService {
@@ -93,11 +114,10 @@ export class TerminalPane {
   private readonly host = viewChild<ElementRef<HTMLElement>>('term');
   private terminal: Terminal | null = null;
   private terminalId: string | null = null;
-  /** Créé avec le terminal : xterm arrive par import dynamique. */
-  private fit: FitAddon | null = null;
+  private readonly fit = new FitAddon();
 
   constructor() {
-    afterNextRender(() => void this.open());
+    afterNextRender(() => this.open());
     // Suit le thème de l'app : xterm fige ses couleurs sinon (bloc gris
     // après un changement de thème). rAF : lire les customs properties
     // APRÈS que data-theme a été appliqué au DOM.
@@ -105,6 +125,16 @@ export class TerminalPane {
       this.theme.theme();
       requestAnimationFrame(() => this.applyTheme());
     });
+    // Fin d'un redimensionnement du dock : on recale la grille. Le
+    // ResizeObserver suffit en théorie, mais il ne redéclenche pas si la
+    // taille finale du glissé égale une taille déjà vue en route, et le
+    // terminal resterait alors sur une grille d'un pas en arrière.
+    effect(() => {
+      if (!this.dock.resizing()) {
+        requestAnimationFrame(() => this.refit());
+      }
+    });
+
     // Le suivi : chaque changement de dossier écrit un cd, tant qu'il est actif.
     effect(() => {
       const path = this.sftp.currentPath();
@@ -126,6 +156,9 @@ export class TerminalPane {
       const id = this.terminalId;
       if (id) {
         void invoke('shell_close', { terminalId: id }).catch(() => undefined);
+      }
+      if (this.refreshSettle) {
+        clearTimeout(this.refreshSettle);
       }
       this.terminal?.dispose();
     });
@@ -266,6 +299,33 @@ export class TerminalPane {
   private openingSettle: ReturnType<typeof setTimeout> | null = null;
   private openingGiveUp: ReturnType<typeof setTimeout> | null = null;
 
+  /** Une commande est partie : le dossier affiché a peut-être changé. */
+  private commandRan = false;
+  private refreshSettle: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Réarmé à chaque paquet reçu : le silence qui suit vaut « la commande a
+   * fini ». Une sortie continue (un `tail -f`, un build) repousse donc le
+   * rafraîchissement jusqu'au calme, ce qui est exactement voulu.
+   */
+  private armRefresh(): void {
+    if (!this.commandRan) {
+      return;
+    }
+    if (this.refreshSettle) {
+      clearTimeout(this.refreshSettle);
+    }
+    this.refreshSettle = setTimeout(() => {
+      this.commandRan = false;
+      // Pas pendant vim, less ou htop : l'écran alternatif dit qu'un programme
+      // tient le tty, aucune commande n'a été validée.
+      if (this.terminal?.buffer.active.type === 'alternate') {
+        return;
+      }
+      void this.session().sftp.refreshQuietly();
+    }, REFRESH_SETTLE_MS);
+  }
+
   /** Réarmé à chaque sortie reçue : le silence qui suit vaut « prêt ». */
   private armOpeningCd(): void {
     if (!this.openingCd) {
@@ -301,6 +361,10 @@ export class TerminalPane {
       if (char === '\r' || char === '\n' || char === '\x03') {
         // Entrée ou Ctrl+C : ligne validée ou annulée, le shell reprend la main.
         this.typed = 0;
+        // Entrée seulement : un Ctrl+C n'a rien exécuté.
+        if (char !== '\x03') {
+          this.commandRan = true;
+        }
         this.flushPending();
       } else if (char === '\x7f' || char === '\b') {
         this.typed = Math.max(0, this.typed - 1);
@@ -329,21 +393,21 @@ export class TerminalPane {
   /** Le shell a-t-il été démarré (une seule fois, quand le conteneur est dimensionné) ? */
   private started = false;
 
-  private async open(): Promise<void> {
+  /**
+   * xterm reste en import STATIQUE, à dessein.
+   *
+   * Le charger à la demande économisait 76 Ko de bundle initial, mais glissait
+   * plusieurs dizaines de millisecondes entre `afterNextRender` et la création
+   * du terminal : le ResizeObserver s'installait après la stabilisation du
+   * layout (grille figée au premier calcul, PTY qui ne suivait plus la
+   * hauteur) et `document.fonts.ready` pouvait être déjà résolu, désarmant le
+   * garde-fou de re-mesure de police (dernière ligne rognée). L'ouverture de
+   * ce panneau est une chorégraphie de mesures, elle veut du synchrone.
+   */
+  private open(): void {
     const element = this.host()?.nativeElement;
     if (!element || !this.sftp.connectionId() || this.sftp.protocol() !== 'sftp') {
       return;
-    }
-
-    // xterm pèse 350 Ko : chargé à la PREMIÈRE ouverture d'un terminal, pas
-    // au démarrage de l'app (même patron que les parsers Prettier). Les deux
-    // modules arrivent ensemble et restent en cache pour les suivants.
-    const [{ Terminal }, { FitAddon }] = await Promise.all([
-      import('@xterm/xterm'),
-      import('@xterm/addon-fit'),
-    ]);
-    if (this.terminal) {
-      return; // deux ouvertures se sont croisées pendant le chargement
     }
 
     const styles = getComputedStyle(document.documentElement);
@@ -352,7 +416,6 @@ export class TerminalPane {
       fontFamily: styles.getPropertyValue('--font-mono') || 'monospace',
       cursorBlink: true,
     });
-    this.fit = new FitAddon();
     terminal.loadAddon(this.fit);
     terminal.open(element);
     this.terminal = terminal;
@@ -422,26 +485,33 @@ export class TerminalPane {
     terminal.options.fontSize = size;
   }
 
-  /** Ajuste la grille au conteneur, puis vérifie la hauteur RÉELLEMENT rendue :
-   *  si la grille déborde (mesure de police approximative, arrondi), on retire
-   *  ce qu'il faut de lignes. La dernière ligne ne peut plus être cachée. */
+  /**
+   * Cale la grille sur le conteneur.
+   *
+   * C'est FitAddon qui mesure : il part de la taille de cellule que le moteur
+   * de rendu connaît, pas de la grille courante, donc son calcul ne dérive
+   * pas d'un appel à l'autre. On lui retire ensuite une ligne de marge, ce
+   * qui règle du même coup le vieux défaut de la webfont (une cellule
+   * légèrement sous-estimée faisait déborder la dernière ligne sous le bord).
+   *
+   * Piège payé le 29/08/2026 : une version maison déduisait la hauteur d'une
+   * cellule en divisant la hauteur RENDUE par le nombre de lignes. Juste
+   * après un redimensionnement, le DOM n'est pas encore repeint : la hauteur
+   * mesurée est celle de l'ancienne grille alors que le compteur a déjà
+   * changé, la cellule ressort trop grande, on retire une ligne, et le
+   * terminal rétrécissait d'un cran à chaque passage.
+   */
   private fitAndClamp(): void {
     const terminal = this.terminal;
     const element = this.host()?.nativeElement;
-    if (!terminal || !element) {
-      return;
+    if (!terminal || !element || element.clientHeight <= 0) {
+      return; // panneau masqué : mesurer donnerait zéro ligne
     }
-    this.fit?.fit();
-    const screen = element.querySelector<HTMLElement>('.xterm-screen');
-    const rendered = screen?.getBoundingClientRect().height ?? 0;
-    const available = element.clientHeight;
-    if (rendered > available + 1 && terminal.rows > 2) {
-      // Hauteur de cellule constatée à l'écran (fonte réelle incluse).
-      const cell = rendered / terminal.rows;
-      const rows = Math.max(2, Math.floor(available / cell));
-      if (rows < terminal.rows) {
-        terminal.resize(terminal.cols, rows);
-      }
+
+    this.fit.fit();
+
+    if (terminal.rows > MIN_ROWS + BOTTOM_MARGIN_ROWS) {
+      terminal.resize(terminal.cols, terminal.rows - BOTTOM_MARGIN_ROWS);
     }
   }
 
@@ -519,6 +589,7 @@ export class TerminalPane {
       if (event.payload.id === this.terminalId) {
         terminal.write(decode(event.payload.data));
         this.armOpeningCd();
+        this.armRefresh();
       }
     });
     const unlistenClosed = await listen<TermEvent>('term:closed', (event) => {

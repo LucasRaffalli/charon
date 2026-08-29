@@ -53,17 +53,18 @@ Pourquoi un **Web Worker** plutôt qu'une iframe :
 
 ```jsonc
 {
-  "id": "com.exemple.compteur",        // identifiant unique (reverse-DNS)
+  "id": "com.exemple.compteur", // identifiant unique (reverse-DNS)
   "name": "Compteur de fichiers",
   "version": "1.0.0",
   "description": "Compte les fichiers du dossier courant.",
   "author": "Jane Dev",
-  "main": "main.js",                    // point d'entrée (dans le dossier module)
-  "engine": "^1",                       // version d'API Modules requise
-  "permissions": [                      // capabilities demandées (voir plus bas)
+  "main": "main.js", // point d'entrée (dans le dossier module)
+  "engine": "^1", // version d'API Modules requise
+  "permissions": [
+    // capabilities demandées (voir plus bas)
     "remote:read",
-    "ui:command"
-  ]
+    "ui:command",
+  ],
 }
 ```
 
@@ -75,18 +76,18 @@ Pourquoi un **Web Worker** plutôt qu'une iframe :
 
 ## Permissions (capabilities)
 
-| Permission | Accorde | Garde-fous |
-|---|---|---|
-| `remote:read` | Lister des fichiers du serveur via l'API hôte | Chemins médiés ; jamais le secret de connexion |
-| `remote:write` | mkdir / création / écriture / rename / suppression côté serveur | Passe par les **mêmes** garde-fous que l'utilisateur (lecture seule, confirmation par nom d'hôte) |
-| `local:read` | Lister/lire des fichiers locaux | Anti path-traversal hôte appliqué |
-| `local:write` | Créer/écrire/supprimer localement | idem (réservé, non exposé en v1) |
-| `system:read` | Instantané système du serveur (df, mémoire, charge, top process) | Commandes shell **fixes read-only** ; SFTP uniquement ; aucune entrée du module dans la commande |
-| `ui:command` | Enregistrer des commandes (palette) | — |
-| `ui:panel` | Rendre un **panneau déclaratif** (tableau de bord) | Structure rendue nativement par l'hôte ; le module ne produit pas de HTML |
-| `ui:menu` | Ajouter des entrées de menu contextuel | Réservé, non exposé en v1 |
-| `events` | S'abonner aux événements app (connexion, transfert…) | Événements filtrés (pas de données sensibles) |
-| `storage` | Store clé-valeur **isolé par module** | Namespacé par slug ; jamais le store de l'app |
+| Permission     | Accorde                                                          | Garde-fous                                                                                        |
+| -------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `remote:read`  | Lister des fichiers du serveur via l'API hôte                    | Chemins médiés ; jamais le secret de connexion                                                    |
+| `remote:write` | mkdir / création / écriture / rename / suppression côté serveur  | Passe par les **mêmes** garde-fous que l'utilisateur (lecture seule, confirmation par nom d'hôte) |
+| `local:read`   | Lister/lire des fichiers locaux                                  | Anti path-traversal hôte appliqué                                                                 |
+| `local:write`  | Créer/écrire/supprimer localement                                | idem (réservé, non exposé en v1)                                                                  |
+| `system:read`  | Instantané système du serveur (df, mémoire, charge, top process) | Commandes shell **fixes read-only** ; SFTP uniquement ; aucune entrée du module dans la commande  |
+| `ui:command`   | Enregistrer des commandes (palette)                              | —                                                                                                 |
+| `ui:panel`     | Rendre un **panneau déclaratif** (tableau de bord)               | Structure rendue nativement par l'hôte ; le module ne produit pas de HTML                         |
+| `ui:menu`      | Ajouter des entrées de menu contextuel                           | Réservé, non exposé en v1                                                                         |
+| `events`       | S'abonner aux événements app (connexion, transfert…)             | Événements filtrés (pas de données sensibles)                                                     |
+| `storage`      | Store clé-valeur **isolé par module**                            | Namespacé par slug ; jamais le store de l'app                                                     |
 
 **Jamais accordable** (aucune permission ne les débloque) : secrets/trousseau,
 `sudo`, IPC arbitraire, shell/exec, réseau externe, système de fichiers hors API

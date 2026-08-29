@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
 import { TreeNode } from '@app/interfaces';
@@ -34,12 +34,15 @@ export class ServerTreeNode {
   }
   private readonly dock = inject(DockService);
 
-  protected visibleChildren(): TreeNode[] {
+  /** En `computed` : une méthode de template n'est rappelée que si la vue est
+   *  déjà en train d'être redessinée, et elle réallouait un tableau filtré à
+   *  chaque cycle, pour chaque nœud déplié. */
+  protected readonly visibleChildren = computed<TreeNode[]>(() => {
     const children = this.node().children ?? [];
     return this.settings.showHidden()
       ? children
       : children.filter((child) => !child.name.startsWith('.'));
-  }
+  });
 
   /** Dossier : ouvre dans la vue principale ; fichier : ouvre l'aperçu. */
   protected open(): void {

@@ -1,0 +1,19 @@
+{
+  // Prettier vient du projet (dépendance npm) : la même version formate dans
+  // l'éditeur et en ligne de commande, personne ne se contredit.
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "prettier.requireConfig": true,
+
+  // Le Rust a son propre formateur.
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+
+  // Un fichier déjà conforme ne bouge pas ; un fichier qui diverge est
+  // reformaté ENTIER au premier enregistrement, d'où un diff large la
+  // première fois qu'on touche un vieux fichier. C'est voulu : le repo se
+  // met en forme au fil des modifications plutôt qu'en un commit géant.
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true
+}

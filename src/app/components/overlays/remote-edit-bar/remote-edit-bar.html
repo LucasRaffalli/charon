@@ -20,7 +20,7 @@
                 en attente de sauvegarde
               }
               @case ('synced') {
-                envoyé @if (session.lastSync) { à {{ session.lastSync | date: 'HH:mm:ss' }} }
+                envoyé @if (session.lastSync) { à {{ clock(session.lastSync) }} }
               }
               @case ('error') {
                 {{ session.error }}

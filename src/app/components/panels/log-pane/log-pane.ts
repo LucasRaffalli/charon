@@ -11,6 +11,7 @@ import {
 
 import { Icon } from '@app/components/ui/icon/icon';
 import { LogTailService } from '@app/services/files/log-tail.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /** Contenu de l'onglet Logs : suivi de fichier en direct avec filtre. */
 @Component({
@@ -21,7 +22,11 @@ import { LogTailService } from '@app/services/files/log-tail.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogPane {
-  protected readonly tail = inject(LogTailService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get tail(): LogTailService {
+    return this.sessionRegistry.focused().logTail;
+  }
 
   protected readonly filter = signal('');
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
@@ -31,7 +36,7 @@ export class LogPane {
   protected readonly visibleLines = computed(() => {
     const query = this.filter().trim().toLowerCase();
     const lines = this.tail.lines();
-    return query ? lines.filter((line) => line.toLowerCase().includes(query)) : lines;
+    return query ? lines.filter((line) => line.text.toLowerCase().includes(query)) : lines;
   });
 
   constructor() {

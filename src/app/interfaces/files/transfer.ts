@@ -5,7 +5,8 @@ export interface TransferProgressEvent {
   total: number;
 }
 
-export type TransferDirection = 'download' | 'upload';
+/** `remote` = le pont : d'un serveur à un autre, sans toucher le disque local. */
+export type TransferDirection = 'download' | 'upload' | 'remote';
 
 export type TransferStatus = 'active' | 'done' | 'error' | 'cancelled' | 'interrupted';
 
@@ -37,4 +38,7 @@ export interface Transfer {
   verify?: VerifyState;
   /** Ce qui a empêché la vérification, quand `verify` vaut error ou skipped. */
   verifyDetail?: string;
+  /** La route d'un pont : « vps-prod → backup ». Sans elle, deux fenêtres
+   *  ouvertes ne sauraient pas qui envoie quoi où. */
+  route?: string;
 }

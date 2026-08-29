@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { Button } from '@app/components/ui/button/button';
 import { Toggle } from '@app/components/ui/toggle/toggle';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import {
   PERM_BITS,
   PERM_CLASSES,
@@ -56,8 +57,14 @@ const PRESETS: readonly { mode: string; hint: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PermissionsDialog {
-  protected readonly permissions = inject(PermissionsService);
-  private readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get permissions(): PermissionsService {
+    return this.sessionRegistry.focused().permissions;
+  }
+  private get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
   private readonly toasts = inject(ToastService);
   private readonly activity = inject(ActivityLogService);
 

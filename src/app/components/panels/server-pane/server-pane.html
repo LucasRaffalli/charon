@@ -1,0 +1,172 @@
+@if (inSplit()) {
+  <div class="pane-wash" [style.background]="paneWash()" aria-hidden="true"></div>
+}
+<header class="explorer__server-head">
+  <app-button
+    variant="ghost"
+    iconOnly
+    title="Dossier parent"
+    [disabled]="sftp.atRoot() || sftp.loading()"
+    (click)="sftp.navigateUp()"
+  >
+    <app-icon name="corner-up" [size]="14" />
+  </app-button>
+
+  <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
+    <button
+      type="button"
+      class="crumb"
+      [class.crumb--current]="sftp.atRoot()"
+      [disabled]="sftp.atRoot()"
+      data-crumb="/"
+      (click)="sftp.listDir('/')"
+    >
+      /
+    </button>
+    @for (segment of sftp.breadcrumb(); track segment.path) {
+      <app-icon class="crumb__sep" name="chevron-right" [size]="13" />
+      <button
+        type="button"
+        class="crumb"
+        [class.crumb--current]="$last"
+        [disabled]="$last"
+        [attr.data-crumb]="segment.path"
+        (click)="sftp.listDir(segment.path)"
+      >
+        {{ segment.name }}
+      </button>
+    }
+  </nav>
+
+  @if (serverFilterOpen()) {
+    <div class="explorer__filter">
+      <input
+        #serverFilter
+        class="explorer__filter-field"
+        type="text"
+        placeholder="Filtrer"
+        aria-label="Filtrer le dossier serveur"
+        [value]="sftp.filter()"
+        (input)="sftp.filter.set(serverFilter.value)"
+        (keydown.escape)="onServerFilterEscape()"
+      />
+      @if (serverFilterActive()) {
+        <span class="explorer__filter-count data" role="status">{{ serverFilterCount() }}</span>
+      }
+      <app-segmented-control
+        variant="chip"
+        [options]="kindOptions"
+        [value]="sftp.kindFilter()"
+        (valueChange)="onKindFilter($event)"
+        ariaLabel="Filtrer par nature"
+      />
+    </div>
+  }
+
+  <button
+    type="button"
+    class="explorer__filter-toggle"
+    [class.explorer__filter-toggle--on]="serverFilterOpen()"
+    [attr.aria-expanded]="serverFilterOpen()"
+    title="Filtrer ce dossier"
+    aria-label="Filtrer ce dossier"
+    (click)="toggleServerFilter()"
+  >
+    <app-icon name="funnel" [size]="14" />
+  </button>
+
+  @if (inSplit()) {
+    <span class="pane-dot" [style.background]="toneColor()" aria-hidden="true"></span>
+    <span class="pane-name">{{ paneTitle() }}</span>
+  }
+</header>
+
+@if (sftp.error(); as error) {
+  <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
+}
+
+<ul
+  class="explorer__list"
+  (contextmenu)="openServerAreaMenu($event)"
+  (click)="onListClick($event)"
+  (keydown)="onServerKeydown($event)"
+>
+  @for (row of serverRows(); track row.entry.name) {
+    <li
+      class="explorer__row"
+      [class.explorer__row--picked]="row.selected"
+      [class.explorer__row--cut]="row.cut"
+      [class.explorer__row--drop]="dropTargetDir() === row.entry.name || hintedDrop(row.entry)"
+      [attr.data-entry]="row.entry.name"
+      [attr.data-dir]="row.entry.isDir"
+      (pointerdown)="onEntryPointerDown($event, row.entry)"
+      (contextmenu)="openServerEntryMenu($event, row.entry)"
+    >
+      <button
+        type="button"
+        class="entry"
+        [class.entry--dir]="row.entry.isDir"
+        [attr.aria-selected]="row.selected"
+        (click)="onServerClick($event, row.entry)"
+        (dblclick)="open(row.entry)"
+        (keyup.enter)="open(row.entry)"
+      >
+        <app-icon class="entry__icon" [name]="row.entry.isDir ? 'folder' : 'file'" [size]="17" />
+        <span class="entry__name">{{ row.entry.name }}</span>
+        @if (row.mode) {
+          <span class="entry__mode data" [title]="row.modeTitle">{{ row.mode }}</span>
+        }
+        <span class="entry__size data">{{ row.entry.isDir ? '–' : (row.entry.size | fileSize) }}</span>
+      </button>
+      @if (!row.entry.isDir) {
+        <button
+          type="button"
+          class="entry__action"
+          title="Télécharger dans le dossier local courant"
+          [attr.aria-label]="'Télécharger : ' + row.entry.name"
+          (click)="download(row.entry)"
+        >
+          <app-icon name="download" [size]="15" />
+        </button>
+      }
+    </li>
+  } @empty {
+    <li class="explorer__empty">
+      <app-icon name="folder" [size]="30" />
+      @if (serverFilterActive()) {
+        <p>Rien ne correspond au filtre</p>
+      } @else {
+        <p>Dossier vide</p>
+      }
+    </li>
+  }
+</ul>
+
+@if (sftp.hasSelection()) {
+  <app-selection-bar
+    [count]="sftp.selectionCount()"
+    [fileCount]="selectedFileCount()"
+    [writable]="sftp.protection() !== 'readonly'"
+    (clear)="sftp.clearSelection()"
+    (download)="downloadSelection()"
+    (copy)="clipboard.copy(sftp.selectedEntries())"
+    (remove)="deleteSelection()"
+  />
+}
+
+@if (dragLabel(); as label) {
+  <span class="draglabel" [style.left.px]="label.x" [style.top.px]="label.y">
+    {{ label.text }}
+  </span>
+}
+
+@if (dropActive()) {
+  <div class="explorer__dropzone" aria-hidden="true">
+    <div class="explorer__dropzone-card">
+      <app-icon name="upload" [size]="28" />
+      <p>
+        Déposer pour envoyer vers <strong>{{ sftp.currentPath() }}</strong>
+      </p>
+    </div>
+  </div>
+}

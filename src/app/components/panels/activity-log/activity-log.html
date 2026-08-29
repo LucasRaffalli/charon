@@ -7,13 +7,18 @@
   </div>
 
   <ul class="list">
-    @for (entry of activity.entries(); track $index) {
+    @for (entry of activity.entries(); track entry.id) {
       <li class="row" [class.row--ko]="!entry.ok">
-        <span class="row__time">{{ entry.at | date: 'HH:mm:ss' }}</span>
+        <span class="row__time">{{ clock(entry.at) }}</span>
         <app-icon class="row__icon" [name]="iconFor(entry.kind)" [size]="13" />
         <span class="row__target" [title]="entry.target">{{ entry.target }}</span>
         @if (entry.detail; as detail) {
           <span class="row__detail" [title]="detail">{{ detail }}</span>
+        }
+        @if (multiSession() && sessionOf(entry.session); as session) {
+          <span class="row__session" [style.background]="sessionToneBg(session)">
+            {{ sessionTitle(session) }}
+          </span>
         }
         <span class="row__scope">{{ entry.scope === 'local' ? 'local' : 'serveur' }}</span>
       </li>

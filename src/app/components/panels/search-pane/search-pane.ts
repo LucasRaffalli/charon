@@ -7,6 +7,7 @@ import {
 } from '@app/components/ui/segmented-control/segmented-control';
 import { SearchHit, SearchService } from '@app/services/connection/search.service';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import { fileIconFor } from '@app/services/files/file-icon';
 import { PreviewService } from '@app/services/files/preview.service';
 import { DockService } from '@app/services/workspace/dock.service';
@@ -30,9 +31,17 @@ interface HitGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchPane {
-  protected readonly search = inject(SearchService);
-  protected readonly sftp = inject(SftpService);
-  private readonly preview = inject(PreviewService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get search(): SearchService {
+    return this.sessionRegistry.focused().search;
+  }
+  protected get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
+  private get preview(): PreviewService {
+    return this.sessionRegistry.focused().preview;
+  }
   private readonly dock = inject(DockService);
 
   // FTP n'a pas de canal exec : l'option Contenu disparaît et une notice du

@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { FileEntry } from '@app/interfaces';
 import { SftpService } from '@app/services/connection/sftp.service';
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { ToastService } from '@app/services/workspace/toast.service';
 
@@ -38,7 +38,7 @@ export interface TrashEntry {
 export class TrashService {
   private readonly sftp = inject(SftpService);
   private readonly toasts = inject(ToastService);
-  private readonly activity = inject(ActivityLogService);
+  private readonly activity = injectSessionActivity();
   private readonly settings = inject(SettingsService);
 
   /** Le dernier lot jeté, pour l'annulation immédiate. */

@@ -81,6 +81,9 @@
 }
 
 .line {
+  // Hors écran = pas de rendu : le tampon fait 2000 lignes.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 18px;
   font-family: var(--font-mono);
   font-size: calc(11.5px * var(--text-scale));
   line-height: 1.5;

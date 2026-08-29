@@ -2,6 +2,9 @@
 // aucune place perdue le reste du temps. Extraite de l'explorateur, qui
 // dépassait son budget de styles.
 :host {
+  // La barre est un conteneur : sous 400 px, les app-tool-button replient
+  // leurs libellés d'un bloc (voir ToolButton).
+  container: toolstrip / inline-size;
   display: flex;
   flex: none;
   align-items: center;
@@ -28,6 +31,8 @@
   font-size: calc(11.5px * var(--text-scale));
   font-weight: 600;
   color: var(--text);
+  flex: none;
+  white-space: nowrap;
 }
 
 .selbar__clear {

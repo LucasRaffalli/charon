@@ -8,6 +8,8 @@ mod search;
 mod sftp;
 mod shell;
 mod trash;
+mod bridge;
+mod window;
 
 use ftp::FtpPool;
 use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
@@ -32,9 +34,26 @@ pub fn run() {
             // « hold » qui suspend la fermeture).
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
+                use tauri::Manager;
                 let mut tick: u32 = 0;
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    // Aucune connexion nulle part : rien à surveiller, on
+                    // dort plus longtemps (moins de réveils = App Nap et
+                    // batterie contents). Au pire, la surveillance reprend
+                    // 30 s après la première connexion — le keepalive et les
+                    // sondes à la demande couvrent largement cette fenêtre.
+                    let idle = {
+                        let sftp_empty =
+                            handle.state::<sftp::ConnectionPool>().0.lock().await.is_empty();
+                        let ftp_empty =
+                            handle.state::<ftp::FtpPool>().0.lock().await.is_empty();
+                        sftp_empty && ftp_empty
+                    };
+                    if idle {
+                        tokio::time::sleep(std::time::Duration::from_secs(25)).await;
+                        continue;
+                    }
                     // Toutes les 5 s : lire l'état local des sessions SSH
                     // (gratuit). Toutes les 30 s : sonde FTP + inactivité.
                     sftp::watch_lost_connections(&handle).await;
@@ -49,6 +68,19 @@ pub fn run() {
 
             Ok(())
         })
+        .on_window_event(|window, event| {
+            use tauri::Manager;
+            match event {
+                // L'ordre de focus sert d'ordre de premier plan au glissé
+                // entre fenêtres : deux fenêtres qui se chevauchent sous le
+                // curseur, c'est la plus récemment active qui reçoit.
+                tauri::WindowEvent::Focused(true) => {
+                    let order = window.app_handle().state::<bridge::FocusOrder>();
+                    bridge::note_focus(&order, window.label());
+                }
+                _ => {}
+            }
+        })
         .manage(ConnectionPool::default())
         .manage(FtpPool::default())
         .manage(TransferRegistry::default())
@@ -57,6 +89,10 @@ pub fn run() {
         .manage(ShellRegistry::default())
         .manage(TailRegistry::default())
         .manage(SearchRegistry::default())
+        .manage(window::WindowBoot::default())
+        .manage(bridge::RemoteClipboard::default())
+        .manage(bridge::DragBroker::default())
+        .manage(bridge::FocusOrder::default())
         .manage(EditRegistry::default())
         .invoke_handler(tauri::generate_handler![
             sftp::sftp_connect,
@@ -94,6 +130,13 @@ pub fn run() {
             shell::shell_close,
             integrity::local_sha256,
             integrity::sftp_sha256,
+            bridge::clip_set,
+            bridge::drag_feed,
+            bridge::clip_get,
+            bridge::clip_clear,
+            bridge::sftp_transfer_remote,
+            window::window_open,
+            window::window_boot_profile,
             trash::sftp_trash,
             trash::sftp_trash_list,
             trash::sftp_trash_size,

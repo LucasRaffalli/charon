@@ -8,13 +8,15 @@ import {
   inject,
   signal,
   viewChild,
+  input,
 } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { FitAddon } from '@xterm/addon-fit';
-import { Terminal } from '@xterm/xterm';
+import type { FitAddon } from '@xterm/addon-fit';
+import type { Terminal } from '@xterm/xterm';
 
 import { SftpService } from '@app/services/connection/sftp.service';
+import { Session } from '@app/services/connection/session-registry';
 import { TerminalService } from '@app/services/workspace/terminal.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
 
@@ -46,10 +48,20 @@ const decode = (data: string): Uint8Array =>
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TerminalPane {
-  protected readonly sftp = inject(SftpService);
+  /** LA session de ce terminal : un pane par session, le DOM et le scrollback
+   *  xterm survivent aux bascules d'onglet (le pane est masqué, pas détruit). */
+  readonly session = input.required<Session>();
+
   private readonly theme = inject(ThemeService);
-  private readonly terminals = inject(TerminalService);
   private readonly destroyRef = inject(DestroyRef);
+
+  protected get sftp(): SftpService {
+    return this.session().sftp;
+  }
+
+  private get terminals(): TerminalService {
+    return this.session().terminal;
+  }
 
   protected readonly closed = signal(false);
   /** Une relance est en cours : le bouton ne doit pas être cliqué deux fois. */
@@ -81,7 +93,8 @@ export class TerminalPane {
   private readonly host = viewChild<ElementRef<HTMLElement>>('term');
   private terminal: Terminal | null = null;
   private terminalId: string | null = null;
-  private readonly fit = new FitAddon();
+  /** Créé avec le terminal : xterm arrive par import dynamique. */
+  private fit: FitAddon | null = null;
 
   constructor() {
     afterNextRender(() => void this.open());
@@ -316,10 +329,21 @@ export class TerminalPane {
   /** Le shell a-t-il été démarré (une seule fois, quand le conteneur est dimensionné) ? */
   private started = false;
 
-  private open(): void {
+  private async open(): Promise<void> {
     const element = this.host()?.nativeElement;
     if (!element || !this.sftp.connectionId() || this.sftp.protocol() !== 'sftp') {
       return;
+    }
+
+    // xterm pèse 350 Ko : chargé à la PREMIÈRE ouverture d'un terminal, pas
+    // au démarrage de l'app (même patron que les parsers Prettier). Les deux
+    // modules arrivent ensemble et restent en cache pour les suivants.
+    const [{ Terminal }, { FitAddon }] = await Promise.all([
+      import('@xterm/xterm'),
+      import('@xterm/addon-fit'),
+    ]);
+    if (this.terminal) {
+      return; // deux ouvertures se sont croisées pendant le chargement
     }
 
     const styles = getComputedStyle(document.documentElement);
@@ -328,6 +352,7 @@ export class TerminalPane {
       fontFamily: styles.getPropertyValue('--font-mono') || 'monospace',
       cursorBlink: true,
     });
+    this.fit = new FitAddon();
     terminal.loadAddon(this.fit);
     terminal.open(element);
     this.terminal = terminal;
@@ -406,7 +431,7 @@ export class TerminalPane {
     if (!terminal || !element) {
       return;
     }
-    this.fit.fit();
+    this.fit?.fit();
     const screen = element.querySelector<HTMLElement>('.xterm-screen');
     const rendered = screen?.getBoundingClientRect().height ?? 0;
     const available = element.clientHeight;

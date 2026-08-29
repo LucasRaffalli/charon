@@ -3,8 +3,11 @@
 @use 'contrast';
 
 // Défaut : sombre. Le ThemeService pose `data-theme` dès le démarrage ;
-// le fallback système ne sert qu'avant la première frame.
-:root {
+// le fallback système ne sert qu'avant la première frame. Les sélecteurs
+// sont groupés pour n'émettre chaque palette qu'UNE fois (dark était inclus
+// deux fois, ~1,6 Ko de custom properties dupliquées dans le CSS final).
+:root,
+:root[data-theme='dark'] {
   @include dark.theme;
 }
 
@@ -16,10 +19,6 @@
 
 :root[data-theme='light'] {
   @include light.theme;
-}
-
-:root[data-theme='dark'] {
-  @include dark.theme;
 }
 
 :root[data-theme='contrast'] {

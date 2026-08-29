@@ -1,9 +1,55 @@
+<div class="ftabs" role="tablist" aria-label="Fichiers ouverts">
+  @for (row of tabRows(); track row.doc.id) {
+    <button
+      type="button"
+      class="ftab"
+      role="tab"
+      [class.ftab--on]="isActiveTab(row)"
+      [attr.aria-selected]="isActiveTab(row)"
+      [title]="tabTitle(row)"
+      (click)="activateTab(row)"
+    >
+      @if (multiSession()) {
+        <span class="ftab__dot" [style.background]="tabTone(row)" aria-hidden="true"></span>
+      }
+      <span class="ftab__name">{{ row.doc.name }}</span>
+      @if (row.session.preview.isDirty(row.doc)) {
+        <span class="ftab__mod" title="Modifications non enregistrées"></span>
+      }
+      <span
+        class="ftab__close"
+        role="button"
+        tabindex="-1"
+        [attr.aria-label]="'Fermer ' + row.doc.name"
+        (click)="closeTab($event, row)"
+      >
+        <app-icon name="close" [size]="11" />
+      </span>
+    </button>
+  }
+</div>
+
 <header class="head">
   <app-icon class="head__icon" [name]="preview.icon()" [size]="15" />
-  <span class="head__name" [title]="preview.name()">{{ preview.name() }}</span>
+  <span class="head__path" [title]="preview.path()">
+    <span class="head__dir">{{ dirOf() }}</span
+    ><span class="head__name">{{ preview.name() }}</span>
+  </span>
   @if (preview.dirty() && !preview.readonly()) {
     <span class="head__dirty" title="Modifications non enregistrées"></span>
   }
+
+  <span class="head__meta data">
+    @if (preview.fileSize()) {
+      <span>{{ preview.fileSize() | fileSize }}</span>
+    }
+    @if (ageLabel()) {
+      <span>{{ ageLabel() }}</span>
+    }
+    @if (modeOctal()) {
+      <span>{{ modeOctal() }}</span>
+    }
+  </span>
 
   @if (preview.kind() === 'text' && preview.isMarkdown()) {
     <app-segmented-control
@@ -15,15 +61,23 @@
     />
   }
 
+  @if (preview.kind() === 'text' && !diff()) {
+    <app-tool-button icon="columns" label="Comparer" (pressed)="onCompare()" />
+  }
   @if (preview.kind() === 'text' && !preview.readonly()) {
-    <app-button
-      variant="primary"
+    <app-tool-button icon="edit" label="Éditeur système" (pressed)="openSystemEditor()" />
+  }
+  <app-tool-button icon="download" label="Télécharger" (pressed)="download()" />
+  <app-tool-button icon="copy" label="Copier le chemin" (pressed)="copyPath()" />
+
+  @if (preview.kind() === 'text' && !preview.readonly()) {
+    <app-tool-button
+      icon="save"
+      [label]="preview.saving() ? 'Enregistrement…' : 'Enregistrer'"
+      [accent]="true"
       [disabled]="!preview.canSave()"
-      [loading]="preview.saving()"
-      (click)="preview.save()"
-    >
-      Enregistrer
-    </app-button>
+      (pressed)="preview.save()"
+    />
   }
 
   <button type="button" class="head__close" aria-label="Fermer l'aperçu" (click)="preview.close()">
@@ -31,7 +85,7 @@
   </button>
 </header>
 
-@if (preview.findOpen() && preview.kind() === 'text' && !preview.markdownView()) {
+@if (preview.findOpen() && preview.kind() === 'text' && !preview.markdownView() && !diff()) {
   <div class="find">
     <input
       #findField
@@ -87,60 +141,146 @@
   </div>
 }
 
+@if (comparePick.armed()) {
+  <div class="find pickbar">
+    <app-icon name="columns" [size]="13" />
+    <span class="pickbar__msg">Clique le fichier à comparer, dans n'importe quel panneau serveur.</span>
+    <app-tool-button icon="close" label="Annuler" (pressed)="comparePick.settle(null)" />
+  </div>
+}
+
 @if (preview.error(); as error) {
   <p class="notice notice--error">{{ error }}</p>
 }
 
-@switch (preview.kind()) {
-  @case ('loading') {
-    <p class="notice">Chargement…</p>
-  }
-  @case ('text') {
-    @if (preview.truncated()) {
-      <p class="notice notice--warn">
-        Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas
-        écraser le reste.
-      </p>
-    } @else if (preview.readonly() && !preview.markdownView()) {
-      <p class="notice">Serveur en lecture seule : édition désactivée.</p>
-    }
-
-    @if (preview.markdownView()) {
-      <div
-        class="rendered"
-        [innerHTML]="preview.renderedMarkdown()"
-        (click)="onRenderedClick($event)"
-      ></div>
+@if (diff(); as d) {
+  <div class="cmp">
+    <div class="cmp__bar">
+      <span class="cmp__stats data">
+        @if (d.missing) {
+          absent sur « {{ sessionTitle(d.other) }} »
+        } @else if (d.identical) {
+          identiques
+        } @else {
+          <span class="cmp__add">+{{ d.added }}</span>
+          <span class="cmp__del">−{{ d.removed }}</span>
+        }
+      </span>
+      <app-tool-button
+        class="cmp__exit"
+        icon="folder"
+        label="Autre fichier"
+        (pressed)="onCompare()"
+      />
+      <app-tool-button icon="close" label="Quitter le diff" (pressed)="exitDiff()" />
+    </div>
+    @if (d.missing) {
+      <div class="cmp__missing">
+        <p>« {{ d.otherPath }} » n'a pas pu être lu sur « {{ sessionTitle(d.other) }} ».</p>
+        <app-button variant="primary" (click)="onCompare()">
+          Désigner un autre fichier…
+        </app-button>
+      </div>
+    } @else if (d.identical) {
+      <p class="notice">Les deux versions sont identiques.</p>
     } @else {
-      <div class="editor" [class.editor--plain]="preview.highlighted() === null">
-        @if (preview.findLayer(); as occurrences) {
-          <pre class="editor__occ" aria-hidden="true" #occ><code [innerHTML]="occurrences"></code></pre>
-        }
-        @if (preview.highlighted(); as html) {
-          <pre class="editor__highlight" aria-hidden="true" #hl><code [innerHTML]="html"></code></pre>
-        }
-        <textarea
-          #ta
-          class="editor__input"
-          spellcheck="false"
-          wrap="off"
-          [readonly]="preview.readonly()"
-          [value]="preview.content()"
-          (input)="preview.setContent($any($event.target).value)"
-          (scroll)="syncScroll($event)"
-        ></textarea>
+      <div class="cmp__grid">
+        <div class="cmp__col">
+          <div class="cmp__head">
+            <span class="cmp__dot" [style.background]="sessionTone(sessionRegistry.previewOwner())"></span>
+            {{ sessionTitle(sessionRegistry.previewOwner()) }}
+          </div>
+          @for (row of d.rows; track $index) {
+            <div class="cmp__line" [class.cmp__line--del]="row.changed && row.left" [class.cmp__line--void]="!row.left">
+              <span class="cmp__num data">{{ row.left?.num ?? '' }}</span>
+              <span class="cmp__text">{{ row.left?.text ?? '' }}</span>
+            </div>
+          }
+        </div>
+        <div class="cmp__col">
+          <div class="cmp__head" [title]="d.otherPath">
+            <span class="cmp__dot" [style.background]="sessionTone(d.other)"></span>
+            {{ otherLabel(d) }}
+          </div>
+          @for (row of d.rows; track $index) {
+            <div class="cmp__line" [class.cmp__line--add]="row.changed && row.right" [class.cmp__line--void]="!row.right">
+              <span class="cmp__num data">{{ row.right?.num ?? '' }}</span>
+              <span class="cmp__text">{{ row.right?.text ?? '' }}</span>
+            </div>
+          }
+        </div>
       </div>
     }
-  }
-  @case ('image') {
-    <div class="image">
-      <img [src]="preview.imageSrc()" [alt]="preview.name()" />
-    </div>
-  }
-  @case ('binary') {
-    <p class="notice">
-      Fichier binaire : aperçu indisponible. Utilise « Télécharger » ou
-      « Éditer dans l'éditeur système ».
-    </p>
+  </div>
+} @else {
+  @switch (preview.kind()) {
+    @case ('loading') {
+      <p class="notice">Chargement…</p>
+    }
+    @case ('text') {
+      @if (preview.truncated()) {
+        <p class="notice notice--warn">
+          Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas
+          écraser le reste.
+        </p>
+      } @else if (preview.readonly() && !preview.markdownView()) {
+        <p class="notice">Serveur en lecture seule : édition désactivée.</p>
+      }
+
+      @if (preview.markdownView()) {
+        <app-markdown-view [html]="preview.renderedMarkdown()" />
+      } @else {
+        <div class="editor" [class.editor--plain]="preview.highlighted() === null">
+          <pre class="editor__gutter" aria-hidden="true" #gutter>{{ gutterText() }}</pre>
+          <div class="editor__area">
+            @if (preview.findLayer(); as occurrences) {
+              <pre class="editor__occ" aria-hidden="true" #occ><code [innerHTML]="occurrences"></code></pre>
+            }
+            @if (preview.highlighted(); as html) {
+              <pre class="editor__highlight" aria-hidden="true" #hl><code [innerHTML]="html"></code></pre>
+            }
+            <textarea
+              #ta
+              class="editor__input"
+              spellcheck="false"
+              wrap="off"
+              [readonly]="preview.readonly()"
+              [value]="preview.content()"
+              (input)="preview.setContent($any($event.target).value)"
+              (scroll)="syncScroll($event)"
+            ></textarea>
+          </div>
+        </div>
+      }
+    }
+    @case ('image') {
+      <div class="image" [class.image--zoomed]="imageWidth() !== null">
+        <img
+          #img
+          [src]="preview.imageSrc()"
+          [alt]="preview.name()"
+          [style.width.px]="imageWidth()"
+          (load)="onImageLoad(img)"
+        />
+      </div>
+      <div class="media-bar">
+        <button type="button" class="media-bar__btn" aria-label="Zoom arrière" (click)="zoomOut()">−</button>
+        <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomReset()">
+          {{ zoomLabel() }}
+        </button>
+        <button type="button" class="media-bar__btn" aria-label="Zoom avant" (click)="zoomIn()">＋</button>
+        <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomFit()">Ajuster</button>
+        @if (imageDims(); as dims) {
+          <span class="media-bar__dims data">{{ dims.w }} × {{ dims.h }}</span>
+        }
+      </div>
+    }
+    @case ('binary') {
+      <div class="binary">
+        <app-icon [name]="preview.icon()" [size]="28" />
+        <p>Fichier binaire : pas d'aperçu texte.</p>
+        <app-button variant="primary" (click)="download()">Télécharger</app-button>
+      </div>
+    }
   }
 }

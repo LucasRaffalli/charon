@@ -7,6 +7,7 @@ import { PreviewService } from '@app/services/files/preview.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /** Un nœud de l'arborescence serveur (dossier ou fichier), rendu récursivement. */
 @Component({
@@ -19,10 +20,18 @@ import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
 export class ServerTreeNode {
   readonly node = input.required<TreeNode>();
 
-  protected readonly tree = inject(SftpTreeService);
-  protected readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get tree(): SftpTreeService {
+    return this.sessionRegistry.focused().tree;
+  }
+  protected get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
   private readonly settings = inject(SettingsService);
-  private readonly preview = inject(PreviewService);
+  private get preview(): PreviewService {
+    return this.sessionRegistry.focused().preview;
+  }
   private readonly dock = inject(DockService);
 
   protected visibleChildren(): TreeNode[] {

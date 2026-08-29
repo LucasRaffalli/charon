@@ -1,4 +1,5 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
+import { windowLabel } from '@app/services/system/window-scope';
 import { invoke } from '@tauri-apps/api/core';
 
 import {
@@ -15,6 +16,7 @@ import { DockService } from '@app/services/workspace/dock.service';
 import { ModulesService } from '@app/services/modules/modules.service';
 import { MODULE_SDK } from '@app/services/modules/module-sdk';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import { ToastService } from '@app/services/workspace/toast.service';
 import { TransfersService } from '@app/services/files/transfers.service';
 
@@ -84,7 +86,12 @@ const DOCK_STORAGE_KEY = 'charon:dock';
  */
 @Injectable({ providedIn: 'root' })
 export class ModuleHostService {
-  private readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  /** L'API des modules parle à la session focalisée. */
+  private get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
   private readonly activity = inject(ActivityLogService);
   private readonly toasts = inject(ToastService);
   private readonly modules = inject(ModulesService);
@@ -107,6 +114,13 @@ export class ModuleHostService {
   private prevConnected = false;
 
   constructor() {
+    // Les modules ne tournent que dans la fenêtre principale : un Web Worker
+    // par module ET par fenêtre ferait N fois le même travail, et un module
+    // qui notifie le ferait N fois.
+    if (windowLabel() !== 'main') {
+      return;
+    }
+
     // Une disposition déjà enregistrée vient d'une session précédente, où le
     // panneau a donc eu l'occasion de s'ouvrir : son absence est un geste, pas
     // un manque. Sans cette reprise, le drapeau ne servirait qu'aux

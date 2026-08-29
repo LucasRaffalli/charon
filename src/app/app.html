@@ -1,10 +1,17 @@
 <!-- `inert` pendant le mode design : la vue est là pour être regardée, pas
      manipulée. Un clic malheureux sur un fichier ne doit rien déclencher, et
      le clavier ne doit pas non plus s'y perdre. -->
+@if (tabBar.visible()) {
+  <app-tab-bar />
+}
 <div class="app__stage" [attr.inert]="design.open() ? '' : null">
-  @if (sftp.settled()) {
-    <app-explorer-page />
-  } @else {
+  @if (anySettled()) {
+    <!-- L'explorateur reste monté tant qu'une session vit : basculer vers un
+         onglet pas encore embarqué le masque sans le détruire, terminaux et
+         disposition survivent. -->
+    <app-explorer-page [class.app__offstage]="!sftp.settled()" />
+  }
+  @if (!sftp.settled()) {
     <app-connect-page />
   }
 </div>

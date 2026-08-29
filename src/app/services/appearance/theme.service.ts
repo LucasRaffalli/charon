@@ -96,6 +96,12 @@ export class ThemeService {
     this.persisting.set(on);
   }
 
+  /** Une autre fenêtre a changé le thème : on relit ce qu'elle a écrit.
+   *  Les signaux sont des chaînes, une valeur égale ne notifie personne. */
+  reloadFromStorage(): void {
+    this.restore();
+  }
+
   select(theme: Theme): void {
     this._theme.set(theme);
   }

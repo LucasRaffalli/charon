@@ -75,6 +75,22 @@
                 />
               </div>
 
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Formater à l'enregistrement</span>
+                  <span class="setting__desc">
+                    Prettier repasse sur le fichier quand tu enregistres depuis l'aperçu
+                    (JS/TS, JSON, CSS, HTML, Markdown, YAML). Une erreur de syntaxe
+                    n'empêche jamais d'enregistrer.
+                  </span>
+                </div>
+                <app-toggle
+                  ariaLabel="Formater avec Prettier à l'enregistrement"
+                  [checked]="settings.formatOnSave()"
+                  (checkedChange)="settings.update({ formatOnSave: $event })"
+                />
+              </div>
+
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">Corbeille distante</span>

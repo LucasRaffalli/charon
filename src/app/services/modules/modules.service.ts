@@ -1,7 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
 
 import { ModuleSummary } from '@app/interfaces';
+import { windowLabel } from '@app/services/system/window-scope';
 
 /**
  * Gestion des modules (extensions tierces) : découverte, activation, ouverture
@@ -18,6 +20,21 @@ export class ModulesService {
   readonly modules = this._modules.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
+
+  constructor() {
+    // Activer un module dans les réglages d'une fenêtre secondaire doit
+    // atteindre `main`, seule fenêtre où les Workers tournent : son
+    // ModuleHostService réconcilie sur modules(), il suffit de relire.
+    void listen<{ origin: string }>('flotte:modules-changed', ({ payload }) => {
+      if (payload.origin !== windowLabel()) {
+        void this.refresh();
+      }
+    });
+  }
+
+  private announce(): void {
+    void emit('flotte:modules-changed', { origin: windowLabel() }).catch(() => undefined);
+  }
 
   async refresh(): Promise<void> {
     this._loading.set(true);
@@ -37,6 +54,7 @@ export class ModulesService {
     this._modules.update((list) =>
       list.map((m) => (m.slug === slug ? { ...m, enabled } : m)),
     );
+    this.announce();
   }
 
   async openFolder(): Promise<void> {
@@ -46,5 +64,6 @@ export class ModulesService {
   async delete(slug: string): Promise<void> {
     await invoke('module_delete', { slug });
     this._modules.update((list) => list.filter((m) => m.slug !== slug));
+    this.announce();
   }
 }

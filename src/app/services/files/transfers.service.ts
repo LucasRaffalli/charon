@@ -1,9 +1,11 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { SESSION_ID } from '@app/services/connection/session-token';
+import { scopedKey } from '@app/services/system/window-scope';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { injectTauriListen } from '@app/services/system/scoped-listen';
 
 import { Transfer, TransferDirection, TransferProgressEvent } from '@app/interfaces';
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { LocalFsService } from '@app/services/connection/local-fs.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
@@ -14,7 +16,9 @@ const CANCELLED_TAG = 'CHARON_CANCELLED';
 /** Suffixe des fichiers partiels côté backend. */
 const PART_SUFFIX = '.charonpart';
 
-const STORAGE_KEY = 'charon:transfers';
+// Par fenêtre : voir scopedKey. Ce qui appartient à une session ne doit
+// pas être écrasé par la fenêtre d'à côté.
+const STORAGE_BASE = scopedKey('charon:transfers');
 
 /**
  * File de transferts : streaming côté Rust, progression par events Tauri.
@@ -22,6 +26,10 @@ const STORAGE_KEY = 'charon:transfers';
  * revient en « interrompu » et peut reprendre là où il s'était arrêté,
  * une fois reconnecté au même serveur.
  */
+/** Même serveur, sessions confondues : la partie stable avant le nonce `#`. */
+export const sameServer = (a: string | null, b: string | null): boolean =>
+  !!a && !!b && a.split('#')[0] === b.split('#')[0];
+
 /**
  * Au-delà, hacher les deux côtés coûte plus longtemps que le transfert
  * lui-même : la vérification est annoncée « ignorée », jamais faite en
@@ -31,11 +39,18 @@ const VERIFY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 @Injectable({ providedIn: 'root' })
 export class TransfersService {
+  private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
+
+  /** La première session garde la clé nue (compat) ; les suivantes suffixent
+   *  leur identité, sinon deux files se réécriraient l'une l'autre. */
+  private readonly sessionId = inject(SESSION_ID, { optional: true }) ?? 's1';
+  private readonly storageKey =
+    this.sessionId === 's1' ? STORAGE_BASE : `${STORAGE_BASE}#${this.sessionId}`;
   private readonly settings = inject(SettingsService);
   private readonly toasts = inject(ToastService);
   private readonly localFs = inject(LocalFsService);
-  private readonly activity = inject(ActivityLogService);
+  private readonly activity = injectSessionActivity();
   private readonly _transfers = signal<Transfer[]>(this.load());
 
   readonly transfers = this._transfers.asReadonly();
@@ -44,7 +59,7 @@ export class TransfersService {
   );
 
   constructor() {
-    void listen<TransferProgressEvent>('transfer:progress', (event) => {
+    this.tauriListen<TransferProgressEvent>('transfer:progress', (event) => {
       const { id, transferred, total } = event.payload;
       // Le débit se dérive de ce que l'événement porte déjà : la moyenne
       // depuis le départ, plus stable à lire qu'une mesure instantanée qui
@@ -55,8 +70,15 @@ export class TransfersService {
       this.patch(id, { transferred, total, speed });
     });
 
-    effect(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._transfers()));
+    // Persistance débouncée (même patron que le dock) : chaque event de
+    // progression réécrit la file, sérialiser + écrire à chaque tick
+    // bloquait le thread principal pour rien.
+    effect((onCleanup) => {
+      this._transfers(); // la dépendance ; la sérialisation attend le calme
+      const handle = setTimeout(() => {
+        localStorage.setItem(this.storageKey, JSON.stringify(untracked(() => this._transfers())));
+      }, 300);
+      onCleanup(() => clearTimeout(handle));
     });
   }
 
@@ -77,9 +99,76 @@ export class TransfersService {
     }
   }
 
-  /** La reprise n'est possible que reconnecté à la connexion d'origine. */
+  /**
+   * Un pont : copie un fichier d'un serveur à un autre, en flux, via le
+   * backend. Ni resume ni vérification sha256 en v1 (les deux côtés sont
+   * distants, le plafond de la vérification s'appliquerait deux fois).
+   */
+  async bridge(
+    fromConnectionId: string,
+    fromPath: string,
+    toPath: string,
+    name: string,
+    route: string,
+  ): Promise<boolean> {
+    const id = crypto.randomUUID();
+    this._transfers.update((list) => [
+      {
+        id,
+        name,
+        direction: 'remote' as const,
+        transferred: 0,
+        total: 0,
+        status: 'active' as const,
+        error: null,
+        connectionId: fromConnectionId,
+        remotePath: fromPath,
+        localPath: toPath,
+        startedAt: Date.now(),
+        speed: 0,
+        route,
+      },
+      ...list,
+    ]);
+
+    try {
+      const written = await invoke<number>('sftp_transfer_remote', {
+        fromConnection: fromConnectionId,
+        fromPath,
+        toConnection: this.sftp.connectionId(),
+        toPath,
+        transferId: id,
+      });
+      this.patch(id, { status: 'done', transferred: written });
+      this.activity.log('upload', 'remote', toPath, `${written} octets via le pont`);
+      return true;
+    } catch (error) {
+      const message = typeof error === 'string' ? error : String(error);
+      if (message === CANCELLED_TAG) {
+        this.patch(id, { status: 'cancelled' });
+        this.activity.log('cancel', 'remote', toPath);
+      } else {
+        // Pas de reprise pour un pont : l'erreur est finale.
+        this.patch(id, { status: 'error', error: message });
+        this.activity.log('error', 'remote', toPath, message, false);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * La reprise n'est possible que reconnecté au même SERVEUR.
+   *
+   * L'identifiant de connexion est unique par session (`user@host:port#n`) :
+   * après une reconnexion, le nonce change mais le serveur est le même, et le
+   * .charonpart y est toujours. La comparaison porte donc sur la partie
+   * stable, avant le `#`.
+   */
   canResume(transfer: Transfer): boolean {
-    return transfer.status === 'interrupted' && this.sftp.connectionId() === transfer.connectionId;
+    return (
+      transfer.status === 'interrupted' &&
+      sameServer(this.sftp.connectionId(), transfer.connectionId)
+    );
   }
 
   /** Reprend un transfert interrompu là où le fichier partiel s'était arrêté. */
@@ -91,7 +180,9 @@ export class TransfersService {
     this.activity.log('resume', 'remote', transfer.remotePath);
     const done = await this.run(transfer.id, () =>
       invoke<number>(this.sftp.commandFor(transfer.direction), {
-        connectionId: transfer.connectionId,
+        // La connexion COURANTE : celle du transfert est morte avec sa
+        // session, seul le serveur est le même.
+        connectionId: this.sftp.connectionId(),
         remotePath: transfer.remotePath,
         localPath: transfer.localPath,
         transferId: transfer.id,
@@ -236,7 +327,7 @@ export class TransfersService {
       this.patch(id, { status: 'done', transferred: written });
       const transfer = target();
       if (transfer) {
-        this.activity.log(transfer.direction, 'remote', transfer.remotePath, `${written} octets`);
+        this.activity.log(transfer.direction === 'remote' ? 'upload' : transfer.direction, 'remote', transfer.remotePath, `${written} octets`);
         void this.verify(id);
       }
       return true;
@@ -256,7 +347,7 @@ export class TransfersService {
           error: message,
         });
         if (transfer) {
-          this.activity.log(transfer.direction, 'remote', transfer.remotePath, message, false);
+          this.activity.log(transfer.direction === 'remote' ? 'upload' : transfer.direction, 'remote', transfer.remotePath, message, false);
         }
       }
       return false;
@@ -271,7 +362,7 @@ export class TransfersService {
    *  de l'app reviennent en « interrompus ». */
   private load(): Transfer[] {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(this.storageKey);
       if (!raw) {
         return [];
       }

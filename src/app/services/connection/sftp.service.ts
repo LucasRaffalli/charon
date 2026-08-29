@@ -1,6 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { injectTauriListen } from '@app/services/system/scoped-listen';
 
 import {
   ConnectionParams,
@@ -11,8 +11,10 @@ import {
   ServerProtection,
   StatInfo,
 } from '@app/interfaces';
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { FileBrowserState } from '@app/services/connection/file-browser-state';
+import { SESSION_ID } from '@app/services/connection/session-token';
+import { windowLabel } from '@app/services/system/window-scope';
 
 /** Opérations qu'un `sudo` peut réexécuter (whitelist, côté backend aussi). */
 type SudoOp = 'mkdir' | 'touch' | 'rm_file' | 'rm_dir' | 'rename' | 'chmod' | 'chmod_r';
@@ -26,10 +28,34 @@ const LANDING_MS = 900;
 /** Même balise que celle des transferts, côté Rust. */
 const CANCELLED_TAG = 'CHARON_CANCELLED';
 
+/** La session de CETTE fenêtre, pour le rattachement après reload. */
+/** Le slot de la première session garde la clé nue (compat) ; les suivantes
+ *  suffixent leur identité : `charon:session#s2`. */
+const SESSION_KEY = 'charon:session';
+
+interface SavedSession {
+  id: string;
+  protocol: RemoteProtocol;
+  host: string;
+  environment: ServerEnvironment | null;
+  protection: ServerProtection | null;
+  profileId: string | null;
+  connectedAt: number;
+  path: string;
+}
+
 /** Navigation et transferts sur le serveur distant, via le backend Rust. */
 @Injectable({ providedIn: 'root' })
 export class SftpService extends FileBrowserState {
-  private readonly activity = inject(ActivityLogService);
+  private readonly tauriListen = injectTauriListen();
+  private readonly activity = injectSessionActivity();
+  /** L'identité de la session qui possède ce service (s1, s2…). */
+  private readonly sessionId = inject(SESSION_ID, { optional: true }) ?? 's1';
+
+  /** Le slot sessionStorage de CETTE session. */
+  private readonly sessionSlot =
+    this.sessionId === 's1' ? SESSION_KEY : `${SESSION_KEY}#${this.sessionId}`;
+
   private readonly _connectionId = signal<string | null>(null);
   private readonly _pendingKey = signal<string | null>(null);
   private readonly _protocol = signal<RemoteProtocol>('sftp');
@@ -111,12 +137,15 @@ export class SftpService extends FileBrowserState {
 
   constructor() {
     super();
+    // Rattachement après reload : la connexion vit dans le backend, pas dans
+    // la webview.
+    void this.reattach();
     // Le backend ferme les connexions inactives : retour à l'écran de
     // connexion avec un message clair.
     // Le serveur s'est arrêté, le réseau a lâché, ou la session a été coupée
     // à distance : la sentinelle du backend l'a vu, on le dit et on ramène à
     // l'écran de connexion au lieu de rester « connecté » devant un cadavre.
-    void listen<string>('connection:lost', (event) => {
+    this.tauriListen<string>('connection:lost', (event) => {
       if (event.payload !== this._connectionId()) {
         return;
       }
@@ -125,13 +154,14 @@ export class SftpService extends FileBrowserState {
       this._currentPath.set('/');
       this._entries.set([]);
       this.clearSeen();
+      this.forgetSession();
       this._error.set(
         'La connexion au serveur a été perdue : serveur arrêté, réseau coupé ou session fermée à distance.',
       );
       this.activity.log('disconnect', 'remote', event.payload, 'connexion perdue', false);
     });
 
-    void listen<string>('connection:idle-closed', (event) => {
+    this.tauriListen<string>('connection:idle-closed', (event) => {
       if (event.payload !== this._connectionId()) {
         return;
       }
@@ -140,9 +170,27 @@ export class SftpService extends FileBrowserState {
       this._currentPath.set('/');
       this._entries.set([]);
       this.clearSeen();
+      this.forgetSession();
       this._error.set('Session fermée pour inactivité.');
       this.activity.log('disconnect', 'remote', event.payload, 'inactivité');
     });
+
+    // Une autre fenêtre a modifié un dossier de ce serveur (collage, glissé,
+    // coupé) : si on le regarde, on se met à jour. `origin` écarte ses
+    // propres gestes, déjà suivis d'un refresh.
+    this.tauriListen<{ server: string; dir: string; origin: string }>(
+      'flotte:dir-changed',
+      ({ payload }) => {
+        if (payload.origin === windowLabel()) {
+          return;
+        }
+        const id = this._connectionId();
+        if (!id || id.split('#')[0] !== payload.server || this.currentPath() !== payload.dir) {
+          return;
+        }
+        void this.refresh();
+      },
+    );
   }
 
   protected fetchEntries(path: string): Promise<FileEntryDto[]> {
@@ -282,6 +330,7 @@ export class SftpService extends FileBrowserState {
     this.clearSeen();
     this._protocol.set(protocol);
     this._profileId.set(params.profileId ?? null);
+    this.rememberSession(id, params, protocol);
     this._environment.set(params.environment ?? null);
     this._protection.set(params.protection ?? null);
     this._host.set(params.host);
@@ -312,6 +361,88 @@ export class SftpService extends FileBrowserState {
     }
   }
 
+  /**
+   * Le rattachement après un reload de fenêtre.
+   *
+   * `sessionStorage` n'est pas partagé entre webviews : chaque fenêtre y note
+   * SA session. Au démarrage, si la connexion vit encore dans le pool du
+   * backend (qui, lui, ne meurt pas avec la webview), on la reprend là où
+   * elle était : recharger une fenêtre ne déconnecte rien.
+   */
+  private async reattach(): Promise<void> {
+    // Chaque session lit SON slot : deux sessions ne peuvent pas se disputer
+    // la même connexion du pool, leurs slots sont distincts par identité.
+    let saved: SavedSession | null = null;
+    try {
+      const raw = sessionStorage.getItem(this.sessionSlot);
+      saved = raw ? (JSON.parse(raw) as SavedSession) : null;
+    } catch {
+      return;
+    }
+    if (!saved || saved.protocol !== 'sftp') {
+      return;
+    }
+    const alive = await invoke<string[]>('sftp_active_connections').catch(() => [] as string[]);
+    if (!alive.includes(saved.id)) {
+      this.forgetSession();
+      return;
+    }
+    this._connectionId.set(saved.id);
+    this._protocol.set(saved.protocol);
+    this._host.set(saved.host);
+    this._environment.set(saved.environment);
+    this._protection.set(saved.protection);
+    this._profileId.set(saved.profileId);
+    this._connectedAt.set(saved.connectedAt);
+    // Pas de traversée à rejouer : on est déjà à bord.
+    this._settled.set(true);
+    await this.listDir(saved.path);
+  }
+
+  /** Tient le chemin de la sauvegarde à jour : le reload ramène au même dossier. */
+  private readonly trackPath = effect(() => {
+    const path = this.currentPath();
+    if (!this.connected()) {
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(this.sessionSlot);
+      if (raw) {
+        const saved = JSON.parse(raw) as SavedSession;
+        saved.path = path;
+        sessionStorage.setItem(this.sessionSlot, JSON.stringify(saved));
+      }
+    } catch {
+      // au pire, le reload ramènera à la racine
+    }
+  });
+
+  private rememberSession(id: string, params: ConnectionParams, protocol: RemoteProtocol): void {
+    try {
+      const saved: SavedSession = {
+        id,
+        protocol,
+        host: params.host,
+        environment: params.environment ?? null,
+        protection: params.protection ?? null,
+        profileId: params.profileId ?? null,
+        connectedAt: Date.now(),
+        path: '/',
+      };
+      sessionStorage.setItem(this.sessionSlot, JSON.stringify(saved));
+    } catch {
+      // Stockage indisponible : le reload ramènera à l'écran de connexion.
+    }
+  }
+
+  private forgetSession(): void {
+    try {
+      sessionStorage.removeItem(this.sessionSlot);
+    } catch {
+      // rien à faire
+    }
+  }
+
   /** À appeler une fois l'empreinte traitée (acceptée ou refusée). */
   clearPendingKey(): void {
     this._pendingKey.set(null);
@@ -329,6 +460,7 @@ export class SftpService extends FileBrowserState {
     }
 
     await this.run(() => invoke(this.commandFor('disconnect'), { connectionId: id }));
+    this.forgetSession();
     this.activity.log('disconnect', 'remote', id);
     this._connectionId.set(null);
     this._settled.set(false);

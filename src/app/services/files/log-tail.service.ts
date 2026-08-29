@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { injectTauriListen } from '@app/services/system/scoped-listen';
 
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 
 interface TailEvent {
@@ -15,17 +15,27 @@ const INITIAL_LINES = 200;
 /** Lignes conservées en mémoire (les plus anciennes sont éjectées). */
 const MAX_LINES = 2000;
 
+/** Une ligne du suivi, avec une identité STABLE : la fenêtre glissante
+ *  décale tous les index, un `track $index` réécrivait les 2000 lignes du
+ *  DOM à chaque paquet reçu. */
+export interface TailLine {
+  seq: number;
+  text: string;
+}
+
 /**
  * Suivi de log en direct (`tail -F` sur la session SSH) : un seul fichier
  * suivi à la fois, affiché dans l'onglet Logs du panneau inférieur.
  */
 @Injectable({ providedIn: 'root' })
 export class LogTailService {
+  private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
-  private readonly activity = inject(ActivityLogService);
+  private readonly activity = injectSessionActivity();
 
   private readonly _path = signal<string | null>(null);
-  private readonly _lines = signal<string[]>([]);
+  private nextSeq = 1;
+  private readonly _lines = signal<TailLine[]>([]);
   private readonly _running = signal(false);
   private readonly _error = signal<string | null>(null);
 
@@ -41,14 +51,14 @@ export class LogTailService {
   private partial = '';
 
   constructor() {
-    void listen<TailEvent>('tail:data', (event) => {
+    this.tauriListen<TailEvent>('tail:data', (event) => {
       if (event.payload.id !== this.tailId) {
         return;
       }
       const bytes = Uint8Array.from(atob(event.payload.data), (c) => c.charCodeAt(0));
       this.append(this.decoder.decode(bytes, { stream: true }));
     });
-    void listen<TailEvent>('tail:closed', (event) => {
+    this.tauriListen<TailEvent>('tail:closed', (event) => {
       if (event.payload.id === this.tailId) {
         this._running.set(false);
       }
@@ -110,7 +120,8 @@ export class LogTailService {
       return;
     }
     this._lines.update((lines) => {
-      const merged = [...lines, ...parts];
+      const stamped = parts.map((text) => ({ seq: this.nextSeq++, text }));
+      const merged = [...lines, ...stamped];
       return merged.length > MAX_LINES ? merged.slice(-MAX_LINES) : merged;
     });
   }

@@ -1,7 +1,7 @@
-@if (transfers.transfers().length > 0) {
-  @if (transfers.activeCount() === 0) {
+@if (rows().length > 0) {
+  @if (activeTotal() === 0) {
     <div class="toolbar">
-      <button type="button" class="toolbar__clear" (click)="transfers.clearFinished()">
+      <button type="button" class="toolbar__clear" (click)="clearFinished()">
         <app-icon name="close" [size]="12" />
         Effacer les terminés
       </button>
@@ -9,42 +9,56 @@
   }
 
   <ul class="list">
-    @for (transfer of transfers.transfers(); track transfer.id) {
+    @for (row of rows(); track row.transfer.id) {
       <li
         class="row"
-        [class.row--error]="transfer.status === 'error'"
-        [class.row--muted]="transfer.status === 'cancelled'"
+        [class.row--error]="row.transfer.status === 'error'"
+        [class.row--muted]="row.transfer.status === 'cancelled'"
       >
         <app-icon
           class="row__direction"
-          [name]="transfer.direction === 'download' ? 'download' : 'upload'"
+          [name]="
+            row.transfer.direction === 'download'
+              ? 'download'
+              : row.transfer.direction === 'remote'
+                ? 'arrow-down-up'
+                : 'upload'
+          "
           [size]="14"
         />
 
         <div class="row__body">
           <div class="row__top">
-            <span class="row__name" [title]="transfer.error ?? transfer.name">
-              {{ transfer.name }}
+            <span class="row__name" [title]="row.transfer.error ?? row.transfer.name">
+              {{ row.transfer.name }}
             </span>
+            @if (multiSession()) {
+              <span class="row__session" [style.background]="sessionToneBg(row.session)">
+                {{ sessionTitle(row.session) }}
+              </span>
+            }
+            @if (row.transfer.route) {
+              <span class="row__route data">{{ row.transfer.route }}</span>
+            }
             <span class="row__status">
-              @if (transfer.status === 'active') {
+              @if (row.transfer.status === 'active') {
                 <span class="data">
-                  {{ transfer.transferred | fileSize }}
-                  @if (transfer.total > 0) {
-                    / {{ transfer.total | fileSize }}
+                  {{ row.transfer.transferred | fileSize }}
+                  @if (row.transfer.total > 0) {
+                    / {{ row.transfer.total | fileSize }}
                   }
-                  @if (transfer.speed) {
-                    · {{ transfer.speed | fileSize }}/s
+                  @if (row.transfer.speed) {
+                    · {{ row.transfer.speed | fileSize }}/s
                   }
                 </span>
               } @else {
-                {{ statusLabel(transfer) }}
+                {{ statusLabel(row) }}
               }
             </span>
-            @if (transfer.verify; as verify) {
+            @if (row.transfer.verify; as verify) {
               <span
                 class="row__verify row__verify--{{ verify }}"
-                [title]="verifyTitle(transfer)"
+                [title]="verifyTitle(row.transfer)"
               >
                 {{ verifyLabel(verify) }}
               </span>
@@ -53,35 +67,35 @@
           <div
             class="row__bar"
             role="progressbar"
-            [attr.aria-valuenow]="percent(transfer)"
+            [attr.aria-valuenow]="percent(row.transfer)"
             aria-valuemin="0"
             aria-valuemax="100"
           >
-            <div class="row__fill" [style.width.%]="percent(transfer)"></div>
+            <div class="row__fill" [style.width.%]="percent(row.transfer)"></div>
           </div>
         </div>
 
-        @if (transfer.status === 'active') {
+        @if (row.transfer.status === 'active') {
           <button
             type="button"
             class="row__cancel"
             title="Annuler ce transfert"
-            [attr.aria-label]="'Annuler le transfert de ' + transfer.name"
-            (click)="transfers.cancel(transfer.id)"
+            [attr.aria-label]="'Annuler le transfert de ' + row.transfer.name"
+            (click)="row.session.transfers.cancel(row.transfer.id)"
           >
             <app-icon name="close" [size]="13" />
           </button>
-        } @else if (transfers.canResume(transfer)) {
+        } @else if (row.session.transfers.canResume(row.transfer)) {
           <button
             type="button"
             class="row__resume"
             title="Reprendre ce transfert"
-            [attr.aria-label]="'Reprendre le transfert de ' + transfer.name"
-            (click)="transfers.resume(transfer)"
+            [attr.aria-label]="'Reprendre le transfert de ' + row.transfer.name"
+            (click)="row.session.transfers.resume(row.transfer)"
           >
             <app-icon name="refresh" [size]="13" />
           </button>
-        } @else if (transfer.status === 'done') {
+        } @else if (row.transfer.status === 'done') {
           <app-icon class="row__done" name="check" [size]="14" />
         }
       </li>

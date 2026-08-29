@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
-import { Icon } from '@app/components/ui/icon/icon';
+import { ToolButton } from '@app/components/ui/tool-button/tool-button';
 
 /**
  * Ce qui apparaît sous une liste quand plusieurs éléments sont sélectionnés :
@@ -11,29 +11,24 @@ import { Icon } from '@app/components/ui/icon/icon';
  */
 @Component({
   selector: 'app-selection-bar',
-  imports: [Icon],
+  imports: [ToolButton],
   template: `
     <span class="selbar__count">
       {{ count() }} sélectionné{{ count() > 1 ? 's' : '' }}
     </span>
-    <button type="button" class="selbar__clear" (click)="clear.emit()">Désélectionner</button>
     <span class="selbar__spacer"></span>
     @if (fileCount() > 0) {
-      <button type="button" class="selbar__act" (click)="download.emit()">
-        <app-icon name="download" [size]="13" />
-        Télécharger{{ partial() ? ' les fichiers' : '' }}
-      </button>
+      <app-tool-button
+        icon="download"
+        [label]="'Télécharger' + (partial() ? ' les fichiers' : '')"
+        (pressed)="download.emit()"
+      />
     }
     @if (writable()) {
-      <button type="button" class="selbar__act" (click)="copy.emit()">
-        <app-icon name="copy" [size]="13" />
-        Copier
-      </button>
-      <button type="button" class="selbar__act selbar__act--danger" (click)="remove.emit()">
-        <app-icon name="trash" [size]="13" />
-        Supprimer
-      </button>
+      <app-tool-button icon="copy" label="Copier" (pressed)="copy.emit()" />
+      <app-tool-button icon="trash" label="Supprimer" [danger]="true" (pressed)="remove.emit()" />
     }
+    <app-tool-button icon="close" label="Désélectionner" (pressed)="clear.emit()" />
   `,
   styleUrl: './selection-bar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

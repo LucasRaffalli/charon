@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Icon } from '@app/components/ui/icon/icon';
 import { ServerTreeNode } from '@app/components/panels/server-tree/server-tree-node';
 import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /** Panneau latéral : arborescence des dossiers du serveur depuis la racine. */
 @Component({
@@ -13,5 +14,9 @@ import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServerTree {
-  protected readonly tree = inject(SftpTreeService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get tree(): SftpTreeService {
+    return this.sessionRegistry.focused().tree;
+  }
 }

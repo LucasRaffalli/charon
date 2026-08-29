@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use crate::sftp::{
     emit_progress, ensure_no_parent_dir, is_safe_entry_name, register_transfer,
     shellexpand_tilde, unregister_transfer, FileEntry, IdleConfig, TransferRegistry,
-    CANCELLED_TAG, CHUNK_SIZE, MAX_RECURSIVE_ENTRIES, PART_SUFFIX, PROGRESS_STEP,
+    CANCELLED_TAG, CHUNK_SIZE, MAX_RECURSIVE_ENTRIES, PART_SUFFIX, PROGRESS_EVERY,
 };
 
 // ---------- État ----------
@@ -133,7 +133,11 @@ pub async fn ftp_connect(
         .map_err(|e| format!("Passage en mode binaire impossible : {e}"))?;
 
     let scheme = if secure { "ftps" } else { "ftp" };
-    let connection_id = format!("{scheme}://{user}@{host}:{port}");
+    // Même règle que SFTP : unique par session, stable avant le `#`.
+    let connection_id = format!(
+        "{scheme}://{user}@{host}:{port}#{}",
+        crate::sftp::SESSION_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    );
     pool.inner().0.lock().await.insert(
         connection_id.clone(),
         Arc::new(FtpConnection {
@@ -317,6 +321,7 @@ pub async fn ftp_rename(
 #[tauri::command]
 pub async fn ftp_download(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, FtpPool>,
     registry: State<'_, TransferRegistry>,
     connection_id: String,
@@ -330,8 +335,17 @@ pub async fn ftp_download(
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result =
-        stream_download(&app, &conn, &remote_path, &local, &transfer_id, &cancel, resume).await;
+    let result = stream_download(
+        &app,
+        window.label(),
+        &conn,
+        &remote_path,
+        &local,
+        &transfer_id,
+        &cancel,
+        resume,
+    )
+    .await;
     unregister_transfer(&registry, &transfer_id);
 
     if let Err(e) = &result {
@@ -342,8 +356,10 @@ pub async fn ftp_download(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn stream_download(
     app: &AppHandle,
+    label: &str,
     conn: &FtpConnection,
     remote_path: &str,
     local: &str,
@@ -388,8 +404,8 @@ async fn stream_download(
     };
 
     let mut transferred: u64 = offset;
-    let mut last_emitted: u64 = offset;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    let mut last_emit = std::time::Instant::now();
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
     loop {
@@ -410,10 +426,10 @@ async fn stream_download(
             .await
             .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
-        if transferred - last_emitted >= PROGRESS_STEP {
-            last_emitted = transferred;
+        if last_emit.elapsed() >= PROGRESS_EVERY {
+            last_emit = std::time::Instant::now();
             conn.touch();
-            emit_progress(app, transfer_id, transferred, total);
+            emit_progress(app, label, transfer_id, transferred, total);
         }
     }
 
@@ -428,7 +444,7 @@ async fn stream_download(
     tokio::fs::rename(&part, local)
         .await
         .map_err(|e| format!("Finalisation de {local} impossible : {e}"))?;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
 }
 
@@ -437,6 +453,7 @@ async fn stream_download(
 #[tauri::command]
 pub async fn ftp_upload(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, FtpPool>,
     registry: State<'_, TransferRegistry>,
     connection_id: String,
@@ -450,8 +467,13 @@ pub async fn ftp_upload(
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result =
-        stream_upload(&app, &conn, &local, &remote_path, &transfer_id, &cancel, resume).await;
+    let result = stream_upload(
+        &app,
+        window.label(),
+        &conn,
+        &local, &remote_path, &transfer_id, &cancel, resume,
+    )
+    .await;
     unregister_transfer(&registry, &transfer_id);
 
     if let Err(e) = &result {
@@ -463,8 +485,10 @@ pub async fn ftp_upload(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn stream_upload(
     app: &AppHandle,
+    label: &str,
     conn: &FtpConnection,
     local: &str,
     remote_path: &str,
@@ -510,8 +534,8 @@ async fn stream_upload(
         .map_err(|e| format!("Création de {part} impossible : {e}"))?;
 
     let mut transferred: u64 = offset;
-    let mut last_emitted: u64 = offset;
-    emit_progress(app, transfer_id, transferred, total);
+    let mut last_emit = std::time::Instant::now();
+    emit_progress(app, label, transfer_id, transferred, total);
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
     loop {
@@ -530,10 +554,10 @@ async fn stream_upload(
             .await
             .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
-        if transferred - last_emitted >= PROGRESS_STEP {
-            last_emitted = transferred;
+        if last_emit.elapsed() >= PROGRESS_EVERY {
+            last_emit = std::time::Instant::now();
             conn.touch();
-            emit_progress(app, transfer_id, transferred, total);
+            emit_progress(app, label, transfer_id, transferred, total);
         }
     }
 
@@ -550,7 +574,7 @@ async fn stream_upload(
         .rename(part.as_str(), remote_path)
         .await
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
 }
 
@@ -623,7 +647,6 @@ pub(crate) async fn search_walk(
         needle.to_lowercase()
     };
     let deadline = tokio::time::Instant::now() + TIMEOUT;
-    let mut stream = conn.stream.lock().await;
     let mut to_visit: Vec<(String, usize)> = vec![(root, 0)];
     let mut total = 0usize;
 
@@ -636,7 +659,14 @@ pub(crate) async fn search_walk(
             emit_done(&app, &id, total, "timeout");
             return;
         }
-        let Ok(lines) = stream.list(Some(&dir)).await else {
+        // Le verrou du stream est repris PAR dossier : tenu pour tout le
+        // walk, une recherche de 60 s bloquait toute autre opération FTP de
+        // cette connexion (listage, transfert) pendant une minute.
+        let listing = {
+            let mut stream = conn.stream.lock().await;
+            stream.list(Some(&dir)).await
+        };
+        let Ok(lines) = listing else {
             continue; // dossier illisible : on passe
         };
         let mut hits = Vec::new();

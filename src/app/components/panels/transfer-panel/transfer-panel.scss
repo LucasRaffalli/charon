@@ -174,3 +174,24 @@
     color: var(--warning);
   }
 }
+
+// La route d'un pont entre serveurs : qui envoie quoi où.
+.row__route {
+  flex: none;
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+// La vignette de session (jalon 4) : dit à qui appartient la ligne dès que la
+// fenêtre porte plus d'une session.
+.row__session {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 2px;
+  background: var(--accent-solid);
+  color: var(--text-inverse);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 600;
+  white-space: nowrap;
+}

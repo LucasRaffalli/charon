@@ -1,12 +1,14 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
-import { highlightCode, languageFor } from '@app/services/files/code-highlight';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
+import { ensureHighlighter, highlightCode, languageFor } from '@app/services/files/code-highlight';
 import { DialogService } from '@app/services/workspace/dialog.service';
+import { formatCode } from '@app/services/files/code-format';
 import { fileIconFor } from '@app/services/files/file-icon';
-import { renderMarkdown } from '@app/services/files/markdown';
+import { ensureMarkdown, renderMarkdown } from '@app/services/files/markdown';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SettingsService } from '@app/services/system/settings.service';
 import { ToastService } from '@app/services/workspace/toast.service';
 
 export type PreviewKind = 'loading' | 'text' | 'image' | 'binary' | 'error';
@@ -17,6 +19,35 @@ export interface FindMatch {
   end: number;
   /** Ligne (à partir de 1), pour le compteur et le saut depuis la recherche. */
   line: number;
+}
+
+/**
+ * Un document ouvert dans l'aperçu (v2 : des onglets, plusieurs fichiers).
+ * Tout l'état du fichier vit ici ; le service n'expose plus qu'un jeu de
+ * vues sur le document ACTIF, si bien que l'éditeur, ⌘F, le markdown et
+ * Prettier n'ont pas eu à changer.
+ */
+export interface PreviewDoc {
+  id: number;
+  /** Ordre d'ouverture GLOBAL (toutes sessions confondues) : l'ordre des onglets. */
+  seq: number;
+  path: string;
+  name: string;
+  kind: PreviewKind;
+  content: string;
+  original: string;
+  imageSrc: string;
+  readonly: boolean;
+  truncated: boolean;
+  error: string | null;
+  highlighted: string | null;
+  language: string | null;
+  isMarkdown: boolean;
+  markdownView: boolean;
+  /** Métadonnées pour l'en-tête (0 = inconnu). */
+  size: number;
+  mtime: number;
+  mode?: number;
 }
 
 /**
@@ -60,62 +91,92 @@ const IMAGE_MIME: Record<string, string> = {
   avif: 'image/avif',
 };
 
+/** L'ordre d'ouverture et les identités, partagés par TOUTES les sessions. */
+let NEXT_SEQ = 1;
+let NEXT_DOC = 1;
+
 /**
  * Aperçu / édition intégré (panneau de droite) : texte éditable enregistrable,
- * image en aperçu. SFTP uniquement. Respecte les garde-fous (lecture seule,
- * confirmation par nom d'hôte sur serveur protégé).
+ * image en aperçu, et depuis la v2, PLUSIEURS documents en onglets. SFTP
+ * uniquement. Respecte les garde-fous (lecture seule, confirmation par nom
+ * d'hôte sur serveur protégé).
  */
 @Injectable({ providedIn: 'root' })
 export class PreviewService {
+  constructor() {
+    effect((onCleanup) => {
+      const query = this.findQuery();
+      if (!query) {
+        this.findNeedle.set('');
+        return;
+      }
+      const handle = setTimeout(() => this.findNeedle.set(query), 120);
+      onCleanup(() => clearTimeout(handle));
+    });
+  }
+
   private readonly sftp = inject(SftpService);
   private readonly dialog = inject(DialogService);
-  private readonly activity = inject(ActivityLogService);
+  private readonly activity = injectSessionActivity();
   private readonly toasts = inject(ToastService);
+  private readonly settings = inject(SettingsService);
 
-  private readonly _open = signal(false);
-  private readonly _name = signal('');
-  private readonly _path = signal('');
-  private readonly _kind = signal<PreviewKind>('loading');
-  private readonly _content = signal('');
-  private readonly _original = signal('');
-  private readonly _imageSrc = signal('');
-  private readonly _readonly = signal(false);
-  private readonly _truncated = signal(false);
+  private readonly _docs = signal<PreviewDoc[]>([]);
+  private readonly _activeId = signal<number | null>(null);
   private readonly _saving = signal(false);
-  private readonly _error = signal<string | null>(null);
-  private readonly _highlighted = signal<string | null>(null);
-  private readonly _isMarkdown = signal(false);
-  private readonly _markdownView = signal(false);
 
-  /** Grammaire Prism du fichier ouvert (`null` = aucune coloration). */
-  private language: string | null = null;
+  /** Les documents ouverts dans CETTE session, dans l'ordre d'ouverture. */
+  readonly docs = this._docs.asReadonly();
+  readonly activeId = this._activeId.asReadonly();
 
-  readonly open = this._open.asReadonly();
-  readonly name = this._name.asReadonly();
-  readonly kind = this._kind.asReadonly();
-  readonly content = this._content.asReadonly();
-  readonly imageSrc = this._imageSrc.asReadonly();
-  readonly readonly = this._readonly.asReadonly();
-  readonly truncated = this._truncated.asReadonly();
+  /** Le document actif de cette session. */
+  readonly active = computed<PreviewDoc | null>(
+    () => this._docs().find((doc) => doc.id === this._activeId()) ?? null,
+  );
+
+  readonly open = computed(() => this._docs().length > 0);
+
+  /** Quand cette session a touché l'aperçu pour la dernière fois : c'est ce
+   *  qui départage les sessions pour savoir quel document le panneau montre. */
+  private readonly _openedAt = signal(0);
+  readonly openedAt = this._openedAt.asReadonly();
+
+  // ---------- L'API historique : des vues sur le document actif ----------
+
+  readonly name = computed(() => this.active()?.name ?? '');
+  readonly path = computed(() => this.active()?.path ?? '');
+  readonly kind = computed<PreviewKind>(() => this.active()?.kind ?? 'loading');
+  readonly content = computed(() => this.active()?.content ?? '');
+  readonly imageSrc = computed(() => this.active()?.imageSrc ?? '');
+  readonly readonly = computed(() => this.active()?.readonly ?? false);
+  readonly truncated = computed(() => this.active()?.truncated ?? false);
   readonly saving = this._saving.asReadonly();
-  readonly error = this._error.asReadonly();
+  readonly error = computed(() => this.active()?.error ?? null);
 
-  /** HTML Prism du contenu courant (`null` = textarea nu : langage inconnu ou fichier lourd). */
-  readonly highlighted = this._highlighted.asReadonly();
+  /** HTML Prism du contenu courant (`null` = textarea nu). */
+  readonly highlighted = computed(() => this.active()?.highlighted ?? null);
 
   /** Icône du fichier ouvert, d'après son type. */
-  readonly icon = computed(() => fileIconFor(this._name()));
+  readonly icon = computed(() => fileIconFor(this.name()));
 
-  /** Le fichier ouvert est du markdown : la bascule Code/Aperçu est proposée. */
-  readonly isMarkdown = this._isMarkdown.asReadonly();
-  /** Aperçu markdown affiché à la place de l'éditeur. */
-  readonly markdownView = this._markdownView.asReadonly();
+  readonly isMarkdown = computed(() => this.active()?.isMarkdown ?? false);
+  readonly markdownView = computed(() => this.active()?.markdownView ?? false);
+
+  /** Métadonnées de l'en-tête riche. */
+  readonly fileSize = computed(() => this.active()?.size ?? 0);
+  readonly fileMtime = computed(() => this.active()?.mtime ?? 0);
+  readonly fileMode = computed(() => this.active()?.mode);
 
   // ---------- Recherche dans le fichier (portée B) ----------
 
   /** La barre est ouverte. La saisie survit à sa fermeture, pas à un autre fichier. */
   readonly findOpen = signal(false);
   readonly findQuery = signal('');
+  /** La saisie posée 120 ms après la dernière frappe : c'est ELLE que le
+   *  scan lit. Chercher à chaque caractère rescannait tout le fichier et
+   *  reconstruisait la couche d'occurrences, deux passes complètes par
+   *  frappe. Vider reste instantané (effacer doit se voir tout de suite). */
+  private readonly findNeedle = signal('');
   readonly findRegex = signal(false);
   readonly findCase = signal(false);
   private readonly _findIndex = signal(0);
@@ -138,14 +199,14 @@ export class PreviewService {
    * deux côtés (le champ de recherche ET l'éditeur), comme la coloration.
    */
   readonly findMatches = computed<FindMatch[]>(() => {
-    if (!this.findOpen() || this._kind() !== 'text') {
+    if (!this.findOpen() || this.kind() !== 'text') {
       return [];
     }
-    const query = this.findQuery();
+    const query = this.findNeedle();
     if (!query) {
       return [];
     }
-    const content = this._content();
+    const content = this.content();
     const matches: FindMatch[] = [];
 
     if (this.findRegex()) {
@@ -212,7 +273,7 @@ export class PreviewService {
     if (!matches.length) {
       return null;
     }
-    const content = this._content();
+    const content = this.content();
     const current = this.findIndex();
     const parts: string[] = [];
     let cursor = 0;
@@ -234,7 +295,7 @@ export class PreviewService {
   readonly jumpLine = signal<{ line: number; stamp: number } | null>(null);
 
   openFind(): void {
-    if (this._kind() === 'text') {
+    if (this.kind() === 'text') {
       this.findOpen.set(true);
     }
   }
@@ -269,11 +330,12 @@ export class PreviewService {
     jump: { line: number; query: string; regex: boolean; caseSensitive: boolean },
   ): Promise<void> {
     await this.openFile(remotePath, name);
-    if (this._kind() !== 'text') {
+    if (this.kind() !== 'text') {
       return;
     }
     if (jump.query) {
       this.findQuery.set(jump.query);
+      this.findNeedle.set(jump.query);
       this.findRegex.set(jump.regex);
       this.findCase.set(jump.caseSensitive);
       this.findOpen.set(true);
@@ -288,118 +350,233 @@ export class PreviewService {
 
   /** Markdown rendu, recalculé au fil des modifications. */
   readonly renderedMarkdown = computed(() =>
-    this._isMarkdown() && this._markdownView() ? renderMarkdown(this._content()) : '',
+    this.isMarkdown() && this.markdownView() ? renderMarkdown(this.content()) : '',
   );
 
-  readonly dirty = computed(() => this._content() !== this._original());
+  readonly dirty = computed(() => {
+    const doc = this.active();
+    return !!doc && doc.content !== doc.original;
+  });
   readonly canSave = computed(
-    () => this._kind() === 'text' && !this._readonly() && this.dirty() && !this._saving(),
+    () => this.kind() === 'text' && !this.readonly() && this.dirty() && !this._saving(),
   );
 
-  /** Ouvre un fichier serveur dans le panneau d'aperçu. */
-  async openFile(remotePath: string, name: string): Promise<void> {
-    if (this.sftp.protocol() !== 'sftp') {
-      return;
-    }
-    this._open.set(true);
-    this._name.set(name);
-    this._path.set(remotePath);
-    this._kind.set('loading');
-    this._content.set('');
-    // La recherche appartenait au fichier précédent.
+  // ---------- Documents ----------
+
+  private patchDoc(id: number, patch: Partial<PreviewDoc>): void {
+    this._docs.update((docs) => docs.map((doc) => (doc.id === id ? { ...doc, ...patch } : doc)));
+  }
+
+  private resetFind(): void {
     this.findOpen.set(false);
     this._findIndex.set(0);
     this.jumpLine.set(null);
-    this._original.set('');
-    this._imageSrc.set('');
-    this._readonly.set(false);
-    this._truncated.set(false);
-    this._error.set(null);
-    this._highlighted.set(null);
-    this.language = languageFor(name);
-    this._isMarkdown.set(this.language === 'markdown');
-    // Un .md s'ouvre sur son rendu : c'est ce qu'on veut voir en premier.
-    this._markdownView.set(this.language === 'markdown');
+  }
 
-    const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  /** Met un document au premier plan (et cette session devant les autres). */
+  activate(id: number): void {
+    if (this._docs().some((doc) => doc.id === id) && this._activeId() !== id) {
+      this._activeId.set(id);
+      this.resetFind();
+    }
+    this._openedAt.set(Date.now());
+  }
+
+  /** Un document précis est-il modifié ? (le point ambré des onglets). */
+  isDirty(doc: PreviewDoc): boolean {
+    return doc.kind === 'text' && doc.content !== doc.original;
+  }
+
+  /** Ferme un document ; un document modifié demande d'abord. */
+  async closeDoc(id: number): Promise<void> {
+    const doc = this._docs().find((candidate) => candidate.id === id);
+    if (!doc) {
+      return;
+    }
+    if (doc.kind === 'text' && !doc.readonly && doc.content !== doc.original) {
+      const drop = await this.dialog.confirm({
+        title: `Fermer « ${doc.name} » sans enregistrer ?`,
+        message: 'Les modifications non enregistrées seront perdues.',
+        confirmLabel: 'Fermer sans enregistrer',
+        danger: true,
+      });
+      if (!drop) {
+        return;
+      }
+    }
+    this._docs.update((docs) => docs.filter((candidate) => candidate.id !== id));
+    if (this._activeId() === id) {
+      const rest = this._docs();
+      this._activeId.set(rest.length ? rest[rest.length - 1].id : null);
+      this.resetFind();
+    }
+  }
+
+  /** Ouvre un fichier serveur dans le panneau d'aperçu (nouvel onglet, ou
+   *  remise au premier plan s'il y est déjà, rechargé s'il n'a pas de
+   *  modifications en cours). */
+  async openFile(remotePath: string, name: string): Promise<void> {
+    this._openedAt.set(Date.now());
+    if (this.sftp.protocol() !== 'sftp') {
+      return;
+    }
+
+    const existing = this._docs().find((doc) => doc.path === remotePath);
+    if (existing) {
+      this._activeId.set(existing.id);
+      this.resetFind();
+      if (existing.kind === 'text' && existing.content === existing.original) {
+        await this.load(existing.id);
+      }
+      return;
+    }
+
+    // Le mode vient du listing quand le fichier ouvert en fait partie : le
+    // stat SFTP ne porte pas les permissions.
+    const entry = this.sftp
+      .entries()
+      .find((candidate) => this.sftp.pathTo(candidate.name) === remotePath);
+
+    const language = languageFor(name);
+    const doc: PreviewDoc = {
+      id: NEXT_DOC++,
+      seq: NEXT_SEQ++,
+      path: remotePath,
+      name,
+      kind: 'loading',
+      content: '',
+      original: '',
+      imageSrc: '',
+      readonly: false,
+      truncated: false,
+      error: null,
+      highlighted: null,
+      language,
+      isMarkdown: language === 'markdown',
+      // Un .md s'ouvre sur son rendu : c'est ce qu'on veut voir en premier.
+      markdownView: language === 'markdown',
+      size: 0,
+      mtime: 0,
+      mode: entry?.mode,
+    };
+    this._docs.update((docs) => [...docs, doc]);
+    this._activeId.set(doc.id);
+    this.resetFind();
+    await this.load(doc.id);
+  }
+
+  /** Charge (ou recharge) le contenu d'un document depuis le serveur. */
+  private async load(id: number): Promise<void> {
+    const doc = this._docs().find((candidate) => candidate.id === id);
+    if (!doc) {
+      return;
+    }
+    const ext = doc.name.split('.').pop()?.toLowerCase() ?? '';
     const mime = IMAGE_MIME[ext];
     if (mime) {
       const b64 = await invoke<string>('sftp_read_base64', {
         connectionId: this.sftp.connectionId(),
-        path: remotePath,
+        path: doc.path,
         maxBytes: 4 * 1024 * 1024,
       }).catch(() => undefined);
       if (b64 === undefined) {
-        this._kind.set('error');
-        this._error.set('Aperçu impossible.');
+        this.patchDoc(id, { kind: 'error', error: 'Aperçu impossible.' });
         return;
       }
-      this._imageSrc.set(`data:${mime};base64,${b64}`);
-      this._kind.set('image');
+      const stat = await this.sftp.stat(doc.path);
+      this.patchDoc(id, {
+        kind: 'image',
+        imageSrc: `data:${mime};base64,${b64}`,
+        size: stat?.size ?? 0,
+        mtime: stat?.mtime ?? 0,
+      });
       return;
     }
 
-    const stat = await this.sftp.stat(remotePath);
-    const text = await this.sftp.readText(remotePath, PREVIEW_MAX);
+    const stat = await this.sftp.stat(doc.path);
+    const text = await this.sftp.readText(doc.path, PREVIEW_MAX);
     if (text === undefined) {
-      this._kind.set('error');
-      this._error.set('Lecture impossible.');
+      this.patchDoc(id, { kind: 'error', error: 'Lecture impossible.' });
       return;
     }
     if (text.includes('\u0000')) {
-      this._kind.set('binary');
+      this.patchDoc(id, { kind: 'binary', size: stat?.size ?? 0, mtime: stat?.mtime ?? 0 });
       return;
     }
     const truncated = (stat?.size ?? 0) > PREVIEW_MAX;
-    this._content.set(text);
-    this._original.set(text);
-    this._truncated.set(truncated);
-    this._readonly.set(truncated || this.sftp.protection() === 'readonly');
-    this._kind.set('text');
-    this.refreshHighlight(text, true);
+    if (doc.language) {
+      // Prism vit dans un chunk paresseux : chargé ici, à la première
+      // ouverture d'un fichier colorable, jamais au démarrage. marked suit
+      // le même chemin pour les .md.
+      await ensureHighlighter();
+      if (doc.language === 'markdown') {
+        await ensureMarkdown();
+      }
+    }
+    const painted = this.computeHighlight(text, doc.language, true);
+    this.patchDoc(id, {
+      kind: 'text',
+      content: text,
+      original: text,
+      truncated,
+      readonly: truncated || this.sftp.protection() === 'readonly',
+      size: stat?.size ?? text.length,
+      mtime: stat?.mtime ?? 0,
+      highlighted: painted.html,
+      language: painted.language,
+    });
   }
 
   setContent(value: string): void {
-    this._content.set(value);
-    this.refreshHighlight(value, false);
+    const doc = this.active();
+    if (!doc) {
+      return;
+    }
+    const painted = this.computeHighlight(value, doc.language, true);
+    this.patchDoc(doc.id, { content: value, highlighted: painted.html, language: painted.language });
   }
 
   /** Bascule entre l'éditeur et le rendu (fichiers markdown seulement). */
   setMarkdownView(rendered: boolean): void {
-    this._markdownView.set(rendered);
+    const doc = this.active();
+    if (doc) {
+      this.patchDoc(doc.id, { markdownView: rendered });
+    }
   }
 
   /**
-   * Recolorise le contenu (appelé à l'ouverture puis à chaque frappe, la
-   * coloration devant rester synchrone avec la saisie : le texte visible EST
-   * la couche Prism). `measure` chronomètre la passe d'ouverture et abandonne
-   * la coloration si le fichier est trop lourd pour tenir la cadence.
+   * Colorise un contenu. `measure` chronomètre la passe (à l'ouverture ET à
+   * la frappe : un fichier qui passait le budget de justesse à l'ouverture
+   * le crevait ensuite à chaque caractère) et abandonne la coloration
+   * (language rendu null) si le fichier est trop lourd pour la cadence.
    */
-  private refreshHighlight(text: string, measure: boolean): void {
-    if (!this.language || text.length > HIGHLIGHT_MAX) {
-      this._highlighted.set(null);
-      return;
+  private computeHighlight(
+    text: string,
+    language: string | null,
+    measure: boolean,
+  ): { html: string | null; language: string | null } {
+    if (!language || text.length > HIGHLIGHT_MAX) {
+      return { html: null, language };
     }
     const timed = measure && text.length > HIGHLIGHT_MEASURE_MIN;
     const started = timed ? performance.now() : 0;
-    const html = highlightCode(text, this.language);
+    const html = highlightCode(text, language);
     if (timed && performance.now() - started > HIGHLIGHT_BUDGET_MS) {
-      this.language = null;
-      this._highlighted.set(null);
-      return;
+      return { html: null, language: null };
     }
-    this._highlighted.set(html);
+    return { html, language };
   }
 
   /** Enregistre le texte sur le serveur (confirmation renforcée si protégé). */
   async save(): Promise<void> {
-    if (!this.canSave()) {
+    const doc = this.active();
+    if (!doc || !this.canSave()) {
       return;
     }
     if (this.sftp.protection() === 'confirm') {
       const host = this.sftp.host();
       const typed = await this.dialog.prompt({
-        title: `Serveur protégé : enregistrer « ${this._name()} » ?`,
+        title: `Serveur protégé : enregistrer « ${doc.name} » ?`,
         message: `Tape « ${host} » pour confirmer l'écriture sur le serveur.`,
         placeholder: host,
         confirmLabel: 'Enregistrer',
@@ -411,28 +588,53 @@ export class PreviewService {
     }
 
     this._saving.set(true);
-    this._error.set(null);
+
+    // « Paf Prettier » : le formatage à l'enregistrement, pour les types
+    // couverts, si le réglage le veut. Une erreur de syntaxe n'empêche JAMAIS
+    // d'enregistrer : on écrit tel quel et on le dit.
+    if (this.settings.formatOnSave()) {
+      try {
+        const formatted = await formatCode(doc.name, this.content());
+        if (formatted !== null && formatted !== this.content()) {
+          this.setContent(formatted);
+        }
+      } catch {
+        this.toasts.info('Enregistré sans formatage', {
+          detail: 'Prettier n’a pas réussi à lire ce fichier (erreur de syntaxe ?)',
+        });
+      }
+    }
+
     try {
+      const content = this.content();
       await invoke('sftp_write_text', {
         connectionId: this.sftp.connectionId(),
-        path: this._path(),
-        content: this._content(),
+        path: doc.path,
+        content,
       });
-      this._original.set(this._content());
-      this.activity.log('edit', 'remote', this._path(), 'enregistré via l’aperçu');
+      this.patchDoc(doc.id, {
+        original: content,
+        size: content.length,
+        mtime: Math.floor(Date.now() / 1000),
+      });
+      this.activity.log('edit', 'remote', doc.path, 'enregistré via l’aperçu');
       // Le texte à l'écran est le même avant et après : seul un bouton qui
       // s'éteint dirait que c'est parti. C'est trop peu pour une écriture sur
       // un serveur.
-      this.toasts.success('Enregistré sur le serveur', this._name());
+      this.toasts.success('Enregistré sur le serveur', doc.name);
       await this.sftp.refresh();
     } catch (error) {
-      this._error.set(typeof error === 'string' ? error : String(error));
+      this.patchDoc(doc.id, { error: typeof error === 'string' ? error : String(error) });
     } finally {
       this._saving.set(false);
     }
   }
 
+  /** Ferme le document actif (le bouton ✕ de l'en-tête). */
   close(): void {
-    this._open.set(false);
+    const id = this._activeId();
+    if (id !== null) {
+      void this.closeDoc(id);
+    }
   }
 }

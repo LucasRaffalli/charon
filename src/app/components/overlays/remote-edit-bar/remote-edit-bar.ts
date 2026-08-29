@@ -1,15 +1,16 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  OnDestroy,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
+import { formatClock } from '@app/services/system/date-format';
 import { RemoteEditService } from '@app/services/files/remote-edit.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /** Après ce délai sans activité, une ligne de la barre se masque (toast). */
 const AUTO_HIDE_MS = 10_000;
@@ -17,16 +18,34 @@ const AUTO_HIDE_MS = 10_000;
 /** Barre flottante listant les fichiers en édition distante (re-upload auto). */
 @Component({
   selector: 'app-remote-edit-bar',
-  imports: [DatePipe, Icon],
+  imports: [Icon],
   templateUrl: './remote-edit-bar.html',
   styleUrl: './remote-edit-bar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class RemoteEditBar implements OnDestroy {
-  protected readonly edit = inject(RemoteEditService);
+export class RemoteEditBar {
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get edit(): RemoteEditService {
+    return this.sessionRegistry.focused().remoteEdit;
+  }
 
   private readonly now = signal(Date.now());
-  private readonly timer = setInterval(() => this.now.set(Date.now()), 1000);
+  protected readonly clock = formatClock;
+
+  constructor() {
+    // Le tic d'une seconde ne tourne que s'il y a une édition à masquer :
+    // un setInterval permanent réveillait l'app chaque seconde à vie, même
+    // sans aucune édition distante (et App Nap ne s'endormait jamais).
+    effect((onCleanup) => {
+      if (this.edit.sessions().length === 0) {
+        return;
+      }
+      this.now.set(Date.now());
+      const timer = setInterval(() => this.now.set(Date.now()), 1000);
+      onCleanup(() => clearInterval(timer));
+    });
+  }
 
   /** Les sessions visibles : erreurs toujours, sinon 10 s après la dernière activité. */
   protected readonly visible = computed(() => {
@@ -36,7 +55,4 @@ export class RemoteEditBar implements OnDestroy {
       .filter((s) => s.status === 'error' || now - s.lastActivity < AUTO_HIDE_MS);
   });
 
-  ngOnDestroy(): void {
-    clearInterval(this.timer);
-  }
 }

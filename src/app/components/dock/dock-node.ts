@@ -12,7 +12,7 @@ import { ResizeHandle } from '@app/components/ui/resize-handle/resize-handle';
 import { DockGroup, DockNode, DockPanelId, DockSplit, DockZone } from '@app/interfaces';
 import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
 import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/dock.service';
-import { TransfersService } from '@app/services/files/transfers.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /** Distance (px) avant qu'un appui sur un onglet devienne un glissement. */
 const DRAG_THRESHOLD = 5;
@@ -33,8 +33,17 @@ const DRAG_THRESHOLD = 5;
 })
 export class DockNodeView {
   protected readonly dock = inject(DockService);
-  private readonly transfers = inject(TransfersService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
   private readonly contextMenu = inject(ContextMenuService);
+
+  /** Transferts actifs de TOUTES les sessions : le badge de l'onglet ne doit
+   *  pas retomber à zéro parce qu'on a focalisé l'autre serveur. */
+  private activeTransfers(): number {
+    return this.sessionRegistry
+      .sessions()
+      .reduce((total, session) => total + session.transfers.activeCount(), 0);
+  }
 
   readonly node = input.required<DockNode>();
 
@@ -59,7 +68,7 @@ export class DockNodeView {
 
   protected tabLabel(panel: DockPanelId): string {
     if (panel === 'transfers') {
-      const active = this.transfers.activeCount();
+      const active = this.activeTransfers();
       return active > 0 ? `Transferts · ${active}` : 'Transferts';
     }
     return PANEL_META[panel].label;

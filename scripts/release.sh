@@ -32,7 +32,7 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PWD_FROM_KEYCHAIN"
 # bundle_dmg.sh échoue si un volume « charon » est déjà monté (dmg de test
 # ouvert) ou si une image temporaire rw.*.dmg traîne d'un build interrompu :
 # on nettoie systématiquement avant de builder.
-for volume in /Volumes/charon*; do
+for volume in /Volumes/[Cc]haron*; do
   [ -e "$volume" ] && hdiutil detach "$volume" >/dev/null 2>&1 && echo "Volume éjecté : $volume"
 done
 rm -f "$(dirname "$0")/../src-tauri/target/release/bundle/macos"/rw.*.dmg

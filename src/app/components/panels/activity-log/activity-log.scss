@@ -37,6 +37,9 @@
 }
 
 .row {
+  // Hors écran = pas de rendu : le journal garde 500 entrées.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 26px;
   display: flex;
   align-items: center;
   gap: var(--space-xs);
@@ -94,4 +97,21 @@
   background: var(--surface-active);
   font-size: calc(10.5px * var(--text-scale));
   color: var(--text-muted);
+}
+
+// La vignette de session : dit qui a fait le geste dès que la fenêtre porte
+// plus d'une session (même patron que le panneau des transferts).
+.row__session {
+  flex: none;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 2px;
+  color: var(--text-inverse);
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 600;
+  white-space: nowrap;
+
+  + .row__scope {
+    margin-left: 0;
+  }
 }

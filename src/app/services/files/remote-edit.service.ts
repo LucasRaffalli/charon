@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { injectTauriListen } from '@app/services/system/scoped-listen';
 
-import { ActivityLogService } from '@app/services/workspace/activity-log.service';
+import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 
@@ -32,19 +32,20 @@ export interface EditSession {
  */
 @Injectable({ providedIn: 'root' })
 export class RemoteEditService {
+  private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
-  private readonly activity = inject(ActivityLogService);
+  private readonly activity = injectSessionActivity();
   private readonly settings = inject(SettingsService);
   private readonly _sessions = signal<EditSession[]>([]);
 
   readonly sessions = this._sessions.asReadonly();
 
   constructor() {
-    void listen<EditEvent>('edit:synced', (event) => {
+    this.tauriListen<EditEvent>('edit:synced', (event) => {
       const now = Date.now();
       this.patch(event.payload.id, { status: 'synced', lastSync: now, lastActivity: now, error: null });
     });
-    void listen<EditEvent>('edit:error', (event) => {
+    this.tauriListen<EditEvent>('edit:error', (event) => {
       this.patch(event.payload.id, { status: 'error', error: event.payload.message, lastActivity: Date.now() });
       const session = this._sessions().find((s) => s.id === event.payload.id);
       if (session) {

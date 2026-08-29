@@ -23,7 +23,7 @@ repo, dmg_name, exe_name = sys.argv[1], sys.argv[2], sys.argv[3]
 version = json.load(open(f"{repo}/src-tauri/tauri.conf.json"))["version"]
 today = datetime.date.today().isoformat()
 if not dmg_name:
-    dmg_name = f"charon_{version}_aarch64.dmg"
+    dmg_name = f"Charon_{version}_aarch64.dmg"
 
 # --- Changelog curaté (même source que l'app et latest.json) ---
 entries = json.load(open(f"{repo}/src/assets/changelog.json", encoding="utf-8"))

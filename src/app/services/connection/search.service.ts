@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { injectTauriListen } from '@app/services/system/scoped-listen';
 
 import { SftpService } from '@app/services/connection/sftp.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
@@ -51,6 +51,7 @@ const escapeForEre = (raw: string): string => raw.replace(/[.[\]{}()*+?^$|\\]/g,
  */
 @Injectable({ providedIn: 'root' })
 export class SearchService {
+  private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
   private readonly dialog = inject(DialogService);
 
@@ -97,18 +98,18 @@ export class SearchService {
       }
     });
 
-    void listen<HitBatch>('search:hit', (event) => {
+    this.tauriListen<HitBatch>('search:hit', (event) => {
       if (event.payload.id === this.searchId) {
         this.hits.update((list) => [...list, ...event.payload.hits]);
       }
     });
-    void listen<DoneEvent>('search:done', (event) => {
+    this.tauriListen<DoneEvent>('search:done', (event) => {
       if (event.payload.id === this.searchId) {
         this.running.set(false);
         this.doneReason.set(event.payload.reason);
       }
     });
-    void listen<ErrorEvent>('search:error', (event) => {
+    this.tauriListen<ErrorEvent>('search:error', (event) => {
       if (event.payload.id === this.searchId) {
         this.running.set(false);
         this.error.set(event.payload.message);

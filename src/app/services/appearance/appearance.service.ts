@@ -97,6 +97,15 @@ export class AppearanceService {
     this.persisting.set(on);
   }
 
+  /** Une autre fenêtre a changé le fond ou les panneaux : on relit, en ne
+   *  posant que si quelque chose diffère (l'égalité coupe l'écho). */
+  reloadFromStorage(): void {
+    const stored = this.load();
+    if (JSON.stringify(stored) !== JSON.stringify(this._appearance())) {
+      this._appearance.set(stored);
+    }
+  }
+
   private load(): Appearance {
     let stored: unknown = null;
     try {

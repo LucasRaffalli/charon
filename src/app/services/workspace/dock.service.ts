@@ -1,4 +1,5 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
+import { scopedKey } from '@app/services/system/window-scope';
 
 import { IconName } from '@app/components/ui/icon/icon';
 import {
@@ -34,6 +35,7 @@ export const PANEL_META: Record<DockPanelId, { label: string; icon: IconName }> 
   journal: { label: 'Journal', icon: 'info' },
   logs: { label: 'Logs', icon: 'logs' },
   terminal: { label: 'Terminal', icon: 'terminal' },
+  terminal2: { label: 'Terminal 2', icon: 'terminal' },
   modules: { label: 'Modules', icon: 'layout-grid' },
   search: { label: 'Recherche', icon: 'search' },
   trash: { label: 'Corbeille', icon: 'trash' },
@@ -49,12 +51,15 @@ const REOPEN_ZONES: Record<DockPanelId, DockZone> = {
   journal: 'bottom',
   logs: 'bottom',
   terminal: 'bottom',
+  terminal2: 'bottom',
   modules: 'right',
   search: 'right',
   trash: 'bottom',
 };
 
-const STORAGE_KEY = 'charon:dock';
+// Par fenêtre : voir scopedKey. Ce qui appartient à une session ne doit
+// pas être écrasé par la fenêtre d'à côté.
+const STORAGE_KEY = scopedKey('charon:dock');
 
 /** Fraction minimale d'un enfant de split (évite les zones écrasées). */
 const MIN_FRACTION = 0.08;
@@ -224,6 +229,26 @@ export class DockService {
         return { ...s, sizes };
       }),
     );
+  }
+
+  /**
+   * Ouvre `panel` en scindant le groupe qui contient `anchor`, du côté
+   * `zone` : « Terminal 2 » se pose À CÔTÉ du terminal, pas sur le bord bas
+   * de tout l'espace. Si l'ancre est fermée, le bord naturel fait l'affaire.
+   */
+  openBeside(panel: DockPanelId, anchor: DockPanelId, zone: DockZone): void {
+    if (this.openPanels().has(panel)) {
+      this.focusPanel(panel);
+      return;
+    }
+    const group = collectGroups(this.tree()).find((candidate) =>
+      candidate.panels.includes(anchor),
+    );
+    if (!group) {
+      this.openPanel(panel);
+      return;
+    }
+    this._tree.set(insertAtZone(this.tree(), group.id, panel, zone));
   }
 
   /** Ferme un panneau (la vue serveur reste toujours ouverte). */

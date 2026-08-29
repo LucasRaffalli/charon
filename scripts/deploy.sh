@@ -36,7 +36,7 @@ VERSION="$(python3 -c "import json;print(json.load(open('$ROOT/src-tauri/tauri.c
 # On cherche l'installeur DE CETTE VERSION précisément : un reliquat d'une
 # release précédente dans dist-windows/ ferait croire que Windows est prêt, on
 # sauterait le téléchargement, et le manifeste sortirait sans Windows.
-WIN_NAME="charon_${VERSION}_x64-setup.exe"
+WIN_NAME="Charon_${VERSION}_x64-setup.exe"
 WIN_EXE=""
 if [ -f "$ROOT/dist-windows/$WIN_NAME" ]; then
   WIN_EXE="$ROOT/dist-windows/$WIN_NAME"
@@ -87,13 +87,13 @@ if [ -d "$TAP_DIR/.git" ] && [ -n "$(git -C "$TAP_DIR" status --porcelain)" ]; t
 fi
 
 # 6. envoyer manifeste + archive (+ dmg) + page + assets sur le VPS
-# (le fond et les fonts de la page viennent de src/assets — source unique)
+# (le fond vient de site/assets, les fonts de src/assets : source unique)
 echo "Upload vers $VPS_HOST:$VPS_DIR …"
 scp -P "$VPS_PORT" \
   "$ROOT/latest.json" \
   "$ROOT/site/index.html" \
-  "$ROOT/src/assets/png/web_bg.png" \
-  "$ROOT/src/assets/png/web_bg_effect.png" \
+  "$ROOT/site/assets/web_bg.png" \
+  "$ROOT/site/assets/web_bg_effect.png" \
   "$ROOT/src/assets/fonts/Satoshi-400.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-700.woff2" \
   "$ROOT/src/assets/fonts/Satoshi-900.woff2" \

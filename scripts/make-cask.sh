@@ -36,7 +36,7 @@ cask "charon" do
   version "${VERSION}"
   sha256 "${SHA256}"
 
-  url "${PUBLIC_URL}/charon_#{version}_aarch64.dmg"
+  url "${PUBLIC_URL}/Charon_#{version}_aarch64.dmg"
   name "Charon"
   desc "Client SFTP/FTPS/FTP privé pour macOS"
   homepage "${PUBLIC_URL}/"
@@ -45,12 +45,12 @@ cask "charon" do
   auto_updates true
   depends_on arch: :arm64
 
-  app "charon.app"
+  app "Charon.app"
 
   # App non notarisée : sans ça, Gatekeeper affiche « charon est endommagé ».
   postflight do
     system_command "/usr/bin/xattr",
-                   args: ["-cr", "#{appdir}/charon.app"]
+                   args: ["-cr", "#{appdir}/Charon.app"]
   end
 
   uninstall quit: "com.aegis.charon"

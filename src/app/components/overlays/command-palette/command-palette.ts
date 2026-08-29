@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
-import { explainPattern } from '@app/services/workspace/regex-explain';
+import type { RegexExplanation } from '@app/services/workspace/regex-explain';
 import { analysePattern } from '@app/services/workspace/regex-portability';
 import {
   CATEGORY_LABELS,
@@ -142,6 +142,11 @@ export class CommandPalette {
    * comprendre un motif juste qu'à réparer un motif cassé, d'où l'affichage
    * dans les deux cas.
    */
+  /** `explainPattern`, arrivé par chunk paresseux dès que le mode regex est
+   *  posé : 20 Ko de traduction de motifs n'ont rien à faire au démarrage. */
+  private readonly explainFn = signal<((source: string) => RegexExplanation) | null>(null);
+  private explainRequested = false;
+
   protected readonly explanation = computed(() => {
     if (!this.palette.hasOption('regex')) {
       return null;
@@ -150,7 +155,11 @@ export class CommandPalette {
     if (!raw) {
       return null;
     }
-    const report = explainPattern(raw);
+    const explain = this.explainFn();
+    if (!explain) {
+      return null; // le module arrive ; la bulle apparaît à la frappe suivante
+    }
+    const report = explain(raw);
     return report.error || report.plain ? report : null;
   });
 
@@ -231,6 +240,17 @@ export class CommandPalette {
   );
 
   constructor() {
+    // Le module d'explication se charge dès que le mode regex est posé,
+    // une seule fois par vie de l'app.
+    effect(() => {
+      if (this.palette.hasOption('regex') && !this.explainRequested) {
+        this.explainRequested = true;
+        void import('@app/services/workspace/regex-explain').then((module) => {
+          this.explainFn.set(module.explainPattern);
+        });
+      }
+    });
+
     effect(() => {
       if (this.palette.open()) {
         this.selected.set(0);

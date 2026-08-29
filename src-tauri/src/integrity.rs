@@ -11,7 +11,6 @@
 
 use sha2::{Digest, Sha256};
 use tauri::State;
-use tokio::io::AsyncReadExt;
 
 use crate::sftp::{get_connection, ConnectionPool};
 use crate::shell::shell_quote;
@@ -25,23 +24,28 @@ pub async fn local_sha256(path: String) -> Result<String, String> {
     if path.split('/').any(|c| c == "..") {
         return Err("Chemin local refusé.".into());
     }
-    let mut file = tokio::fs::File::open(&path)
-        .await
-        .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
-
-    let mut hasher = Sha256::new();
-    let mut buffer = vec![0_u8; CHUNK];
-    loop {
-        let read = file
-            .read(&mut buffer)
-            .await
+    // Hachage = CPU pur : sur un worker bloquant, sinon il retient un worker
+    // du runtime pendant plusieurs secondes sur un gros fichier et les autres
+    // commandes attendent derrière.
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut file = std::fs::File::open(&path)
             .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
-        if read == 0 {
-            break;
+        let mut hasher = Sha256::new();
+        let mut buffer = vec![0_u8; CHUNK];
+        loop {
+            let read = file
+                .read(&mut buffer)
+                .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+            if read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..read]);
         }
-        hasher.update(&buffer[..read]);
-    }
-    Ok(hex(&hasher.finalize()))
+        Ok(hex(&hasher.finalize()))
+    })
+    .await
+    .map_err(|e| format!("Hachage interrompu : {e}"))?
 }
 
 /// Empreinte sha256 d'un fichier distant, calculée PAR LE SERVEUR.

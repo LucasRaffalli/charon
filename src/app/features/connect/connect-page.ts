@@ -36,9 +36,12 @@ import { ContextMenuService } from '@app/services/workspace/context-menu.service
 import { DialogService } from '@app/services/workspace/dialog.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import { UpdaterService } from '@app/services/system/updater.service';
 import { ToastService } from '@app/services/workspace/toast.service';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
+import { TabBarService } from '@app/services/workspace/tab-bar.service';
+import { windowLabel } from '@app/services/system/window-scope';
 
 const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
 
@@ -47,6 +50,12 @@ const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp:
  * personne n'a envie de revoir trois secondes d'animation à ce moment-là.
  */
 let introPlayed = false;
+
+/** L'ouverture appartient au lancement de l'application : une fenêtre ou un
+ *  onglet secondaire n'est pas un lancement, il arrive déjà éveillé. */
+function introAlreadyOver(): boolean {
+  return introPlayed || windowLabel() !== 'main';
+}
 
 /** Étapes de l'ouverture, dans l'ordre. */
 type BootPhase = 'dark' | 'lit' | 'greeting' | 'flying' | 'ready';
@@ -85,7 +94,12 @@ type Panel = 'form' | 'servers';
   },
 })
 export class ConnectPage implements OnDestroy {
-  protected readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+  private readonly tabBar = inject(TabBarService);
+
+  protected get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
   protected readonly profiles = inject(ProfilesService);
   protected readonly contextMenu = inject(ContextMenuService);
   protected readonly appearance = inject(AppearanceService);
@@ -98,8 +112,8 @@ export class ConnectPage implements OnDestroy {
   private readonly introGlyph = viewChild<ElementRef<HTMLElement>>('introGlyph');
   private readonly headerGlyph = viewChild<ElementRef<HTMLElement>>('headerGlyph');
 
-  protected readonly phase = signal<BootPhase>(introPlayed ? 'ready' : 'dark');
-  protected readonly introDone = signal(introPlayed);
+  protected readonly phase = signal<BootPhase>(introAlreadyOver() ? 'ready' : 'dark');
+  protected readonly introDone = signal(introAlreadyOver());
 
   /**
    * Une mise à jour prête s'annonce dans la pile commune, en toast collant :
@@ -113,6 +127,30 @@ export class ConnectPage implements OnDestroy {
   private readonly updater = inject(UpdaterService);
   private readonly toasts = inject(ToastService);
   protected readonly whatsNew = inject(WhatsNewService);
+
+  /**
+   * Une fenêtre ouverte par « Ouvrir dans une nouvelle fenêtre » se connecte
+   * d'elle-même à son profil : le geste d'ouverture était la demande. Le
+   * profil est consommé côté backend, donc un reload de la fenêtre ne rejoue
+   * pas la connexion, le rattachement s'en charge.
+   */
+  private readonly bootProfile = (async () => {
+    const label = windowLabel();
+    if (label === 'main') {
+      return;
+    }
+    const profileId = await invoke<string | null>('window_boot_profile', { label }).catch(
+      () => null,
+    );
+    if (!profileId) {
+      return;
+    }
+    await this.profiles.load();
+    const profile = this.profiles.profiles().find((p) => p.id === profileId);
+    if (profile) {
+      await this.connectProfile(profile);
+    }
+  })();
 
   private readonly errorToast = effect(() => {
     const message = this.currentError();
@@ -274,7 +312,7 @@ export class ConnectPage implements OnDestroy {
 
   private startIntro(): void {
     this.introStarted = true;
-    if (introPlayed) {
+    if (introAlreadyOver()) {
       return;
     }
     introPlayed = true;
@@ -706,6 +744,17 @@ export class ConnectPage implements OnDestroy {
         label: 'Se connecter',
         icon: 'chevron-right',
         action: () => void this.connectProfile(profile),
+      },
+      {
+        label: 'Ouvrir dans une nouvelle fenêtre',
+        icon: 'monitor',
+        action: () =>
+          void invoke('window_open', { profileId: profile.id }).catch(() => undefined),
+      },
+      {
+        label: 'Ouvrir dans un onglet',
+        icon: 'plus',
+        action: () => this.tabBar.openTab(profile.id),
       },
       { label: 'Modifier…', icon: 'edit', action: () => this.editProfile(profile) },
       { label: 'Renommer…', icon: 'pencil', action: () => void this.renameProfile(profile) },

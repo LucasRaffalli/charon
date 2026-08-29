@@ -8,6 +8,7 @@ const STORAGE_KEY = 'charon:settings';
 const DEFAULT_SETTINGS: Settings = {
   showHidden: false,
   verifyTransfers: false,
+  formatOnSave: true,
   trashDays: 7,
   idleMinutes: 15,
   editorApp: '',
@@ -24,6 +25,7 @@ export class SettingsService {
 
   readonly showHidden = computed(() => this._settings().showHidden);
   readonly verifyTransfers = computed(() => this._settings().verifyTransfers);
+  readonly formatOnSave = computed(() => this._settings().formatOnSave);
   readonly trashDays = computed(() => this._settings().trashDays);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly editorApp = computed(() => this._settings().editorApp);
@@ -52,6 +54,16 @@ export class SettingsService {
     this._panelOpen.set(false);
   }
 
+  /** Une autre fenêtre a changé les réglages : on relit, et on ne pose que
+   *  si quelque chose diffère vraiment (sinon l'écho entre fenêtres
+   *  rebondirait sans fin sur des objets égaux mais jamais identiques). */
+  reloadFromStorage(): void {
+    const stored = this.load();
+    if (JSON.stringify(stored) !== JSON.stringify(this._settings())) {
+      this._settings.set(stored);
+    }
+  }
+
   private load(): Settings {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -63,6 +75,7 @@ export class SettingsService {
       return {
         showHidden: parsed.showHidden ?? DEFAULT_SETTINGS.showHidden,
         verifyTransfers: parsed.verifyTransfers ?? DEFAULT_SETTINGS.verifyTransfers,
+        formatOnSave: parsed.formatOnSave ?? DEFAULT_SETTINGS.formatOnSave,
         // Borné à l'année : une corbeille qu'on ne purge jamais se règle
         // avec 0, pas avec un nombre de jours absurde.
         trashDays: Math.min(365, Math.max(0, parsed.trashDays ?? DEFAULT_SETTINGS.trashDays)),

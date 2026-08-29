@@ -35,7 +35,7 @@ NAME="$(basename "$ARCHIVE")"
 # ou de faire échouer la génération.
 WIN_NAME=""
 WIN_SIGNATURE=""
-WIN_EXE="$DIR/dist-windows/charon_${VERSION}_x64-setup.exe"
+WIN_EXE="$DIR/dist-windows/Charon_${VERSION}_x64-setup.exe"
 if [ -f "$WIN_EXE" ]; then
   if [ ! -f "$WIN_EXE.sig" ]; then
     echo "Attention : signature absente ($WIN_EXE.sig) — Windows exclu de latest.json." >&2

@@ -11,6 +11,15 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::sftp::{get_connection, ConnectionHold, ConnectionPool};
 
+/// Coalescence de la sortie shell/tail : chaque paquet SSH faisait UN event
+/// IPC (des milliers par seconde sur un `cat`), chacun sérialisé puis évalué
+/// par la webview. On accumule et on vide au plus toutes les FLUSH_MS
+/// millisecondes, ou dès FLUSH_BYTES en attente. Ciblé sur la fenêtre
+/// d'origine : diffuser faisait décoder la sortie par les fenêtres qui la
+/// jettent.
+const FLUSH_MS: u64 = 16;
+const FLUSH_BYTES: usize = 64 * 1024;
+
 // ---------- État ----------
 
 /// Un terminal ouvert : la moitié écriture du canal shell
@@ -224,6 +233,17 @@ fn get_shell(registry: &State<'_, ShellRegistry>, id: &str) -> Result<Arc<ShellH
         .ok_or_else(|| format!("Terminal inconnu : {id}"))
 }
 
+
+/// Vide le tampon d'une pompe vers la fenêtre cible, en un seul event.
+fn flush_term(handle: &AppHandle, label: &str, event: &str, id: &str, pending: &mut Vec<u8>) {
+    if pending.is_empty() {
+        return;
+    }
+    let encoded = BASE64.encode(&pending[..]);
+    let _ = handle.emit_to(label, event, TermEvent { id, data: &encoded });
+    pending.clear();
+}
+
 // ---------- Commands ----------
 
 /// Ouvre un shell interactif (PTY xterm-256color) sur la session SSH déjà
@@ -232,6 +252,7 @@ fn get_shell(registry: &State<'_, ShellRegistry>, id: &str) -> Result<Arc<ShellH
 #[tauri::command]
 pub async fn shell_open(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, ConnectionPool>,
     registry: State<'_, ShellRegistry>,
     connection_id: String,
@@ -268,35 +289,35 @@ pub async fn shell_open(
         .unwrap()
         .insert(connection_id.clone(), Arc::new(ShellHandle { write }));
 
-    // Pompe de sortie : chaque paquet du shell part vers le front en base64.
+    // Pompe de sortie, coalescée (voir FLUSH_MS) et ciblée sur la fenêtre.
     let handle = app.clone();
+    let label = window.label().to_string();
     let term_id = connection_id.clone();
     tauri::async_runtime::spawn(async move {
         // Vit aussi longtemps que la pompe : relâché à la fermeture du shell.
         let _hold = hold;
+        let mut pending: Vec<u8> = Vec::new();
         loop {
-            match read.wait().await {
-                Some(ChannelMsg::Data { data }) => {
-                    let encoded = BASE64.encode(&data[..]);
-                    let _ = handle.emit(
-                        "term:data",
-                        TermEvent {
-                            id: &term_id,
-                            data: &encoded,
-                        },
-                    );
+            let msg = if pending.is_empty() {
+                read.wait().await
+            } else {
+                tokio::select! {
+                    msg = read.wait() => msg,
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(FLUSH_MS)) => {
+                        flush_term(&handle, &label, "term:data", &term_id, &mut pending);
+                        continue;
+                    }
                 }
-                Some(ChannelMsg::ExtendedData { data, .. }) => {
-                    let encoded = BASE64.encode(&data[..]);
-                    let _ = handle.emit(
-                        "term:data",
-                        TermEvent {
-                            id: &term_id,
-                            data: &encoded,
-                        },
-                    );
+            };
+            match msg {
+                Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
+                    pending.extend_from_slice(&data);
+                    if pending.len() >= FLUSH_BYTES {
+                        flush_term(&handle, &label, "term:data", &term_id, &mut pending);
+                    }
                 }
                 Some(ChannelMsg::Close) | None => {
+                    flush_term(&handle, &label, "term:data", &term_id, &mut pending);
                     handle
                         .state::<ShellRegistry>()
                         .inner()
@@ -304,7 +325,8 @@ pub async fn shell_open(
                         .lock()
                         .unwrap()
                         .remove(&term_id);
-                    let _ = handle.emit(
+                    let _ = handle.emit_to(
+                        &label,
                         "term:closed",
                         TermEvent {
                             id: &term_id,
@@ -327,6 +349,7 @@ pub async fn shell_open(
 #[tauri::command]
 pub async fn tail_open(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, ConnectionPool>,
     tails: State<'_, TailRegistry>,
     connection_id: String,
@@ -364,23 +387,33 @@ pub async fn tail_open(
         .insert(tail_id.clone(), write);
 
     let handle = app.clone();
+    let label = window.label().to_string();
     let id = tail_id.clone();
     tauri::async_runtime::spawn(async move {
         // Vit aussi longtemps que le suivi : relâché à l'arrêt du tail.
         let _hold = hold;
+        let mut pending: Vec<u8> = Vec::new();
         loop {
-            match read.wait().await {
+            let msg = if pending.is_empty() {
+                read.wait().await
+            } else {
+                tokio::select! {
+                    msg = read.wait() => msg,
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(FLUSH_MS)) => {
+                        flush_term(&handle, &label, "tail:data", &id, &mut pending);
+                        continue;
+                    }
+                }
+            };
+            match msg {
                 Some(ChannelMsg::Data { data }) | Some(ChannelMsg::ExtendedData { data, .. }) => {
-                    let encoded = BASE64.encode(&data[..]);
-                    let _ = handle.emit(
-                        "tail:data",
-                        TermEvent {
-                            id: &id,
-                            data: &encoded,
-                        },
-                    );
+                    pending.extend_from_slice(&data);
+                    if pending.len() >= FLUSH_BYTES {
+                        flush_term(&handle, &label, "tail:data", &id, &mut pending);
+                    }
                 }
                 Some(ChannelMsg::Close) | None => {
+                    flush_term(&handle, &label, "tail:data", &id, &mut pending);
                     handle
                         .state::<TailRegistry>()
                         .inner()
@@ -388,7 +421,7 @@ pub async fn tail_open(
                         .lock()
                         .unwrap()
                         .remove(&id);
-                    let _ = handle.emit("tail:closed", TermEvent { id: &id, data: "" });
+                    let _ = handle.emit_to(&label, "tail:closed", TermEvent { id: &id, data: "" });
                     break;
                 }
                 Some(_) => {}

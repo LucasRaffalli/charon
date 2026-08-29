@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { windowLabel } from '@app/services/system/window-scope';
 import { getVersion } from '@tauri-apps/api/app';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { Update, check } from '@tauri-apps/plugin-updater';
@@ -53,8 +54,12 @@ export class UpdaterService {
 
     // Check auto : au démarrage (différé) puis périodique. Service instancié
     // dès le lancement via app.ts.
-    setTimeout(() => void this.checkForUpdates(true), AUTO_CHECK_DELAY_MS);
-    setInterval(() => void this.checkForUpdates(true), AUTO_CHECK_INTERVAL_MS);
+    // Un seul veilleur par application : N fenêtres feraient N vérifications
+    // pour la même réponse. La vérification MANUELLE reste possible partout.
+    if (windowLabel() === 'main') {
+      setTimeout(() => void this.checkForUpdates(true), AUTO_CHECK_DELAY_MS);
+      setInterval(() => void this.checkForUpdates(true), AUTO_CHECK_INTERVAL_MS);
+    }
   }
 
   /**

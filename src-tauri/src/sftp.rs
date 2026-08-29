@@ -17,8 +17,10 @@ const UNKNOWN_KEY_TAG: &str = "CHARON_UNKNOWN_KEY:";
 pub(crate) const CANCELLED_TAG: &str = "CHARON_CANCELLED";
 /// Taille des chunks de streaming (download et upload).
 pub(crate) const CHUNK_SIZE: usize = 1024 * 1024;
-/// Émettre un event de progression au plus tous les N octets transférés.
-pub(crate) const PROGRESS_STEP: u64 = 512 * 1024;
+/// Émettre la progression au plus toutes les N millisecondes : cadencer sur
+/// le temps borne le débit d'events IPC quel que soit le débit du transfert
+/// (le pas en octets envoyait des centaines d'events par seconde en local).
+pub(crate) const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(100);
 
 // ---------- État partagé ----------
 
@@ -37,6 +39,11 @@ pub struct ActiveConnection {
 impl ActiveConnection {
     fn touch(&self) {
         *self.last_used.lock().unwrap() = std::time::Instant::now();
+    }
+
+    /// `touch` pour les modules voisins (le pont marque ses deux sessions).
+    pub(crate) fn touch_public(&self) {
+        self.touch();
     }
 
     fn idle_for(&self) -> std::time::Duration {
@@ -431,8 +438,11 @@ pub fn connect_cancel(registry: State<'_, ConnectRegistry>, attempt_id: String) 
     }
 }
 
-pub(crate) fn emit_progress(app: &AppHandle, id: &str, transferred: u64, total: u64) {
-    let _ = app.emit(
+/// Cible la fenêtre qui a lancé le transfert : diffuser à toutes les
+/// fenêtres leur faisait sérialiser puis jeter chaque event.
+pub(crate) fn emit_progress(app: &AppHandle, label: &str, id: &str, transferred: u64, total: u64) {
+    let _ = app.emit_to(
+        label,
         "transfer:progress",
         TransferProgress {
             id,
@@ -535,10 +545,13 @@ async fn open_sftp_session(
     auth_method: Option<String>,
 ) -> Result<String, String> {
     // Keepalive : détecte les connexions mortes (~90 s sans réponse) au lieu
-    // de laisser des sessions zombies dans le pool.
+    // de laisser des sessions zombies dans le pool. nodelay coupe Nagle :
+    // sans lui, chaque petit paquet (frappe du terminal, commande SFTP
+    // courte) peut attendre jusqu'à 40 ms avant de partir.
     let config = Arc::new(client::Config {
         keepalive_interval: Some(std::time::Duration::from_secs(30)),
         keepalive_max: 3,
+        nodelay: true,
         ..Default::default()
     });
     let seen_fingerprint = Arc::new(StdMutex::new(None));
@@ -665,7 +678,14 @@ async fn open_sftp_session(
         .map_err(|e| format!("Session SFTP impossible : {e}"))?;
 
     // Stockage dans le pool
-    let connection_id = format!("{user}@{host}:{port}");
+    // `#n` rend l'identifiant unique par session : deux fenêtres sur le même
+    // serveur sont deux sessions, et se déconnecter de l'une ne doit pas
+    // couper l'autre. La partie avant `#` reste la clé stable du serveur
+    // (la reprise de transfert compare sur elle).
+    let connection_id = format!(
+        "{user}@{host}:{port}#{}",
+        SESSION_COUNTER.fetch_add(1, Ordering::Relaxed)
+    );
     pool.0.lock().await.insert(
         connection_id.clone(),
         Arc::new(ActiveConnection {
@@ -885,6 +905,9 @@ pub async fn sftp_remove(
 /// ou boucle côté serveur).
 pub(crate) const MAX_RECURSIVE_ENTRIES: usize = 100_000;
 
+/// Compteur des identifiants de session (voir `sftp_connect`).
+pub(crate) static SESSION_COUNTER: AtomicU64 = AtomicU64::new(1);
+
 /// Supprime récursivement un dossier distant : walk complet d'abord
 /// (fichiers puis dossiers en ordre inverse), suppression ensuite.
 /// Les liens symboliques sont déliés sans être suivis (attrs lstat du
@@ -895,7 +918,32 @@ pub async fn sftp_remove_all(
     connection_id: String,
     path: String,
 ) -> Result<u64, String> {
+    if !path.starts_with('/') || path == "/" || path.split('/').any(|c| c == "..") {
+        return Err(format!("Chemin refusé pour une suppression récursive : {path}"));
+    }
     let conn = get_connection(&pool, &connection_id).await?;
+
+    // Voie rapide : `rm -rf` côté serveur. Le walk SFTP coûte un aller-retour
+    // réseau PAR entrée, en série : un node_modules de 30 000 entrées à 25 ms
+    // de RTT, c'est douze minutes ; la même suppression en une commande exec
+    // prend quelques secondes. Repli sur le walk si l'exec est indisponible
+    // ou si `rm` n'existe pas (exit 127). Un échec réel (droits refusés)
+    // remonte tel quel : le front y lit « permission denied » et propose
+    // l'escalade sudo comme avant.
+    let command = format!("rm -rf -- {}", crate::shell::shell_quote(&path));
+    if let Ok((code, output)) = conn.exec_capture(command, &[]).await {
+        if code == 0 {
+            return Ok(1);
+        }
+        if code != 127 {
+            let detail = output.trim();
+            return Err(if detail.is_empty() {
+                format!("Suppression de {path} impossible (code {code}).")
+            } else {
+                format!("Suppression impossible : {detail}")
+            });
+        }
+    }
 
     let mut to_visit = vec![path];
     let mut dirs: Vec<String> = Vec::new();
@@ -1142,6 +1190,7 @@ pub(crate) const PART_SUFFIX: &str = ".charonpart";
 #[tauri::command]
 pub async fn sftp_download(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, ConnectionPool>,
     registry: State<'_, TransferRegistry>,
     connection_id: String,
@@ -1155,8 +1204,17 @@ pub async fn sftp_download(
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result =
-        stream_download(&app, &conn, &remote_path, &local, &transfer_id, &cancel, resume).await;
+    let result = stream_download(
+        &app,
+        window.label(),
+        &conn,
+        &remote_path,
+        &local,
+        &transfer_id,
+        &cancel,
+        resume,
+    )
+    .await;
     unregister_transfer(&registry, &transfer_id);
 
     // Annulation explicite : le partiel part à la corbeille.
@@ -1170,8 +1228,10 @@ pub async fn sftp_download(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn stream_download(
     app: &AppHandle,
+    label: &str,
     conn: &ActiveConnection,
     remote_path: &str,
     local: &str,
@@ -1193,6 +1253,28 @@ async fn stream_download(
         .ok()
         .and_then(|m| m.size)
         .unwrap_or(0);
+
+    // Voie pipelinée dès que le fichier le mérite : le protocole SFTP
+    // sérialise les READ d'un même handle (≤ 255 Kio par aller-retour chez
+    // OpenSSH), donc un flux unique plafonne à ~10 Mo/s dès 25 ms de RTT,
+    // quelle que soit la bande passante. N handles = N requêtes en vol.
+    // Les uploads, eux, pipelinent déjà côté russh-sftp (write_acks).
+    // Taille inconnue ou petit fichier : la voie séquentielle suffit.
+    if total > offset && total - offset > CHUNK_SIZE as u64 {
+        return pipelined_download(
+            app,
+            label,
+            conn,
+            remote_path,
+            &part,
+            local,
+            transfer_id,
+            cancel,
+            offset,
+            total,
+        )
+        .await;
+    }
 
     let mut remote_file = conn
         .sftp
@@ -1216,8 +1298,8 @@ async fn stream_download(
     };
 
     let mut transferred: u64 = offset;
-    let mut last_emitted: u64 = offset;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    let mut last_emit = std::time::Instant::now();
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
     loop {
@@ -1236,10 +1318,10 @@ async fn stream_download(
             .await
             .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
-        if transferred - last_emitted >= PROGRESS_STEP {
-            last_emitted = transferred;
+        if last_emit.elapsed() >= PROGRESS_EVERY {
+            last_emit = std::time::Instant::now();
             conn.touch(); // un transfert en cours n'est pas une connexion inactive
-            emit_progress(app, transfer_id, transferred, total);
+            emit_progress(app, label, transfer_id, transferred, total);
         }
     }
 
@@ -1250,7 +1332,7 @@ async fn stream_download(
     tokio::fs::rename(&part, local)
         .await
         .map_err(|e| format!("Finalisation de {local} impossible : {e}"))?;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
 }
 
@@ -1259,6 +1341,7 @@ async fn stream_download(
 #[tauri::command]
 pub async fn sftp_upload(
     app: AppHandle,
+    window: tauri::WebviewWindow,
     pool: State<'_, ConnectionPool>,
     registry: State<'_, TransferRegistry>,
     connection_id: String,
@@ -1272,8 +1355,17 @@ pub async fn sftp_upload(
     let conn = get_connection(&pool, &connection_id).await?;
 
     let cancel = register_transfer(&registry, &transfer_id);
-    let result =
-        stream_upload(&app, &conn, &local, &remote_path, &transfer_id, &cancel, resume).await;
+    let result = stream_upload(
+        &app,
+        window.label(),
+        &conn,
+        &local,
+        &remote_path,
+        &transfer_id,
+        &cancel,
+        resume,
+    )
+    .await;
     unregister_transfer(&registry, &transfer_id);
 
     // Annulation explicite : le partiel distant est retiré.
@@ -1290,8 +1382,163 @@ pub async fn sftp_upload(
     result
 }
 
+/// Nombre de handles distants d'un téléchargement pipeliné. Six requêtes en
+/// vol remplissent un lien à 100 ms de RTT sans peser côté serveur.
+const PIPELINE_READERS: usize = 6;
+
+/// Écriture positionnée cross-platform (le fichier n'a pas besoin d'être mut).
+fn write_at_offset(file: &std::fs::File, buf: &[u8], offset: u64) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileExt;
+        file.write_all_at(buf, offset)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::FileExt;
+        let mut written = 0;
+        while written < buf.len() {
+            let n = file.seek_write(&buf[written..], offset + written as u64)?;
+            written += n;
+        }
+        Ok(())
+    }
+}
+
+/// Téléchargement par chunks concurrents : chaque lecteur réclame le chunk
+/// suivant (compteur atomique), le lit sur SON handle distant et l'écrit à sa
+/// position dans le `.charonpart`. En cas d'échec, le partiel est TRONQUÉ à
+/// son préfixe contigu : la reprise (offset = taille du partiel) suppose un
+/// préfixe complet, un fichier à trous la corromprait en silence.
+#[allow(clippy::too_many_arguments)]
+async fn pipelined_download(
+    app: &AppHandle,
+    label: &str,
+    conn: &ActiveConnection,
+    remote_path: &str,
+    part: &str,
+    local: &str,
+    transfer_id: &str,
+    cancel: &AtomicBool,
+    offset: u64,
+    total: u64,
+) -> Result<u64, String> {
+    use futures_util::future::join_all;
+
+    let chunk = CHUNK_SIZE as u64;
+    let n_chunks = ((total - offset) + chunk - 1) / chunk;
+
+    let local_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(offset == 0)
+        .open(part)
+        .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
+
+    let next = AtomicU64::new(0);
+    let transferred = AtomicU64::new(offset);
+    let failed = AtomicBool::new(false);
+    let opened = AtomicUsize::new(0);
+    let done = StdMutex::new(vec![false; n_chunks as usize]);
+    let last_emit = StdMutex::new(std::time::Instant::now());
+
+    emit_progress(app, label, transfer_id, offset, total);
+
+    let workers = (0..PIPELINE_READERS.min(n_chunks as usize)).map(|worker| {
+        let local_file = &local_file;
+        let next = &next;
+        let transferred = &transferred;
+        let failed = &failed;
+        let opened = &opened;
+        let done = &done;
+        let last_emit = &last_emit;
+        async move {
+            let mut file = match conn.sftp.open(remote_path).await {
+                Ok(f) => {
+                    opened.fetch_add(1, Ordering::Relaxed);
+                    f
+                }
+                // Un serveur avare en handles : les lecteurs surnuméraires
+                // s'effacent, le premier doit réussir.
+                Err(e) if worker > 0 => {
+                    let _ = e;
+                    return Ok(());
+                }
+                Err(e) => return Err(format!("Ouverture de {remote_path} impossible : {e}")),
+            };
+            let mut buffer = vec![0u8; CHUNK_SIZE];
+            loop {
+                if cancel.load(Ordering::Relaxed) || failed.load(Ordering::Relaxed) {
+                    return Ok(());
+                }
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                if index >= n_chunks {
+                    return Ok(());
+                }
+                let start = offset + index * chunk;
+                let want = chunk.min(total - start) as usize;
+                file.seek(std::io::SeekFrom::Start(start))
+                    .await
+                    .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
+                let mut got = 0;
+                while got < want {
+                    let read = file
+                        .read(&mut buffer[got..want])
+                        .await
+                        .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
+                    if read == 0 {
+                        return Err(format!(
+                            "{remote_path} a changé pendant le transfert (fin de fichier inattendue)."
+                        ));
+                    }
+                    got += read;
+                }
+                write_at_offset(local_file, &buffer[..want], start)
+                    .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
+                done.lock().unwrap()[index as usize] = true;
+                let so_far = transferred.fetch_add(want as u64, Ordering::Relaxed) + want as u64;
+                let mut stamp = last_emit.lock().unwrap();
+                if stamp.elapsed() >= PROGRESS_EVERY {
+                    *stamp = std::time::Instant::now();
+                    drop(stamp);
+                    conn.touch();
+                    emit_progress(app, label, transfer_id, so_far, total);
+                }
+            }
+        }
+    });
+
+    // Pas de spawn : les lecteurs empruntent tout par référence et sont
+    // pollés de concert — l'I/O multiplexe sur la même session SSH, un seul
+    // task suffit largement.
+    let results = join_all(workers).await;
+    let error = results.into_iter().find_map(|r: Result<(), String>| r.err());
+
+    if cancel.load(Ordering::Relaxed) {
+        return Err(CANCELLED_TAG.into());
+    }
+    if let Some(e) = error {
+        failed.store(true, Ordering::Relaxed);
+        // Tronquer au préfixe contigu : tout ce qui suit un trou est perdu
+        // pour la reprise, mais ce qui précède reste bon.
+        let flags = done.lock().unwrap();
+        let contiguous = flags.iter().take_while(|ok| **ok).count() as u64;
+        let _ = local_file.set_len(offset + contiguous * chunk);
+        return Err(e);
+    }
+
+    drop(local_file);
+    tokio::fs::rename(part, local)
+        .await
+        .map_err(|e| format!("Finalisation de {local} impossible : {e}"))?;
+    emit_progress(app, label, transfer_id, total, total);
+    Ok(total)
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn stream_upload(
     app: &AppHandle,
+    label: &str,
     conn: &ActiveConnection,
     local: &str,
     remote_path: &str,
@@ -1350,8 +1597,8 @@ async fn stream_upload(
     };
 
     let mut transferred: u64 = offset;
-    let mut last_emitted: u64 = offset;
-    emit_progress(app, transfer_id, transferred, total);
+    let mut last_emit = std::time::Instant::now();
+    emit_progress(app, label, transfer_id, transferred, total);
 
     let mut buffer = vec![0u8; CHUNK_SIZE];
     loop {
@@ -1370,10 +1617,10 @@ async fn stream_upload(
             .await
             .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
-        if transferred - last_emitted >= PROGRESS_STEP {
-            last_emitted = transferred;
+        if last_emit.elapsed() >= PROGRESS_EVERY {
+            last_emit = std::time::Instant::now();
             conn.touch(); // un transfert en cours n'est pas une connexion inactive
-            emit_progress(app, transfer_id, transferred, total);
+            emit_progress(app, label, transfer_id, transferred, total);
         }
     }
 
@@ -1389,7 +1636,7 @@ async fn stream_upload(
         .rename(&part, remote_path)
         .await
         .map_err(|e| format!("Finalisation de {remote_path} impossible : {e}"))?;
-    emit_progress(app, transfer_id, transferred, total.max(transferred));
+    emit_progress(app, label, transfer_id, transferred, total.max(transferred));
     Ok(transferred)
 }
 

@@ -132,6 +132,9 @@
 }
 
 .hit {
+  // Jusqu'à 1000 résultats en flux : seul le visible se peint.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 24px;
   display: flex;
   align-items: baseline;
   gap: var(--space-2xs);

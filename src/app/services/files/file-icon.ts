@@ -1,5 +1,5 @@
 import type { IconName } from '@app/components/ui/icon/icon';
-import { languageFor } from '@app/services/files/code-highlight';
+import { languageFor } from '@app/services/files/language-of';
 
 /**
  * Icône par grammaire Prism. Volontairement grossier : quelques familles

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { ConnectionParams, ServerProfile } from '@app/interfaces';
 import { DialogService } from '@app/services/workspace/dialog.service';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 
 /**
  * Flux de connexion partagé (page de connexion, command palette) :
@@ -11,17 +12,22 @@ import { SftpService } from '@app/services/connection/sftp.service';
  */
 @Injectable({ providedIn: 'root' })
 export class ConnectionFlowService {
-  private readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
   private readonly dialog = inject(DialogService);
 
   async connectWithTrust(params: ConnectionParams): Promise<void> {
-    await this.sftp.connect(params);
+    // La session est capturée au DÉBUT du flux : entre l'empreinte montrée
+    // et la confirmation, l'utilisateur a pu changer d'onglet, et relire la
+    // focalisée à ce moment-là relancerait la connexion sur la mauvaise
+    // session.
+    const sftp: SftpService = this.sessionRegistry.focused().sftp;
+    await sftp.connect(params);
 
-    const fingerprint = this.sftp.pendingKey();
+    const fingerprint = sftp.pendingKey();
     if (!fingerprint) {
       return;
     }
-    this.sftp.clearPendingKey();
+    sftp.clearPendingKey();
 
     const trusted = await this.dialog.confirm({
       title: 'Serveur inconnu',
@@ -32,12 +38,12 @@ export class ConnectionFlowService {
       confirmLabel: 'Faire confiance',
     });
     if (trusted) {
-      await this.sftp.connect(params, fingerprint);
+      await sftp.connect(params, fingerprint);
       // Si l'empreinte a changé entre la confirmation et la relance,
       // on abandonne : c'est le signe d'une usurpation en cours.
-      if (this.sftp.pendingKey()) {
-        this.sftp.clearPendingKey();
-        this.sftp.reportError(
+      if (sftp.pendingKey()) {
+        sftp.clearPendingKey();
+        sftp.reportError(
           'La clé du serveur a changé entre deux tentatives : connexion abandonnée par prudence.',
         );
       }

@@ -1,0 +1,67 @@
+<div class="bar" data-tauri-drag-region role="tablist" aria-label="Sessions">
+  @for (tab of tabBar.tabs(); track trackOf(tab)) {
+    @if (tab.kind === 'single') {
+      <button
+        type="button"
+        class="tab"
+        role="tab"
+        [class.tab--active]="tab.segment.active"
+        [attr.aria-selected]="tab.segment.active"
+        [title]="tab.segment.title"
+        (click)="tabBar.activate(tab.segment.id)"
+        (auxclick)="onAuxClick($event, tab.segment.id)"
+        (contextmenu)="onTabMenu($event, tab.segment)"
+      >
+        <span class="tab__title">{{ tab.segment.title }}</span>
+        @if (tab.segment.env === 'prod') {
+          <span class="tab__env">PROD</span>
+        }
+        <span
+          class="tab__close"
+          role="button"
+          tabindex="-1"
+          [attr.aria-label]="'Fermer ' + tab.segment.title"
+          (click)="close($event, tab.segment.id)"
+        >
+          <app-icon name="close" [size]="12" />
+        </span>
+      </button>
+    } @else {
+      <div
+        class="tab tab--duo"
+        role="tab"
+        [class.tab--active]="tab.active"
+        [attr.aria-selected]="tab.active"
+      >
+        @for (segment of tab.segments; track segment.id) {
+          <button
+            type="button"
+            class="seg"
+            [title]="segment.title"
+            (click)="tabBar.activate(segment.id)"
+            (auxclick)="onAuxClick($event, segment.id)"
+            (contextmenu)="onSegmentMenu($event, segment)"
+          >
+            <span class="tdot" [style.background]="'var(--session-' + segment.tone + ')'"></span>
+            <span class="tab__title">{{ segment.title }}</span>
+            @if (segment.env === 'prod') {
+              <span class="tab__env">PROD</span>
+            }
+            <span
+              class="tab__close"
+              role="button"
+              tabindex="-1"
+              [attr.aria-label]="'Fermer ' + segment.title"
+              (click)="close($event, segment.id)"
+            >
+              <app-icon name="close" [size]="12" />
+            </span>
+          </button>
+        }
+      </div>
+    }
+  }
+  <button type="button" class="bar__new" aria-label="Nouvelle session" (click)="tabBar.openTab()">
+    <app-icon name="plus" [size]="14" />
+  </button>
+</div>

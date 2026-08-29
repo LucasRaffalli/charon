@@ -41,58 +41,6 @@
   }
 }
 
-// --- En-tête du panneau serveur : bouton parent + fil d'Ariane ---
-
-.explorer__server-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  flex-shrink: 0;
-  padding: 4px var(--space-xs) 2px;
-}
-
-.explorer__breadcrumb {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: calc(12.5px * var(--text-scale));
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.crumb {
-  padding: 4px 6px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  white-space: nowrap;
-
-  &:hover:not(:disabled) {
-    background: var(--state-hover);
-    color: var(--text);
-  }
-
-  &--current {
-    color: var(--text);
-    font-weight: 600;
-    cursor: default;
-  }
-}
-
-.crumb__sep {
-  flex-shrink: 0;
-  color: var(--text-faint);
-}
-
 // Chip garde-fou (lecture seule / confirmation renforcée).
 .explorer__guard {
   display: inline-flex;
@@ -305,6 +253,7 @@
 
 // Wrapper d'un panneau dockable (déplacé dans un slot du dock).
 .explorer__panel {
+  position: relative;
   height: 100%;
   overflow: hidden;
 
@@ -352,145 +301,80 @@
   flex-direction: column;
   height: 100%;
   min-width: 0;
+
+  // Vue double : deux panneaux serveur côte à côte, la gouttière du thème
+  // entre les deux. Chaque pane porte sa colonne (voir server-pane.scss).
+  &--split {
+    flex-direction: row;
+    gap: var(--space-2xs);
+  }
 }
 
-.explorer__alert {
-  display: block;
-  margin: var(--space-xs) var(--space-sm) 0;
+// Les fentes des terminaux : chaque panneau (Terminal, Terminal 2) en a une,
+// le déménageur y pose les cellules. La pouponnière ne montre jamais rien.
+.explorer__terms {
+  height: 100%;
 }
 
-// --- Liste des fichiers du serveur ---
-
-.explorer__list {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  flex: 1;
-  margin: 0;
-  padding: var(--space-xs);
-  list-style: none;
-  overflow-y: auto;
+.explorer__terms-nursery {
+  display: none;
 }
 
-.explorer__row {
+.term-cell {
   position: relative;
+  height: 100%;
 
-  &:hover .entry__action,
-  .entry__action:focus-visible {
-    opacity: 1;
+  > app-terminal-pane {
+    display: block;
+    height: 100%;
+  }
+
+  // Le voile de coin : la couleur de la session fondue depuis le haut droit,
+  // le nom posé dedans. Le terminal est toujours sombre, la couleur du texte
+  // est fixe à dessein.
+  > .pane-tag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 5;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 4px 10px 14px 36px;
+    color: #f5f8fb;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    font-size: calc(10.5px * var(--text-scale));
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    pointer-events: none;
   }
 }
 
-.entry {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
-  padding: 7px 44px 7px 10px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text);
-  text-align: left;
-
-  &:hover {
-    background: var(--state-hover);
-  }
-
-  &--dir {
-    cursor: pointer;
-
-    .entry__icon {
-      color: var(--accent);
-    }
+@keyframes pane-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
   }
 }
 
-.entry__icon {
-  flex-shrink: 0;
-  color: var(--text-faint);
+// La bascule d'onglet : un fondu court, rejoué par explorer-page quand les
+// sessions affichées changent. La liste, le terminal, l'aperçu arrivent déjà
+// peuplés (leurs signaux sont par session), l'animation ne fait qu'adoucir.
+.explorer__body--switch {
+  animation: session-switch 0.18s ease;
 }
 
-.entry__name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.entry__size {
-  color: var(--text-muted);
-  font-size: calc(12px * var(--text-scale));
-  font-variant-numeric: tabular-nums;
-}
-
-.entry__action {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  display: grid;
-  place-items: center;
-  padding: 5px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: var(--surface-active);
-  color: var(--text);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-
-  &:hover {
-    background: var(--accent-solid);
-    color: var(--on-accent);
+@keyframes session-switch {
+  from {
+    opacity: 0.35;
+    transform: translateY(4px);
   }
 }
 
-.explorer__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  margin: auto;
-  padding: var(--space-xl);
-  color: var(--text-faint);
-}
-
-
-
-// Overlay du glisser-déposer : couvre uniquement le container serveur.
-.explorer__main {
-  position: relative;
-}
-
-.explorer__dropzone {
-  position: absolute;
-  inset: 0;
-  z-index: 95;
-  display: grid;
-  place-items: center;
-  padding: var(--space-lg);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border: 2px dashed var(--accent);
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.explorer__dropzone-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-lg) var(--space-xl, 32px);
-  color: var(--accent);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-
-  p {
-    font-size: calc(13px * var(--text-scale));
-    color: var(--text);
+@media (prefers-reduced-motion: reduce) {
+  .explorer__body--switch {
+    animation: none;
   }
 }
 
@@ -521,123 +405,13 @@
 // donc pas de masque monochrome).
 :host-context([data-accent='unicorn']) .explorer--logo::before {
   background-color: transparent;
-  background-image: url('/assets/png/unicorn.png');
+  background-image: url('/assets/png/unicorn.webp');
   background-repeat: no-repeat;
   background-position: center;
   background-size: min(46vmin, 500px);
   opacity: 0.16;
   -webkit-mask: none;
   mask: none;
-}
-
-// Filtre du listing serveur : il vit DANS l'en-tête, déplié depuis
-// l'entonnoir, à largeur contenue. Le fil d'Ariane (flex: 1, min-width: 0)
-// cède la place sans que le champ traverse tout le panneau. Le fermer vide le
-// filtre : jamais de liste réduite par un filtre invisible.
-.explorer__filter {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--space-2xs);
-  animation: filter-unfold 0.16s ease;
-}
-
-.explorer__filter-field {
-  // Assez pour un nom de fichier, jamais toute la largeur du panneau.
-  width: clamp(120px, 20vw, 200px);
-}
-
-@keyframes filter-unfold {
-  from {
-    opacity: 0;
-    transform: translateX(8px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .explorer__filter {
-    animation: none;
-  }
-}
-
-// L'entonnoir de l'en-tête : allumé tant que la rangée est ouverte.
-.explorer__filter-toggle {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-left: auto;
-  flex: none;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: none;
-  color: var(--text-faint);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--state-hover);
-    color: var(--text);
-  }
-
-  &--on {
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
-  }
-}
-
-.explorer__filter-count {
-  flex: none;
-  font-size: calc(10.5px * var(--text-scale));
-  color: var(--text-faint);
-  font-variant-numeric: tabular-nums;
-}
-
-.explorer__filter-field {
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--field-bg, var(--bg));
-  color: var(--text);
-  font-family: inherit;
-  font-size: calc(11.5px * var(--text-scale));
-
-  &::placeholder {
-    color: var(--text-faint);
-  }
-
-  &:focus-visible {
-    outline: none;
-    border-color: var(--accent);
-  }
-}
-
-// Ligne sélectionnée : le voile d'état teinté par l'accent, comme partout.
-.explorer__row--picked .entry {
-  background: var(--state-selected);
-}
-
-// Éléments coupés, en attente de collage : présents mais déjà partis.
-.explorer__row--cut .entry {
-  opacity: 0.45;
-}
-
-// Dossier survolé par un glisser : la cible du dépôt se voit avant de lâcher.
-.explorer__row--drop .entry {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  outline: 1px solid var(--accent);
-  outline-offset: -1px;
-}
-
-// Permissions dans la liste : discrètes, mais une colonne suffit pour repérer
-// un 777 qui traîne.
-.entry__mode {
-  flex: none;
-  min-width: 30px;
-  font-size: calc(10.5px * var(--text-scale));
-  color: var(--text-faint);
-  text-align: right;
 }
 
 // L'étiquette qui suit le curseur pendant un glissé : sans elle, le geste ne
@@ -655,4 +429,10 @@
   white-space: nowrap;
   pointer-events: none;
   box-shadow: var(--shadow-md);
+}
+
+/* Un terminal d'une session non focalisée reste monté (xterm et scrollback
+   vivants), simplement masqué : la bascule d'onglet ne détruit rien. */
+.term-cell.pane-off {
+  display: none !important;
 }

@@ -22,15 +22,14 @@
           "builder": "@angular/build:application",
           "options": {
             "browser": "src/main.ts",
-            "polyfills": [
-              "zone.js"
-            ],
+            "polyfills": [],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
                 "input": "src/assets",
+                "ignore": ["changelog.json"],
                 "output": "assets"
               }
             ],
@@ -51,8 +50,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "1500kB",
-                  "maximumError": "3mb"
+                  "maximumWarning": "750kB",
+                  "maximumError": "1mb"
                 },
                 {
                   "type": "anyComponentStyle",

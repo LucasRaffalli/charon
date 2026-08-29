@@ -32,8 +32,8 @@
   }
 
   <div class="scroll" #scroller (scroll)="onScroll()">
-    @for (line of visibleLines(); track $index) {
-      <div class="line">{{ line }}</div>
+    @for (line of visibleLines(); track line.seq) {
+      <div class="line">{{ line.text }}</div>
     } @empty {
       <p class="notice">
         {{ filter() ? 'Aucune ligne ne correspond au filtre.' : 'En attente de contenu…' }}

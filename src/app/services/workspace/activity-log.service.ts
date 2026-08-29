@@ -1,10 +1,17 @@
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, effect, inject, signal, untracked } from '@angular/core';
+import { scopedKey } from '@app/services/system/window-scope';
 
 import { ActivityEntry, ActivityKind } from '@app/interfaces';
+import { SESSION_ID } from '@app/services/connection/session-token';
 
-const STORAGE_KEY = 'charon:journal';
+// Par fenêtre : voir scopedKey. Ce qui appartient à une session ne doit
+// pas être écrasé par la fenêtre d'à côté.
+const STORAGE_KEY = scopedKey('charon:journal');
 /** Nombre maximal d'entrées conservées. */
 const MAX_ENTRIES = 500;
+
+/** Identités des entrées : monotone sur la vie de la fenêtre. */
+let NEXT_ENTRY = 1;
 
 /**
  * Journal d'activité local : chaque opération horodatée (connexions,
@@ -26,8 +33,14 @@ export class ActivityLogService {
   readonly entries = this._entries.asReadonly();
 
   constructor() {
-    effect(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this._entries()));
+    // Persistance débouncée : 500 entrées re-sérialisées à chaque action,
+    // c'était payer un JSON.stringify complet par mkdir ou par renommage.
+    effect((onCleanup) => {
+      this._entries(); // la dépendance ; la sérialisation attend le calme
+      const handle = setTimeout(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(untracked(() => this._entries())));
+      }, 300);
+      onCleanup(() => clearTimeout(handle));
     });
   }
 
@@ -37,8 +50,18 @@ export class ActivityLogService {
     target: string,
     detail: string | null = null,
     ok = true,
+    session: string | null = null,
   ): void {
-    const entry: ActivityEntry = { at: Date.now(), kind, scope, target, detail, ok };
+    const entry: ActivityEntry = {
+      id: NEXT_ENTRY++,
+      at: Date.now(),
+      kind,
+      scope,
+      target,
+      detail,
+      ok,
+      session,
+    };
     this._entries.update((list) => [entry, ...list].slice(0, MAX_ENTRIES));
   }
 
@@ -51,10 +74,15 @@ export class ActivityLogService {
    * écartés : le bilan répond à « qu'est-ce que j'ai changé », pas à « qu'ai-je
    * fait ».
    */
-  since(at: number): SessionTally[] {
+  since(at: number, session: string | null = null): SessionTally[] {
     const counted = new Map<ActivityKind, { count: number; sample: string }>();
     for (const entry of this._entries()) {
       if (entry.at < at || !entry.ok) {
+        continue;
+      }
+      // Le bilan d'une session ne compte que ce qu'elle a fait elle-même :
+      // sans ce filtre, débarquer du serveur A raconterait aussi le B.
+      if (session && entry.session !== session) {
         continue;
       }
       if (entry.kind === 'connect' || entry.kind === 'disconnect' || entry.kind === 'anchor') {
@@ -90,9 +118,27 @@ export class ActivityLogService {
   private load(): ActivityEntry[] {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? (JSON.parse(raw) as ActivityEntry[]) : [];
+      const entries = raw ? (JSON.parse(raw) as ActivityEntry[]) : [];
+      // Les entrées d'une session précédente reçoivent une identité neuve.
+      return entries.map((entry) => ({ ...entry, id: NEXT_ENTRY++ }));
     } catch {
       return [];
     }
   }
+}
+
+/**
+ * Le journal vu depuis une session : même instance racine, mais chaque
+ * entrée écrite porte l'identité de la session appelante. Les services de
+ * session remplacent leur `inject(ActivityLogService)` par ce helper et
+ * aucun site d'appel ne change ; hors session (panneau local), le tag
+ * reste nul.
+ */
+export function injectSessionActivity(): { log: ActivityLogService['log'] } {
+  const root = inject(ActivityLogService);
+  const session = inject(SESSION_ID, { optional: true });
+  return {
+    log: (kind, scope, target, detail = null, ok = true) =>
+      root.log(kind, scope, target, detail, ok, session),
+  };
 }

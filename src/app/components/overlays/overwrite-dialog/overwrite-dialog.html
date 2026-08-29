@@ -39,7 +39,7 @@
           <span class="meta__val data">{{ request.remote.size | fileSize }}</span>
           <span class="meta__val" [class.meta__val--warn]="request.remoteNewer">
             @if (ms(request.remote.mtime); as t) {
-              modifié le {{ t | date: 'dd/MM/yy HH:mm' }}
+              modifié le {{ stamp(t) }}
             } @else {
               date inconnue
             }
@@ -53,7 +53,7 @@
           <span class="meta__val data">{{ request.local.size | fileSize }}</span>
           <span class="meta__val">
             @if (ms(request.local.mtime); as t) {
-              modifié le {{ t | date: 'dd/MM/yy HH:mm' }}
+              modifié le {{ stamp(t) }}
             } @else {
               date inconnue
             }

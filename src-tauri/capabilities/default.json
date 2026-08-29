@@ -3,10 +3,12 @@
   "identifier": "default",
   "description": "Capabilités par défaut de Charon",
   "windows": [
-    "main"
+    "main",
+    "w*"
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-set-title",
     "opener:default",
     "store:default",
     "updater:default",

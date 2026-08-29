@@ -6,7 +6,7 @@
   ></div>
 
   <!-- Corps : dock librement réagençable (drag d'onglets + resize) -->
-  <div class="explorer__body">
+  <div class="explorer__body" #stageBody>
     <app-dock />
   </div>
 
@@ -40,175 +40,28 @@
       <app-server-tree />
     </div>
 
-    <section class="explorer__panel explorer__main" data-dock-panel="server" [hidden]="!dock.activePanels().has('server')" #serverZone>
-      <header class="explorer__server-head">
-        <app-button
-          variant="ghost"
-          iconOnly
-          title="Dossier parent"
-          [disabled]="sftp.atRoot() || sftp.loading()"
-          (click)="sftp.navigateUp()"
-        >
-          <app-icon name="corner-up" [size]="14" />
-        </app-button>
-
-        <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
-          <button
-            type="button"
-            class="crumb"
-            [class.crumb--current]="sftp.atRoot()"
-            [disabled]="sftp.atRoot()"
-            data-crumb="/"
-            (click)="sftp.listDir('/')"
-          >
-            /
-          </button>
-          @for (segment of sftp.breadcrumb(); track segment.path) {
-            <app-icon class="crumb__sep" name="chevron-right" [size]="13" />
-            <button
-              type="button"
-              class="crumb"
-              [class.crumb--current]="$last"
-              [disabled]="$last"
-              [attr.data-crumb]="segment.path"
-              (click)="sftp.listDir(segment.path)"
-            >
-              {{ segment.name }}
-            </button>
-          }
-        </nav>
-
-        @if (serverFilterOpen()) {
-          <div class="explorer__filter">
-            <input
-              #serverFilter
-              class="explorer__filter-field"
-              type="text"
-              placeholder="Filtrer"
-              aria-label="Filtrer le dossier serveur"
-              [value]="sftp.filter()"
-              (input)="sftp.filter.set(serverFilter.value)"
-              (keydown.escape)="onServerFilterEscape()"
-            />
-            @if (serverFilterActive()) {
-              <span class="explorer__filter-count data" role="status">{{ serverFilterCount() }}</span>
-            }
-            <app-segmented-control
-              variant="chip"
-              [options]="kindOptions"
-              [value]="sftp.kindFilter()"
-              (valueChange)="onKindFilter($event)"
-              ariaLabel="Filtrer par nature"
-            />
-          </div>
-        }
-
-        <button
-          type="button"
-          class="explorer__filter-toggle"
-          [class.explorer__filter-toggle--on]="serverFilterOpen()"
-          [attr.aria-expanded]="serverFilterOpen()"
-          title="Filtrer ce dossier"
-          aria-label="Filtrer ce dossier"
-          (click)="toggleServerFilter()"
-        >
-          <app-icon name="funnel" [size]="14" />
-        </button>
-      </header>
-
-      @if (sftp.error(); as error) {
-        <app-alert class="explorer__alert" variant="error">{{ error }}</app-alert>
-      }
-
-
-      <ul
-        class="explorer__list"
-        (contextmenu)="openServerAreaMenu($event)"
-        (click)="onListClick($event)"
-        (keydown)="onServerKeydown($event)"
-      >
-        @for (entry of serverEntries(); track entry.name) {
-          <li
-            class="explorer__row"
-            [class.explorer__row--picked]="sftp.isSelected(entry.name)"
-            [class.explorer__row--cut]="clipboard.cutNames().has(entry.name)"
-            [class.explorer__row--drop]="dropTargetDir() === entry.name"
-            [attr.data-entry]="entry.name"
-            [attr.data-dir]="entry.isDir"
-            (pointerdown)="onEntryPointerDown($event, entry)"
-            (contextmenu)="openServerEntryMenu($event, entry)"
-          >
-            <button
-              type="button"
-              class="entry"
-              [class.entry--dir]="entry.isDir"
-              [attr.aria-selected]="sftp.isSelected(entry.name)"
-              (click)="onServerClick($event, entry)"
-              (dblclick)="open(entry)"
-              (keyup.enter)="open(entry)"
-            >
-              <app-icon class="entry__icon" [name]="entry.isDir ? 'folder' : 'file'" [size]="17" />
-              <span class="entry__name">{{ entry.name }}</span>
-              @if (entry.mode !== undefined) {
-                <span class="entry__mode data" [title]="modeTitle(entry)">{{ modeOf(entry) }}</span>
-              }
-              <span class="entry__size data">{{ entry.isDir ? '–' : (entry.size | fileSize) }}</span>
-            </button>
-            @if (!entry.isDir) {
-              <button
-                type="button"
-                class="entry__action"
-                title="Télécharger dans le dossier local courant"
-                [attr.aria-label]="'Télécharger : ' + entry.name"
-                (click)="download(entry)"
-              >
-                <app-icon name="download" [size]="15" />
-              </button>
-            }
-          </li>
-        } @empty {
-          <li class="explorer__empty">
-            <app-icon name="folder" [size]="30" />
-            @if (serverFilterActive()) {
-              <p>Rien ne correspond au filtre</p>
-            } @else {
-              <p>Dossier vide</p>
-            }
-          </li>
-        }
-      </ul>
-
-      @if (sftp.hasSelection()) {
-        <app-selection-bar
-          [count]="sftp.selectionCount()"
-          [fileCount]="selectedFileCount()"
-          [writable]="sftp.protection() !== 'readonly'"
-          (clear)="sftp.clearSelection()"
-          (download)="downloadSelection()"
-          (copy)="clipboard.copy(sftp.selectedEntries())"
-          (remove)="deleteSelection()"
+    <section
+      class="explorer__panel explorer__main"
+      data-dock-panel="server"
+      [hidden]="!dock.activePanels().has('server')"
+      [class.explorer__main--split]="sessionRegistry.displayed().length > 1"
+    >
+      @for (session of sessionRegistry.displayed(); track session.id) {
+        <app-server-pane
+          [session]="session"
+          [class.server-pane--focused]="
+            sessionRegistry.displayed().length > 1 && session === sessionRegistry.focused()
+          "
         />
-      }
-
-      @if (dragLabel(); as label) {
-        <span class="draglabel" [style.left.px]="label.x" [style.top.px]="label.y">
-          {{ label.text }}
-        </span>
-      }
-
-      @if (dropActive()) {
-        <div class="explorer__dropzone" aria-hidden="true">
-          <div class="explorer__dropzone-card">
-            <app-icon name="upload" [size]="28" />
-            <p>
-              Déposer pour envoyer vers <strong>{{ sftp.currentPath() }}</strong>
-            </p>
-          </div>
-        </div>
       }
     </section>
 
     <div class="explorer__panel" data-dock-panel="preview" [hidden]="!dock.activePanels().has('preview')">
+      @if (sessionRegistry.displayed().length > 1) {
+        <!-- L'origine du CONTENU, pas le focus : l'aperçu vient d'où le
+             fichier a été ouvert. -->
+        <app-session-tag [session]="sessionRegistry.previewOwner()" />
+      }
       @if (preview.open()) {
         <app-preview-panel />
       } @else {
@@ -232,18 +85,50 @@
     </div>
 
     <div class="explorer__panel" data-dock-panel="trash" [hidden]="!dock.activePanels().has('trash')">
+      @if (sessionRegistry.displayed().length > 1) {
+        <app-session-tag [session]="sessionRegistry.focused()" />
+      }
       <app-trash-pane />
     </div>
     <div class="explorer__panel" data-dock-panel="search" [hidden]="!dock.activePanels().has('search')">
+      @if (sessionRegistry.displayed().length > 1) {
+        <app-session-tag [session]="sessionRegistry.focused()" />
+      }
       <app-search-pane />
     </div>
     <div class="explorer__panel" data-dock-panel="logs" [hidden]="!dock.activePanels().has('logs')">
+      @if (sessionRegistry.displayed().length > 1) {
+        <app-session-tag [session]="sessionRegistry.focused()" />
+      }
       <app-log-pane />
+    </div>
+
+    <div class="explorer__panel" data-dock-panel="terminal2" [hidden]="!dock.activePanels().has('terminal2')">
+      <div class="explorer__terms" #termSlotB></div>
     </div>
 
     <div class="explorer__panel" data-dock-panel="terminal" [hidden]="!dock.activePanels().has('terminal')">
       @if (terminalReady()) {
-        <app-terminal-pane />
+        <div class="explorer__terms" #termSlotA></div>
+        <!--
+          Pouponnière : les cellules de terminal naissent ici puis sont
+          DÉPLACÉES (appendChild) vers la fente A ou la fente Terminal 2,
+          jamais recréées, xterm et scrollback survivent aux allers-retours.
+        -->
+        <div class="explorer__terms-nursery" #termNursery aria-hidden="true">
+          @for (session of sessionRegistry.sessions(); track session.id) {
+            @if (session.sftp.connected() && session.sftp.protocol() === 'sftp') {
+              <div class="term-cell" [attr.data-term-session]="session.id">
+                @if (sessionRegistry.displayed().length > 1) {
+                  <span class="pane-tag" [style.background]="sessionWash(session)">
+                    {{ sessionTitle(session) }}
+                  </span>
+                }
+                <app-terminal-pane [session]="session" />
+              </div>
+            }
+          }
+        </div>
       } @else {
         <div class="explorer__panel-empty">
           <app-icon name="terminal" [size]="26" />
@@ -306,9 +191,9 @@
 
     <span class="explorer__status-spacer"></span>
 
-    @if (dock.closedPanels().length > 0) {
+    @if (visibleClosedPanels().length > 0) {
       <span class="explorer__status-closed">
-        @for (panel of dock.closedPanels(); track panel) {
+        @for (panel of visibleClosedPanels(); track panel) {
           <button
             type="button"
             class="explorer__status-btn"
@@ -335,6 +220,12 @@
       }
     </button>
   </footer>
+
+  @if (foreignLabel(); as label) {
+    <span class="draglabel" [style.left.px]="label.x" [style.top.px]="label.y">
+      {{ label.text }}
+    </span>
+  }
 
   <app-remote-edit-bar />
 </div>

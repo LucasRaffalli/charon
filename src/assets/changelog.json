@@ -1,9 +1,81 @@
 [
   {
     "version": "1.2.0",
-    "date": "2026-08-27",
-    "title": "L'atelier, repensé",
+    "date": "2026-08-29",
+    "title": "Légion",
     "notes": [
+      {
+        "kind": "new",
+        "text": "Plusieurs serveurs dans une même fenêtre : chaque session vit dans son onglet, et les transferts d'un onglet en veille continuent de courir",
+        "how": "⌘T ouvre un onglet (écran de connexion), ou clic droit sur un profil → « Ouvrir dans un onglet ». ⌘⌥→ / ⌘⌥← circulent, ⌘W ferme l'onglet avec son bilan de session."
+      },
+      {
+        "kind": "new",
+        "text": "La vue double : deux serveurs côte à côte, chacun avec son terminal, et le glissé de fichiers qui traverse directement d'un panneau à l'autre",
+        "how": "Clic droit sur un onglet → « Côte à côte avec… ». Les deux sessions fusionnent en un seul onglet à segments ; clic droit sur un segment → « Séparer les onglets »."
+      },
+      {
+        "kind": "new",
+        "text": "Le pont entre serveurs : copier, couper, coller et glisser des fichiers d'un serveur à l'autre, en flux direct, sans jamais toucher le disque local",
+        "how": "⌘C sur un serveur, ⌘V sur l'autre, ou glisse simplement le fichier d'un panneau à l'autre. Sur le même serveur, la copie est instantanée."
+      },
+      {
+        "kind": "new",
+        "text": "Les fenêtres multiples : une seconde fenêtre complète, le glissé qui traverse de l'une à l'autre, et thème, réglages, profils et modules synchronisés partout",
+        "how": "⌘N, puis attrape un fichier et dépose-le dans l'autre fenêtre : l'étiquette te suit, la ligne visée s'allume."
+      },
+      {
+        "kind": "new",
+        "text": "L'aperçu devient un éditeur : des onglets de fichiers, un en-tête qui dit tout (taille, âge, permissions), des numéros de ligne et les actions à portée de clic",
+        "how": "Double-clique plusieurs fichiers : chacun garde son onglet. Le point ambré signale les modifications non enregistrées."
+      },
+      {
+        "kind": "new",
+        "text": "Comparer un fichier entre deux serveurs : le diff côte à côte, directement dans l'aperçu",
+        "how": "Fichier ouvert → « Comparer » → clique le fichier cible dans n'importe quel panneau serveur. Échap annule."
+      },
+      {
+        "kind": "new",
+        "text": "Prettier à l'enregistrement : le code se formate tout seul quand tu enregistres depuis l'aperçu (JS/TS, JSON, CSS, HTML, Markdown, YAML)",
+        "how": "Réglages → Fichiers → « Formater à l'enregistrement ». Une erreur de syntaxe n'empêche jamais d'enregistrer."
+      },
+      {
+        "kind": "new",
+        "text": "Des couleurs d'identité par session : l'onglet, le panneau serveur, le terminal et les lignes de transferts d'une même session portent la même couleur",
+        "how": "Ouvre deux onglets : pastilles et voiles de coin apparaissent d'eux-mêmes."
+      },
+      {
+        "kind": "better",
+        "text": "Téléchargements SFTP nettement plus rapides sur les serveurs distants : les lectures partent en parallèle au lieu d'attendre chacune son aller-retour réseau"
+      },
+      {
+        "kind": "better",
+        "text": "Supprimer un gros dossier distant prend quelques secondes au lieu de plusieurs minutes, même sur des milliers d'entrées"
+      },
+      {
+        "kind": "better",
+        "text": "L'application pèse deux fois moins lourd et l'interface gagne en fluidité : terminal plus réactif, grands dossiers et longs journaux rendus sans à-coups"
+      },
+      {
+        "kind": "better",
+        "text": "En vue double, le second terminal est un panneau à part entière, déplaçable et redimensionnable où tu veux dans le dock"
+      },
+      {
+        "kind": "better",
+        "text": "Recharger la fenêtre restaure tous les onglets, la vue double et le focus : chaque session se rattache à sa connexion, restée vivante"
+      },
+      {
+        "kind": "better",
+        "text": "Les images de l'aperçu : zoom, dimensions réelles, damier sous la transparence ; un binaire propose Télécharger au lieu d'un refus"
+      },
+      {
+        "kind": "better",
+        "text": "Les boutons de barre replient leur libellé quand la place manque : icône + infobulle, fini les libellés tronqués"
+      },
+      {
+        "kind": "better",
+        "text": "Au lancement, une seule fenêtre, toujours : rien ne rouvre tout seul, ouvrir une seconde fenêtre reste un geste explicite"
+      },
       {
         "kind": "new",
         "text": "Thèmes et accents séparés : le thème porte les gris et les niveaux, l'accent porte la couleur, et les deux se combinent librement",

@@ -1,9 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
 
 import { ServerProfile } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { windowLabel } from '@app/services/system/window-scope';
 
 /** Profils de serveurs enregistrés. Les secrets vivent dans le trousseau macOS, côté Rust. */
 @Injectable({ providedIn: 'root' })
@@ -16,6 +18,24 @@ export class ProfilesService {
 
   readonly profiles = this._profiles.asReadonly();
   readonly error = this._error.asReadonly();
+
+  constructor() {
+    // Un profil créé, modifié ou supprimé dans une autre fenêtre doit se voir
+    // ici : écran de connexion, palette et menus lisent cette liste. Le store
+    // backend est la source de vérité, l'événement ne dit que « relis ».
+    void listen<{ origin: string }>('flotte:profiles-changed', ({ payload }) => {
+      if (payload.origin !== windowLabel()) {
+        void this.load();
+      }
+    });
+  }
+
+  /** Prévient les autres fenêtres après une écriture réussie. */
+  private announce(): void {
+    if (this._error() === null) {
+      void emit('flotte:profiles-changed', { origin: windowLabel() }).catch(() => undefined);
+    }
+  }
 
   async load(): Promise<void> {
     await this.run(async () => {
@@ -38,6 +58,7 @@ export class ProfilesService {
         await invoke<ServerProfile[]>('profile_save', { profile, secret, migrateSecretFrom }),
       );
     });
+    this.announce();
   }
 
   /**
@@ -91,6 +112,7 @@ export class ProfilesService {
     await this.run(async () => {
       this._profiles.set(await invoke<ServerProfile[]>('profile_delete', { id }));
     });
+    this.announce();
   }
 
   private async run(operation: () => Promise<void>): Promise<void> {

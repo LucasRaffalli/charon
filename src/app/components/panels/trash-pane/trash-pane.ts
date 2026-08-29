@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import { fileIconFor } from '@app/services/files/file-icon';
 import { TrashEntry, TrashService } from '@app/services/files/trash.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
@@ -23,8 +24,14 @@ import { DialogService } from '@app/services/workspace/dialog.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TrashPane {
-  protected readonly sftp = inject(SftpService);
-  private readonly trash = inject(TrashService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  protected get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
+  private get trash(): TrashService {
+    return this.sessionRegistry.focused().trash;
+  }
   private readonly dialog = inject(DialogService);
 
   protected readonly entries = signal<TrashEntry[]>([]);

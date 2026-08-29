@@ -1,11 +1,23 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
 import { Transfer, VerifyState } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
-import { TransfersService } from '@app/services/files/transfers.service';
+import { Session, SessionRegistry } from '@app/services/connection/session-registry';
+import { TabBarService } from '@app/services/workspace/tab-bar.service';
 
-/** Contenu de l'onglet Transferts du panneau inférieur. */
+/** Une ligne du panneau : le transfert, et la session qui le porte. */
+interface TransferRow {
+  transfer: Transfer;
+  session: Session;
+}
+
+/**
+ * L'onglet Transferts : TOUTES les sessions de la fenêtre, agrégées (jalon 4
+ * de la flotte v2). Dix transferts répartis sur trois onglets se surveillent
+ * d'un seul endroit ; la vignette dit à quelle session appartient chaque
+ * ligne dès qu'il y en a plus d'une.
+ */
 @Component({
   selector: 'app-transfer-panel',
   imports: [Icon, FileSizePipe],
@@ -14,6 +26,40 @@ import { TransfersService } from '@app/services/files/transfers.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransferPanel {
+  private readonly sessionRegistry = inject(SessionRegistry);
+  private readonly tabBar = inject(TabBarService);
+
+  protected readonly rows = computed<TransferRow[]>(() =>
+    this.sessionRegistry
+      .sessions()
+      .flatMap((session) =>
+        session.transfers.transfers().map((transfer) => ({ transfer, session })),
+      ),
+  );
+
+  /** La vignette de session n'apparaît qu'à deux sessions : seule, elle radote. */
+  protected readonly multiSession = computed(() => this.sessionRegistry.sessions().length > 1);
+
+  protected readonly activeTotal = computed(() =>
+    this.sessionRegistry
+      .sessions()
+      .reduce((count, session) => count + session.transfers.activeCount(), 0),
+  );
+
+  protected sessionTitle(session: Session): string {
+    return this.tabBar.titleOf(session);
+  }
+
+  protected sessionToneBg(session: Session): string {
+    return `var(--session-${this.sessionRegistry.toneOf(session)})`;
+  }
+
+  protected clearFinished(): void {
+    for (const session of this.sessionRegistry.sessions()) {
+      session.transfers.clearFinished();
+    }
+  }
+
   /** L'état de la vérification d'intégrité, en un mot. */
   protected verifyLabel(state: VerifyState): string {
     switch (state) {
@@ -41,8 +87,6 @@ export class TransferPanel {
     return transfer.verifyDetail ?? '';
   }
 
-  protected readonly transfers = inject(TransfersService);
-
   protected percent(transfer: Transfer): number {
     if (transfer.status === 'done') {
       return 100;
@@ -53,8 +97,8 @@ export class TransferPanel {
     return Math.min(100, Math.round((transfer.transferred / transfer.total) * 100));
   }
 
-  protected statusLabel(transfer: Transfer): string {
-    switch (transfer.status) {
+  protected statusLabel(row: TransferRow): string {
+    switch (row.transfer.status) {
       case 'done':
         return 'Terminé';
       case 'error':
@@ -62,7 +106,9 @@ export class TransferPanel {
       case 'cancelled':
         return 'Annulé';
       case 'interrupted':
-        return this.transfers.canResume(transfer) ? 'Interrompu' : 'Interrompu : reconnecte-toi';
+        return row.session.transfers.canResume(row.transfer)
+          ? 'Interrompu'
+          : 'Interrompu : reconnecte-toi';
       default:
         return '';
     }

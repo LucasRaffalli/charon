@@ -1,6 +1,6 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
+import { formatStamp } from '@app/services/system/date-format';
 import { Button } from '@app/components/ui/button/button';
 import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
@@ -17,12 +17,13 @@ type DiffView = 'split' | 'unified';
 
 @Component({
   selector: 'app-overwrite-dialog',
-  imports: [Button, Icon, DatePipe, FileSizePipe],
+  imports: [Button, Icon, FileSizePipe],
   templateUrl: './overwrite-dialog.html',
   styleUrl: './overwrite-dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OverwriteDialog {
+  protected readonly stamp = formatStamp;
   /** Les libellés des deux côtés : envoi par défaut, collage si précisé. */
   protected sides(request: OverwriteRequest): OverwriteSides {
     return request.sides ?? UPLOAD_SIDES;

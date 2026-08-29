@@ -13,6 +13,7 @@ import { SearchService } from '@app/services/connection/search.service';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
+import { SessionRegistry } from '@app/services/connection/session-registry';
 import { ACCENT_OPTIONS, THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
 
 /**
@@ -92,15 +93,24 @@ const isValidEntryName = (name: string): boolean =>
  */
 @Injectable({ providedIn: 'root' })
 export class CommandPaletteService {
-  private readonly sftp = inject(SftpService);
+  private readonly sessionRegistry = inject(SessionRegistry);
+
+  /** La session focalisée, lue dynamiquement : jamais figée par un champ. */
+  private get sftp(): SftpService {
+    return this.sessionRegistry.focused().sftp;
+  }
   private readonly profiles = inject(ProfilesService);
-  private readonly searchService = inject(SearchService);
+  private get searchService(): SearchService {
+    return this.sessionRegistry.focused().search;
+  }
   private readonly whatsNew = inject(WhatsNewService);
   private readonly flow = inject(ConnectionFlowService);
   private readonly settings = inject(SettingsService);
   private readonly dock = inject(DockService);
   private readonly moduleHost = inject(ModuleHostService);
-  private readonly preview = inject(PreviewService);
+  private get preview(): PreviewService {
+    return this.sessionRegistry.focused().preview;
+  }
   private readonly theme = inject(ThemeService);
   private readonly dialog = inject(DialogService);
   private readonly activity = inject(ActivityLogService);
@@ -285,7 +295,13 @@ export class CommandPaletteService {
 
 
   /** Les commandes disponibles dans le contexte actuel (signaux lus dedans). */
-  commands(): PaletteCommand[] {
+  /**
+   * En `computed` et non en méthode : le panneau le lisait dans un computed
+   * dépendant de la SAISIE, donc chaque frappe reconstruisait toutes les
+   * commandes (un objet + jusqu'à quatre closures par entrée du dossier
+   * affiché). Mémoïsé, il ne se refait que quand les données changent.
+   */
+  readonly commands = computed<PaletteCommand[]>(() => {
     const connected = this.sftp.connected();
     const list: PaletteCommand[] = [];
 
@@ -571,7 +587,7 @@ export class CommandPaletteService {
     list.push(...this.moduleHost.commands());
 
     return list;
-  }
+  });
 
   /**
    * L'ordre des groupes suit le contexte : ce qui est sous la main d'abord.

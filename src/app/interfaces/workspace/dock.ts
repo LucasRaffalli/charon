@@ -50,4 +50,10 @@ export interface DockDrag {
 export interface DockDropTarget {
   groupId: string;
   zone: DockZone;
+  /**
+   * Position d'insertion dans la barre d'onglets, quand le curseur la survole
+   * (zone `center`). Sans elle, un onglet déposé se posait toujours en bout de
+   * groupe : c'est ce qui rendait le réordonnancement impossible.
+   */
+  index?: number;
 }

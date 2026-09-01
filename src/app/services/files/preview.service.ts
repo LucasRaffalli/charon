@@ -10,6 +10,7 @@ import { ensureMarkdown, renderMarkdown } from '@app/services/files/markdown';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 export type PreviewKind = 'loading' | 'text' | 'image' | 'binary' | 'error';
 
@@ -115,6 +116,7 @@ export class PreviewService {
     });
   }
 
+  private readonly t = injectT();
   private readonly sftp = inject(SftpService);
   private readonly dialog = inject(DialogService);
   private readonly activity = injectSessionActivity();
@@ -396,7 +398,7 @@ export class PreviewService {
     if (doc.kind === 'text' && !doc.readonly && doc.content !== doc.original) {
       const drop = await this.dialog.confirm({
         title: `Fermer « ${doc.name} » sans enregistrer ?`,
-        message: 'Les modifications non enregistrées seront perdues.',
+        message: this.t('misc.preview.unsavedLost'),
         confirmLabel: 'Fermer sans enregistrer',
         danger: true,
       });
@@ -480,7 +482,7 @@ export class PreviewService {
         maxBytes: 4 * 1024 * 1024,
       }).catch(() => undefined);
       if (b64 === undefined) {
-        this.patchDoc(id, { kind: 'error', error: 'Aperçu impossible.' });
+        this.patchDoc(id, { kind: 'error', error: this.t('misc.preview.cannotPreview') });
         return;
       }
       const stat = await this.sftp.stat(doc.path);
@@ -576,7 +578,7 @@ export class PreviewService {
     if (this.sftp.protection() === 'confirm') {
       const host = this.sftp.host();
       const typed = await this.dialog.prompt({
-        title: `Serveur protégé : enregistrer « ${doc.name} » ?`,
+        title: this.t('misc.preview.guardedSave', { name: doc.name }),
         message: `Tape « ${host} » pour confirmer l'écriture sur le serveur.`,
         placeholder: host,
         confirmLabel: 'Enregistrer',
@@ -599,8 +601,8 @@ export class PreviewService {
           this.setContent(formatted);
         }
       } catch {
-        this.toasts.info('Enregistré sans formatage', {
-          detail: 'Prettier n’a pas réussi à lire ce fichier (erreur de syntaxe ?)',
+        this.toasts.info(this.t('misc.preview.savedUnformatted'), {
+          detail: this.t('misc.preview.prettierFailed'),
         });
       }
     }
@@ -621,7 +623,7 @@ export class PreviewService {
       // Le texte à l'écran est le même avant et après : seul un bouton qui
       // s'éteint dirait que c'est parti. C'est trop peu pour une écriture sur
       // un serveur.
-      this.toasts.success('Enregistré sur le serveur', doc.name);
+      this.toasts.success(this.t('misc.preview.saved'), doc.name);
       await this.sftp.refresh();
     } catch (error) {
       this.patchDoc(doc.id, { error: typeof error === 'string' ? error : String(error) });

@@ -9,6 +9,7 @@ import { PERM_BITS, PERM_CLASSES, PermBit, PermClass, hasPerm, toOctal, toSymbol
 import { PermissionsService } from '@app/services/files/permissions.service';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 const CLASS_LABELS: Record<PermClass, string> = {
   owner: 'Propriétaire',
@@ -49,6 +50,7 @@ const PRESETS: readonly { mode: string; hint: string }[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PermissionsDialog {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get permissions(): PermissionsService {

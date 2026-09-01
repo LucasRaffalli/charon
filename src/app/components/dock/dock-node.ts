@@ -14,6 +14,7 @@ import { DockGroup, DockNode, DockPanelId, DockSplit, DockZone } from '@app/inte
 import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
 import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/dock.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Distance (px) avant qu'un appui sur un onglet devienne un glissement. */
 const DRAG_THRESHOLD = 5;
@@ -33,6 +34,7 @@ const DRAG_THRESHOLD = 5;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DockNodeView {
+  protected readonly t = injectT();
   protected readonly dock = inject(DockService);
 
   constructor() {
@@ -62,14 +64,34 @@ export class DockNodeView {
     return n.kind === 'group' ? n : null;
   });
 
-  /** Zone de dépôt à surligner si ce groupe est la cible courante. */
+  /**
+   * Zone de dépôt à surligner si ce groupe est la cible courante.
+   *
+   * Rien quand le curseur est sur une barre d'onglets (`index` posé) : le
+   * trait d'insertion dit déjà où la vignette se posera, et il le dit mieux.
+   * Un grand rectangle coloré par-dessus le panneau pendant qu'on réordonne
+   * deux onglets fait beaucoup de bruit pour un petit geste, et il revient dès
+   * que le curseur quitte la barre, là où le dépôt change vraiment de nature
+   * (rejoindre le groupe, ou le découper).
+   */
   protected readonly dropZone = computed<DockZone | null>(() => {
     const n = this.node();
     const target = this.dock.dropTarget();
-    return n.kind === 'group' && target?.groupId === n.id ? target.zone : null;
+    if (n.kind !== 'group' || target?.groupId !== n.id || target.index !== undefined) {
+      return null;
+    }
+    return target.zone;
   });
 
   protected readonly meta = PANEL_META;
+
+  /** Le rang visé dans CE groupe, pour dessiner le trait d'insertion. */
+  protected insertAt(node: DockGroup): number | null {
+    const target = this.dock.dropTarget();
+    return target && target.groupId === node.id && target.zone === 'center'
+      ? (target.index ?? null)
+      : null;
+  }
 
   /** La couleur du panneau actif de ce groupe, s'il appartient à une session. */
   protected tintOf(node: DockGroup): string | null {
@@ -103,7 +125,8 @@ export class DockNodeView {
     // Un panneau qui montre une session porte son nom : « Serveur » tout
     // court ne dit pas LEQUEL quand deux serveurs sont côte à côte.
     const name = this.dock.identities()[panel]?.name;
-    return name ? `${PANEL_META[panel].label} · ${name}` : PANEL_META[panel].label;
+    const label = this.t(PANEL_META[panel].label);
+    return name ? `${label} · ${name}` : label;
   }
 
   /** Active un onglet et le ramène en vue (la bande peut défiler). */
@@ -120,14 +143,14 @@ export class DockNodeView {
     // d'y rester sans effet.
     if (this.canClose()) {
       items.push({
-        label: `Fermer « ${PANEL_META[panel].label} »`,
+        label: this.t('panels.close', { name: this.t(PANEL_META[panel].label) }),
         icon: 'close',
         action: () => this.dock.closePanel(panel),
       });
     }
     for (const closed of this.dock.closedPanels()) {
       items.push({
-        label: `Rouvrir : ${PANEL_META[closed].label}`,
+        label: this.t('panels.reopen', { name: this.t(PANEL_META[closed].label) }),
         icon: PANEL_META[closed].icon,
         action: () => this.dock.openPanel(closed),
       });
@@ -235,6 +258,29 @@ export class DockNodeView {
     this.dock.endDrag(false);
   }
 
+  /**
+   * Le rang où l'onglet se poserait, pour un curseur à l'abscisse `x` sur la
+   * barre du groupe donné.
+   *
+   * On compare au MILIEU de chaque onglet : passé la moitié, on vise l'après.
+   * C'est ce qui donne la sensation d'un onglet qui « pousse » son voisin, et
+   * ça évite le point mort qu'aurait une comparaison au bord.
+   */
+  private insertIndexAt(groupId: string, x: number): number {
+    const tabs = Array.from(
+      document.querySelectorAll<HTMLElement>(`[data-dock-group="${groupId}"] [data-dock-tab]`),
+    );
+    let index = tabs.length;
+    for (let i = 0; i < tabs.length; i++) {
+      const rect = tabs[i].getBoundingClientRect();
+      if (x < rect.left + rect.width / 2) {
+        index = i;
+        break;
+      }
+    }
+    return index;
+  }
+
   /** Bande (px) des bords de l'espace de travail = dépôt au niveau racine.
    *  Fine : les barres d'onglets (empilement) restent visables au-dessous. */
   private static readonly ROOT_EDGE = 12;
@@ -272,7 +318,11 @@ export class DockNodeView {
     //    comme déposer un onglet de navigateur à côté des autres).
     const tabsBar = this.tabsRects.find((t) => contains(t.rect));
     if (tabsBar) {
-      this.dock.dropTarget.set({ groupId: tabsBar.id, zone: 'center' });
+      this.dock.dropTarget.set({
+        groupId: tabsBar.id,
+        zone: 'center',
+        index: this.insertIndexAt(tabsBar.id, x),
+      });
       return;
     }
 

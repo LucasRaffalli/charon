@@ -121,7 +121,7 @@ impl ActiveConnection {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
             .await
-            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+            .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
         Ok(buffer)
     }
 
@@ -132,7 +132,7 @@ impl ActiveConnection {
             .sftp
             .create(path)
             .await
-            .map_err(|e| format!("Création de {path} impossible : {e}"))?;
+            .map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))?;
         file.write_all(bytes)
             .await
             .map_err(|e| format!("Écriture de {path} impossible : {e}"))?;
@@ -242,7 +242,18 @@ impl client::Handler for ClientHandler {
 /// Refuse les noms d'entrée dangereux annoncés par un serveur (traversée de chemin) :
 /// vide, `.`, `..`, ou contenant un séparateur.
 pub fn is_safe_entry_name(name: &str) -> bool {
-    !name.is_empty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\\')
+    // Les caractères de CONTRÔLE sont refusés au même titre que les
+    // séparateurs : un nom d'entrée est censé être un nom, et un serveur
+    // hostile qui en renvoie un contenant CRLF pourrait injecter une commande
+    // dans le canal de contrôle FTP (c'était RUSTSEC-2026-0271) ou brouiller
+    // l'affichage du terminal. Ils n'ont aucun usage légitime dans un nom de
+    // fichier, ici comme en SFTP.
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.chars().any(|c| c.is_control())
 }
 
 /// Ceinture + bretelles : refuse tout chemin local contenant un composant `..`.
@@ -474,7 +485,7 @@ fn resolve_key_path(explicit: Option<String>) -> Result<std::path::PathBuf, Stri
         return path
             .exists()
             .then_some(path)
-            .ok_or_else(|| format!("Clé introuvable : {p}"));
+            .ok_or_else(|| crate::errors::user_err("key_missing", format!("{p}")));
     }
     let home = dirs::home_dir().ok_or("Impossible de trouver le dossier home")?;
     for name in ["id_ed25519", "id_rsa", "id_ecdsa"] {
@@ -483,7 +494,7 @@ fn resolve_key_path(explicit: Option<String>) -> Result<std::path::PathBuf, Stri
             return Ok(candidate);
         }
     }
-    Err("Aucune clé SSH trouvée dans ~/.ssh".into())
+    Err(crate::errors::user_code("no_key"))
 }
 
 pub(crate) fn shellexpand_tilde(p: &str) -> String {
@@ -590,7 +601,7 @@ async fn open_sftp_session(
                          (~/.ssh/known_hosts illisible ?)"
                     .into(),
             },
-            e => format!("Connexion impossible : {e}"),
+            e => crate::errors::user_err("connect", format!("{e}")),
         })?;
 
     // Méthode d'authentification choisie côté UI. Absente = comportement
@@ -652,7 +663,7 @@ async fn open_sftp_session(
                 // passe sur un serveur qui l'accepte.
                 Err(e) => {
                     key_error =
-                        Some(format!("Lecture de la clé {} impossible : {e}", key_file.display()));
+                        Some(crate::errors::user_err("key_unreadable", format!("{} : {e}", key_file.display())));
                 }
             }
         }
@@ -675,8 +686,8 @@ async fn open_sftp_session(
         // tenté, c'est cette erreur-là qui est utile, pas un refus générique.
         return Err(match key_error {
             Some(e) if !password_tried => e,
-            _ if by_password => "Authentification refusée (mot de passe)".into(),
-            _ => "Authentification refusée (clé et mot de passe)".into(),
+            _ if by_password => crate::errors::user_code("auth_password"),
+            _ => crate::errors::user_code("auth_both"),
         });
     }
 
@@ -691,7 +702,7 @@ async fn open_sftp_session(
         .map_err(|e| format!("SFTP non disponible : {e}"))?;
     let sftp = SftpSession::new(channel.into_stream())
         .await
-        .map_err(|e| format!("Session SFTP impossible : {e}"))?;
+        .map_err(|e| crate::errors::user_err("sftp_session", format!("{e}")))?;
 
     // Stockage dans le pool
     // `#n` rend l'identifiant unique par session : deux fenêtres sur le même
@@ -728,7 +739,7 @@ pub async fn sftp_list_dir(
         .sftp
         .read_dir(&path)
         .await
-        .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
 
     let mut files: Vec<FileEntry> = entries
         .filter(|entry| is_safe_entry_name(&entry.file_name()))
@@ -795,7 +806,7 @@ pub async fn sftp_read_text(
         let read = file
             .read(&mut buffer[filled..])
             .await
-            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+            .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
         if read == 0 {
             break;
         }
@@ -826,7 +837,7 @@ pub async fn sftp_read_base64(
         let read = file
             .read(&mut buffer[filled..])
             .await
-            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+            .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
         if read == 0 {
             break;
         }
@@ -878,7 +889,7 @@ pub async fn sftp_mkdir(
     conn.sftp
         .create_dir(&path)
         .await
-        .map_err(|e| format!("Création de {path} impossible : {e}"))
+        .map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
 }
 
 /// Crée un fichier vide sur le serveur. Refuse d'écraser une entrée existante.
@@ -913,7 +924,7 @@ pub async fn sftp_remove(
         conn.sftp
             .remove_file(&path)
             .await
-            .map_err(|e| format!("Suppression de {path} impossible : {e}"))
+            .map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
     }
 }
 
@@ -1025,7 +1036,7 @@ pub async fn sftp_rename(
     conn.sftp
         .rename(&from, &to)
         .await
-        .map_err(|e| format!("Renommage de {from} impossible : {e}"))
+        .map_err(|e| crate::errors::user_err("rename", format!("{from} : {e}")))
 }
 
 /// Change les permissions d'une entrée distante (idée 07).

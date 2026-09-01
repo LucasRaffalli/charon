@@ -1,5 +1,95 @@
 [
   {
+    "version": "1.2.1",
+    "date": "2026-09-01",
+    "title": "Vigie",
+    "cover": "assets/webp/vigie.webp",
+    "notes": [
+      {
+        "kind": "new",
+        "text": "Le panneau local répond enfin aux commandes : tout sélectionner, les flèches, le clic étendu, renommer, supprimer, créer : le même vocabulaire que le panneau serveur",
+        "how": "Clique dans le panneau « Cet ordinateur », puis ⌘A pour tout prendre, ⇧clic pour une plage, ⌘clic pour ajouter. F2 renomme, ⌘⌫ supprime, ⌘⇧N crée un dossier. Les raccourcis visent le panneau touché en dernier."
+      },
+      {
+        "kind": "new",
+        "text": "Copier-coller de fichiers dans les quatre sens : sur le disque, du disque vers le serveur, du serveur vers le disque, et de serveur à serveur",
+        "how": "⌘C ou ⌘X là où sont les fichiers, ⌘V là où tu les veux. Le presse-papiers se souvient d'où ça vient : coller dans le panneau serveur envoie, coller dans le panneau local télécharge."
+      },
+      {
+        "kind": "new",
+        "text": "Les onglets se réordonnent au glissé, ceux du dock comme ceux des sessions",
+        "how": "Attrape un onglet et fais-le glisser dans sa barre : un trait montre où il se posera. Un onglet fusionné (vue double) se déplace d'un bloc."
+      },
+      {
+        "kind": "new",
+        "text": "L'interface parle anglais : le choix de la langue vit dans les réglages et suit toutes les fenêtres",
+        "how": "Réglages → À propos → Langue. Les messages venus du serveur restent tels qu'il les envoie."
+      },
+      {
+        "kind": "new",
+        "text": "Un dossier local d'ouverture : le panneau « Cet ordinateur » démarre là où tu travailles, plus dans ton dossier personnel",
+        "how": "Navigue jusqu'au dossier, puis l'ancre dans l'en-tête du panneau, ou clic droit → « Ancrer ce dossier au démarrage ». Réglages → Fichiers pour coller un chemin à la main."
+      },
+      {
+        "kind": "new",
+        "text": "Signaler un problème sans quitter Charon : le formulaire GitHub s'ouvre avec la version et le système déjà remplis",
+        "how": "Réglages → À propos, ou ⌘K puis « Signaler un problème ». Rien n'est envoyé en l'ouvrant, et le journal n'y est jamais joint."
+      },
+      {
+        "kind": "fixed",
+        "text": "Sécurité : un serveur FTP hostile pouvait faire exécuter une commande dans votre session en nommant un fichier avec un retour à la ligne"
+      },
+      {
+        "kind": "fixed",
+        "text": "L'annonce d'une mise à jour disponible ne s'affichait jamais : elle était posée avant que la vérification ait répondu"
+      },
+      {
+        "kind": "fixed",
+        "text": "Les nouveautés ne s'ouvraient pas après une mise à jour venue d'une version antérieure à 1.2.0"
+      },
+      {
+        "kind": "fixed",
+        "text": "⌘A dans le panneau local sélectionnait le dossier du serveur, sans que rien ne l'indique"
+      },
+      {
+        "kind": "fixed",
+        "text": "« Tout sélectionner » embarquait les fichiers cachés même quand ils étaient masqués, et un ⌘⌫ derrière les emportait"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le menu contextuel proposait des actions SFTP sur une connexion FTP : terminal, aperçu, corbeille, création de fichier"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le correcteur orthographique de macOS s'invitait dans les champs de nom de fichier, de chemin et de mot de passe"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le pied de l'onglet actif dépassait sous la barre d'onglets, deux petites oreilles sombres posées sur la page"
+      },
+      {
+        "kind": "better",
+        "text": "L'onglet actif porte le dégradé de fond quand il y en a un, au lieu d'un aplat sombre posé sur une page colorée"
+      },
+      {
+        "kind": "better",
+        "text": "Les favoris ont leur propre icône, une étoile : ils ne se confondent plus avec l'ancre de connexion"
+      },
+      {
+        "kind": "better",
+        "text": "Pendant qu'on réordonne des onglets, seul le trait d'insertion s'affiche : le sélecteur de panneau ne vient plus recouvrir la vue"
+      },
+      {
+        "kind": "better",
+        "text": "Le premier écran ne remplit plus l'historique de navigation : « dossier précédent » ne propose plus un dossier où l'on n'est jamais allé"
+      },
+      {
+        "kind": "better",
+        "text": "Le client FTP passe sur le même moteur asynchrone que le reste de l'application : huit dépendances en moins, et un ordonnanceur de moins à faire tourner en parallèle"
+      }
+    ]
+  },
+  {
     "version": "1.2.0",
     "date": "2026-08-29",
     "title": "Légion",

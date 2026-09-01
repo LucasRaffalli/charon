@@ -1,0 +1,49 @@
+name: Bug
+description: Quelque chose ne marche pas comme prévu
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci du retour. Les champs « Version » et « Système » sont remplis
+        automatiquement quand le formulaire est ouvert depuis Charon
+        (Réglages → À propos, ou la palette).
+
+        **Avant d'envoyer, relis ce que tu colles** : un journal ou une capture
+        peuvent contenir des noms d'hôtes et des chemins de fichiers.
+  - type: textarea
+    id: what
+    attributes:
+      label: Ce qui se passe
+      placeholder: Ce que tu as vu, et ce que tu attendais à la place.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Comment le reproduire
+      placeholder: |
+        1. …
+        2. …
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Version de Charon
+      placeholder: 1.2.0
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Système
+      placeholder: macOS 15
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocole concerné
+      options:
+        - Sans objet
+        - SFTP
+        - FTPS
+        - FTP

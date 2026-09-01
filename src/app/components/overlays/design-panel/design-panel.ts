@@ -19,6 +19,7 @@ import { DialogService } from '@app/services/workspace/dialog.service';
 import { DockLayout } from '@app/services/workspace/dock-tree';
 import { DockService } from '@app/services/workspace/dock.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
+import { injectT } from '@app/lang/i18n.service';
 
 const MARGIN = 8;
 
@@ -45,6 +46,7 @@ export class DesignPanel {
   /** Lequel des deux panneaux ce composant rend. */
   readonly side = input.required<DesignPanelId>();
 
+  protected readonly t = injectT();
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
   private readonly dialog = inject(DialogService);
@@ -77,26 +79,26 @@ export class DesignPanel {
   ];
 
   protected readonly watermarkOptions: readonly SegmentedOption[] = [
-    { value: 'off', label: 'Masqué' },
-    { value: 'on', label: 'Affiché' },
+    { value: 'off', label: this.t('themes.hidden') },
+    { value: 'on', label: this.t('themes.shown') },
   ];
 
   protected readonly gradientOptions: readonly GradientOption[] = [
-    { value: 'none', label: 'Aucun' },
+    { value: 'none', label: this.t('themes.none') },
     { value: 'halo', label: 'Halo' },
     { value: 'aube', label: 'Aube' },
     { value: 'aurore', label: 'Aurore' },
     { value: 'maille', label: 'Maille' },
-    { value: 'voute', label: 'Voûte' },
+    { value: 'voute', label: this.t('themes.vault') },
   ];
 
   protected readonly presets: readonly ColorPreset[] = [
     { label: 'Acier', from: '#5b7fa6', to: '#7da3cc' },
-    { label: 'Néon', from: '#e0559f', to: '#c19bff' },
+    { label: this.t('themes.neon'), from: '#e0559f', to: '#c19bff' },
     { label: 'Coucher', from: '#f97316', to: '#facc15' },
     { label: 'Lagune', from: '#0ea5e9', to: '#22d3ee' },
     { label: 'Nuit', from: '#7c3aed', to: '#2563eb' },
-    { label: 'Forêt', from: '#059669', to: '#a3e635' },
+    { label: this.t('themes.forest'), from: '#059669', to: '#a3e635' },
   ];
 
   /** Un dégradé choisi mais des panneaux opaques : l'effet ne se verra pas. */
@@ -209,10 +211,10 @@ export class DesignPanel {
 
   protected async resetDock(): Promise<void> {
     const confirmed = await this.dialog.confirm({
-      title: 'Réinitialiser la disposition ?',
+      title: this.t('themes.resetTitle'),
       message:
         'Les panneaux reprennent leur agencement d\'origine. Les tailles et les onglets déplacés seront perdus.',
-      confirmLabel: 'Réinitialiser',
+      confirmLabel: this.t('themes.reset'),
       danger: true,
     });
     if (confirmed) {

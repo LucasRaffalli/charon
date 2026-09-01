@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 
+import { IconName } from '@app/components/ui/icon/icon';
 import { ToolButton } from '@app/components/ui/tool-button/tool-button';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Ce qui apparaît sous une liste quand plusieurs éléments sont sélectionnés :
@@ -14,36 +16,64 @@ import { ToolButton } from '@app/components/ui/tool-button/tool-button';
   imports: [ToolButton],
   template: `
     <span class="selbar__count">
-      {{ count() }} sélectionné{{ count() > 1 ? 's' : '' }}
+      {{ t(count() > 1 ? 'panes.selection.many' : 'panes.selection.one', { count: count() }) }}
     </span>
     <span class="selbar__spacer"></span>
     @if (fileCount() > 0) {
       <app-tool-button
-        icon="download"
-        [label]="'Télécharger' + (partial() ? ' les fichiers' : '')"
-        (pressed)="download.emit()"
+        [icon]="actionIcon()"
+        [label]="actionText() + (partial() ? t('panes.selection.filesSuffix') : '')"
+        (pressed)="action.emit()"
       />
     }
     @if (writable()) {
-      <app-tool-button icon="copy" label="Copier" (pressed)="copy.emit()" />
-      <app-tool-button icon="trash" label="Supprimer" [danger]="true" (pressed)="remove.emit()" />
+      <app-tool-button icon="copy" [label]="copyText()" (pressed)="copy.emit()" />
+      <app-tool-button
+        icon="trash"
+        [label]="t('common.buttons.delete')"
+        [danger]="true"
+        (pressed)="remove.emit()"
+      />
     }
-    <app-tool-button icon="close" label="Désélectionner" (pressed)="clear.emit()" />
+    <app-tool-button
+      icon="close"
+      [label]="t('panes.selection.deselect')"
+      (pressed)="clear.emit()"
+    />
   `,
   styleUrl: './selection-bar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SelectionBar {
+  protected readonly t = injectT();
   readonly count = input.required<number>();
-  /** Combien de fichiers : les dossiers ne se téléchargent pas. */
+  /** Combien de fichiers : les dossiers ne se transfèrent pas. */
   readonly fileCount = input.required<number>();
   readonly writable = input(true);
+
+  /**
+   * Le transfert n'a pas le même sens des deux côtés : le serveur télécharge,
+   * le disque local envoie. Le reste de la barre ne change pas.
+   */
+  readonly actionIcon = input<IconName>('download');
+  /**
+   * Libellés laissés VIDES par défaut, résolus plus bas dans un computed.
+   * Une valeur par défaut prise au dictionnaire à la construction serait figée
+   * dans la langue du démarrage : le composant ne se retraduirait jamais.
+   */
+  readonly actionLabel = input('');
+  readonly copyLabel = input('');
+
+  protected readonly actionText = computed(
+    () => this.actionLabel() || this.t('common.buttons.download'),
+  );
+  protected readonly copyText = computed(() => this.copyLabel() || this.t('common.buttons.copy'));
 
   /** Le lot mêle fichiers et dossiers : le bouton le dit. */
   protected readonly partial = computed(() => this.fileCount() < this.count());
 
   readonly clear = output<void>();
-  readonly download = output<void>();
+  readonly action = output<void>();
   readonly copy = output<void>();
   readonly remove = output<void>();
 }

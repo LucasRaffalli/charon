@@ -7,6 +7,7 @@ import { TextField } from '@app/components/ui/text-field/text-field';
 import { FavoriteEditService } from '@app/services/connection/favorite-edit.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Les icônes proposées pour un favori. Une poignée qui couvre ce à quoi
@@ -37,6 +38,7 @@ export const FAVORITE_ICONS: readonly IconName[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FavoriteDialog {
+  protected readonly t = injectT();
   protected readonly edit = inject(FavoriteEditService);
   private readonly profiles = inject(ProfilesService);
   private readonly dialog = inject(DialogService);

@@ -2,6 +2,7 @@ import { Injectable, computed, effect, signal } from '@angular/core';
 import { scopedKey } from '@app/services/system/window-scope';
 
 import { IconName } from '@app/components/ui/icon/icon';
+import { TranslationKey } from '@app/lang/i18n.service';
 import { DockDrag, DockDropTarget, DockGroup, DockNode, DockPanelId, DockSplit, DockZone } from '@app/interfaces';
 import {
   ALL_PANELS,
@@ -18,7 +19,14 @@ import {
   wrapRoot,
 } from '@app/services/workspace/dock-tree';
 
-/** Libellé + icône de chaque panneau dockable. */
+/**
+ * Icône de chaque panneau, et la CLÉ de son libellé.
+ *
+ * Une clé et non un texte : ces libellés s'affichent sur les onglets du dock,
+ * dans la barre de statut et dans les raccourcis ⌘1-9, et une constante de
+ * module ne peut pas lire la langue courante. Chaque consommateur traduit au
+ * moment d'afficher.
+ */
 /** Ce qu'un panneau emprunte à la session qu'il montre. */
 export interface PanelIdentity {
   /** Couleur de session, pour teinter la barre d'onglets. */
@@ -33,21 +41,41 @@ export interface PanelIdentity {
   side: 'left' | 'right';
 }
 
-export const PANEL_META: Record<DockPanelId, { label: string; icon: IconName }> = {
-  local: { label: 'Local', icon: 'monitor' },
-  tree: { label: 'Arborescence', icon: 'server' },
-  server: { label: 'Serveur', icon: 'folder' },
-  preview: { label: 'Aperçu', icon: 'file' },
-  transfers: { label: 'Transferts', icon: 'arrow-down-up' },
-  journal: { label: 'Journal', icon: 'info' },
-  logs: { label: 'Logs', icon: 'logs' },
-  terminal: { label: 'Terminal', icon: 'terminal' },
-  favorites: { label: 'Favoris', icon: 'anchor' },
-  server2: { label: 'Serveur 2', icon: 'server' },
-  terminal2: { label: 'Terminal 2', icon: 'terminal' },
-  modules: { label: 'Modules', icon: 'layout-grid' },
-  search: { label: 'Recherche', icon: 'search' },
-  trash: { label: 'Corbeille', icon: 'trash' },
+/**
+ * Les panneaux qui n'existent qu'en SFTP.
+ *
+ * Nommés ICI, une fois : la barre de statut, les raccourcis ⌘1-9 et la palette
+ * doivent tous les trois refuser d'ouvrir un panneau qui ne peut rien montrer,
+ * et trois avis séparés finissent toujours par diverger, c'est ce qui faisait
+ * proposer un terminal sur une connexion FTP.
+ *
+ * Le terminal et les logs vivent sur la session SSH ; la corbeille et l'aperçu
+ * passent par des commandes `sftp_*` sans équivalent FTP. La recherche, elle,
+ * fonctionne en FTP (par nom de fichier), donc elle n'est pas de la liste.
+ */
+export const SFTP_ONLY_PANELS: ReadonlySet<DockPanelId> = new Set<DockPanelId>([
+  'terminal',
+  'terminal2',
+  'logs',
+  'trash',
+  'preview',
+]);
+
+export const PANEL_META: Record<DockPanelId, { label: TranslationKey; icon: IconName }> = {
+  local: { label: 'panels.local', icon: 'monitor' },
+  tree: { label: 'panels.tree', icon: 'server' },
+  server: { label: 'panels.server', icon: 'folder' },
+  preview: { label: 'panels.preview', icon: 'file' },
+  transfers: { label: 'panels.transfers', icon: 'arrow-down-up' },
+  journal: { label: 'panels.journal', icon: 'info' },
+  logs: { label: 'panels.logs', icon: 'logs' },
+  terminal: { label: 'panels.terminal', icon: 'terminal' },
+  favorites: { label: 'panels.favorites', icon: 'star' },
+  server2: { label: 'panels.server2', icon: 'server' },
+  terminal2: { label: 'panels.terminal2', icon: 'terminal' },
+  modules: { label: 'panels.modules', icon: 'layout-grid' },
+  search: { label: 'panels.search', icon: 'search' },
+  trash: { label: 'panels.trash', icon: 'trash' },
 };
 
 /** Bord de réouverture d'un panneau fermé, selon sa nature. */
@@ -221,7 +249,7 @@ export class DockService {
   readonly resizing = signal(false);
 
   /** Déplace un panneau vers `zone` du groupe cible (fin de drag & drop). */
-  movePanel(panel: DockPanelId, targetGroupId: string, zone: DockZone): void {
+  movePanel(panel: DockPanelId, targetGroupId: string, zone: DockZone, index?: number): void {
     // Bord de la fenêtre : le panneau prend tout un côté de l'espace
     // de travail, le reste du layout est poussé de l'autre côté.
     if (targetGroupId === ROOT_TARGET) {
@@ -241,11 +269,27 @@ export class DockService {
     if (!target) {
       return;
     }
-    // Dépôt sur son propre groupe : au centre = simple activation ; sur un
-    // bord d'un groupe qui ne contient que lui = déjà en place.
-    if (target.panels.includes(panel) && (zone === 'center' || target.panels.length === 1)) {
-      this.activate(targetGroupId, panel);
-      return;
+    // Dépôt sur son propre groupe. Au centre d'une barre d'onglets, c'est un
+    // RÉORDONNANCEMENT : on ne peut pas se contenter d'activer, il faut
+    // vraiment déplacer la vignette, sauf si elle retombe à sa place.
+    if (target.panels.includes(panel)) {
+      const from = target.panels.indexOf(panel);
+      const reorder = zone === 'center' && index !== undefined && index !== from && index !== from + 1;
+      if (!reorder && (zone === 'center' || target.panels.length === 1)) {
+        this.activate(targetGroupId, panel);
+        return;
+      }
+      if (reorder) {
+        const panels = target.panels.filter((p) => p !== panel);
+        // L'index a été calculé sur la liste AVEC l'onglet : le retirer décale
+        // d'un cran tout ce qui le suivait.
+        const at = index > from ? index - 1 : index;
+        panels.splice(Math.max(0, Math.min(at, panels.length)), 0, panel);
+        this._tree.set(
+          mapNode(this.tree(), targetGroupId, (n) => ({ ...(n as DockGroup), panels, active: panel })),
+        );
+        return;
+      }
     }
 
     const without = removePanel(tree, panel);
@@ -256,7 +300,7 @@ export class DockService {
     if (!collectGroups(without).some((g) => g.id === targetGroupId)) {
       return;
     }
-    this._tree.set(insertAtZone(without, targetGroupId, panel, zone));
+    this._tree.set(insertAtZone(without, targetGroupId, panel, zone, index));
   }
 
   /**
@@ -443,7 +487,7 @@ export class DockService {
     this.drag.set(null);
     this.dropTarget.set(null);
     if (commit && drag && target) {
-      this.movePanel(drag.panel, target.groupId, target.zone);
+      this.movePanel(drag.panel, target.groupId, target.zone, target.index);
     }
   }
 }

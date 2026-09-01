@@ -11,10 +11,10 @@ const SEEN_KEY = 'charon:seen-version';
  * Les nouveautés (« quoi de neuf »), en modale.
  *
  * Le même journal que Réglages → Mises à jour, mais **présenté quand il sert** :
- * au premier lancement après une mise à jour. Un changelog qu'il faut aller
- * chercher dans un onglet de réglages n'est lu par personne, et c'est
- * précisément au moment où l'application vient de changer qu'on veut savoir ce
- * qui a changé.
+ * au premier lancement d'une version qui n'a pas encore été annoncée ici. Un
+ * changelog qu'il faut aller chercher dans un onglet de réglages n'est lu par
+ * personne, et c'est précisément quand l'application vient de changer qu'on
+ * veut savoir ce qui a changé.
  */
 @Injectable({ providedIn: 'root' })
 export class WhatsNewService {
@@ -37,27 +37,29 @@ export class WhatsNewService {
   }
 
   /**
-   * Montre les nouveautés si l'application vient d'être mise à jour.
+   * Montre les nouveautés de la version installée, **au moins une fois**.
    *
-   * Silencieux à la toute première installation : quelqu'un qui découvre
-   * Charon n'a pas besoin qu'on lui raconte ce qui a changé depuis une version
-   * qu'il n'a jamais eue.
+   * La règle tient en une ligne : cette version n'a pas encore été annoncée
+   * sur cette machine, on l'annonce. Peu importe par où l'on est arrivé :
+   * mise à jour, téléchargement du DMG, réinstallation.
+   *
+   * Le silence à la première installation a été essayé puis retiré (31/08) :
+   * il partait du principe qu'un nouveau venu se moque de ce qui a changé,
+   * alors qu'il est justement celui qui ne sait pas ce que l'application
+   * sait faire. Et il attrapait trop large : le marqueur `charon:seen-version`
+   * n'existe que depuis la 1.2.0, donc TOUTE mise à jour venue d'avant
+   * passait pour une première installation et n'annonçait rien.
    */
   showIfUpdated(): void {
     const current = this.updater.currentVersion();
     if (!current || current === '…') {
       return;
     }
-    const seen = this.read();
-    if (seen === current) {
+    if (this.read() === current) {
       return;
     }
-    if (!seen) {
-      // Première installation : on note et on se tait.
-      this.remember();
-      return;
-    }
-    // Rien à montrer si cette version n'a pas d'entrée rédigée.
+    // Rien à montrer si cette version n'a pas d'entrée rédigée : on note pour
+    // ne pas y revenir à chaque lancement.
     if (this.entries.some((entry) => entry.version === current)) {
       this.show(current);
     } else {

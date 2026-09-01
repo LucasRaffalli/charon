@@ -5,7 +5,10 @@
         type="button"
         class="tab"
         role="tab"
+        [attr.data-tab-first]="tab.segment.id"
+        [class.tab--insert]="insertBefore(tab)"
         [class.tab--active]="tab.segment.active"
+        (pointerdown)="onTabPointerDown($event, tab.segment.id)"
         [attr.aria-selected]="tab.segment.active"
         [title]="tab.segment.title"
         (click)="tabBar.activate(tab.segment.id)"
@@ -30,8 +33,11 @@
       <div
         class="tab tab--duo"
         role="tab"
+        [attr.data-tab-first]="tab.segments[0].id"
+        [class.tab--insert]="insertBefore(tab)"
         [class.tab--active]="tab.active"
         [attr.aria-selected]="tab.active"
+        (pointerdown)="onTabPointerDown($event, tab.segments[0].id)"
       >
         @for (segment of tab.segments; track segment.id) {
           <button
@@ -60,6 +66,9 @@
         }
       </div>
     }
+  }
+  @if (insertAtEnd()) {
+    <i class="bar__insert" aria-hidden="true"></i>
   }
   <button type="button" class="bar__new" aria-label="Nouvelle session" (click)="tabBar.openTab()">
     <app-icon name="plus" [size]="14" />

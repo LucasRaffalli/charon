@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { injectTauriListen } from '@app/services/system/scoped-listen';
+import { injectT } from '@app/lang/i18n.service';
 
 import {
   ConnectionParams,
@@ -49,6 +50,7 @@ interface SavedSession {
 export class SftpService extends FileBrowserState {
   private readonly tauriListen = injectTauriListen();
   private readonly activity = injectSessionActivity();
+  private readonly t = injectT();
   /** L'identité de la session qui possède ce service (s1, s2…). */
   private readonly sessionId = inject(SESSION_ID, { optional: true }) ?? 's1';
 
@@ -97,7 +99,7 @@ export class SftpService extends FileBrowserState {
   /** Refus central en lecture seule : couvre menus, palette, drag & drop. */
   private guardWritable(action: string, target: string): void {
     if (this._protection() === 'readonly') {
-      const message = 'Serveur en lecture seule : action refusée.';
+      const message = this.t('connection.readonly');
       this.activity.log('error', 'remote', target, `${action} : lecture seule`, false);
       throw message;
     }
@@ -156,7 +158,7 @@ export class SftpService extends FileBrowserState {
       this.clearSeen();
       this.forgetSession();
       this._error.set(
-        'La connexion au serveur a été perdue : serveur arrêté, réseau coupé ou session fermée à distance.',
+        this.t('connection.lost'),
       );
       this.activity.log('disconnect', 'remote', event.payload, 'connexion perdue', false);
     });
@@ -171,7 +173,7 @@ export class SftpService extends FileBrowserState {
       this._entries.set([]);
       this.clearSeen();
       this.forgetSession();
-      this._error.set('Session fermée pour inactivité.');
+      this._error.set(this.t('connection.idle'));
       this.activity.log('disconnect', 'remote', event.payload, 'inactivité');
     });
 
@@ -215,7 +217,7 @@ export class SftpService extends FileBrowserState {
   protected async createFile(path: string): Promise<void> {
     this.guardWritable('création de fichier', path);
     if (this._protocol() !== 'sftp') {
-      throw 'Création de fichier disponible en SFTP uniquement.';
+      throw this.t('connection.createFileSftpOnly');
     }
     try {
       await this.escalateOnDenied('touch', path, undefined, () =>
@@ -343,21 +345,24 @@ export class SftpService extends FileBrowserState {
     // retraverser à chaque connexion n'apprend rien à personne. Elle peut avoir
     // disparu du serveur depuis, d'où le repli silencieux sur l'arrivée
     // habituelle plutôt qu'une erreur au premier écran.
+    // Arriver n'est pas naviguer : `history: false` partout ici, sinon
+    // « Dossier précédent » proposerait « / » dès le premier écran, et une
+    // ancre qui se replie en laisserait deux.
     const anchor = params.anchor?.trim();
-    if (anchor && (await this.listDir(anchor))) {
+    if (anchor && (await this.listDir(anchor, { history: false }))) {
       return;
     }
     this._error.set(null);
 
     if (protocol === 'sftp') {
       // Dossier personnel si possible, racine sinon.
-      if (!(await this.listDir(`/home/${params.user}`))) {
+      if (!(await this.listDir(`/home/${params.user}`, { history: false }))) {
         this._error.set(null);
-        await this.listDir('/');
+        await this.listDir('/', { history: false });
       }
     } else {
       // FTP : la racine vue par le serveur (souvent le home chrooté).
-      await this.listDir('/');
+      await this.listDir('/', { history: false });
     }
   }
 
@@ -492,7 +497,7 @@ export class SftpService extends FileBrowserState {
   private withConnection<T>(operation: (id: string) => Promise<T>): Promise<T> {
     const id = this._connectionId();
     if (!id) {
-      return Promise.reject('Aucune connexion active');
+      return Promise.reject(this.t('connection.none'));
     }
     // Toute erreur déclenche la sonde : si la session est morte, le backend
     // émet connection:lost dans les secondes qui suivent au lieu de laisser
@@ -547,15 +552,6 @@ export class SftpService extends FileBrowserState {
     await this.renameEntry(from, to);
   }
 
-  /**
-   * Supprime sans rafraîchir : les suppressions en lot relisent le dossier
-   * une seule fois, à la fin. Les garde-fous (lecture seule, escalade sudo)
-   * restent ceux de `removeEntry`.
-   */
-  async removeSilently(path: string, isDir: boolean): Promise<void> {
-    await this.removeEntry(path, isDir);
-  }
-
   async moduleMkdir(path: string): Promise<void> {
     await this.createDir(path);
     await this.refreshIfCurrent(path);
@@ -579,7 +575,7 @@ export class SftpService extends FileBrowserState {
   async moduleWriteText(path: string, content: string): Promise<void> {
     this.guardWritable('écriture', path);
     if (this._protocol() !== 'sftp') {
-      throw 'Écriture de fichier disponible en SFTP uniquement.';
+      throw this.t('connection.writeFileSftpOnly');
     }
     await this.withConnection((id) =>
       invoke('sftp_write_text', { connectionId: id, path, content }),

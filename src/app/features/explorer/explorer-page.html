@@ -28,11 +28,23 @@
         [atRoot]="localFs.atRoot()"
         [error]="localFs.error()"
         [(filter)]="localFs.filter"
+        [selected]="localFs.selectedEntries()"
+        [cut]="clipboard.cutNamesLocal()"
+        anchorable
+        [anchored]="settings.localHome() === localFs.currentPath()"
+        (anchorToggle)="toggleLocalAnchor()"
+        (entryClick)="onLocalClick($event.event, $event.entry)"
         (openDir)="openLocalDir($event)"
         (navigateUp)="localFs.navigateUp()"
         (fileAction)="upload($event)"
+        (listKeydown)="onLocalKeydown($event)"
+        (blankClick)="localFs.clearSelection()"
         (entryMenu)="openLocalEntryMenu($event.event, $event.entry)"
         (areaMenu)="openLocalAreaMenu($event)"
+        (selectionSend)="uploadSelection()"
+        (selectionCopy)="copyLocalPaths()"
+        (selectionRemove)="deleteLocalSelection()"
+        (selectionClear)="localFs.clearSelection()"
       />
     </div>
 
@@ -92,7 +104,13 @@
       } @else {
         <div class="explorer__panel-empty">
           <app-icon name="file" [size]="26" />
-          <p>Double-clique un fichier serveur pour l'ouvrir ici.</p>
+          <p>
+            {{
+              previewAvailable()
+                ? "Double-clique un fichier serveur pour l'ouvrir ici."
+                : "L'aperçu lit les fichiers par SFTP : il n'est pas disponible sur une connexion FTP."
+            }}
+          </p>
         </div>
       }
     </div>
@@ -217,8 +235,8 @@
           <button
             type="button"
             class="explorer__status-btn"
-            [title]="'Rouvrir : ' + panelMeta[panel].label"
-            [attr.aria-label]="'Rouvrir le panneau ' + panelMeta[panel].label"
+            [title]="t('panels.reopen', { name: t(panelMeta[panel].label) })"
+            [attr.aria-label]="t('panels.reopenAria', { name: t(panelMeta[panel].label) })"
             (click)="dock.openPanel(panel)"
           >
             <app-icon [name]="panelMeta[panel].icon" [size]="13" />

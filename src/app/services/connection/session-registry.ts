@@ -313,6 +313,36 @@ export class SessionRegistry {
     this._showingPair.set(!!pair && pair.includes(id));
   }
 
+  /**
+   * Déplace une session au rang `index` de la barre.
+   *
+   * L'ordre des sessions EST l'ordre des onglets : le réordonnancement vit
+   * donc ici, pas dans la barre, et il suit la session partout (la vue double
+   * comme la reprise après un rechargement).
+   *
+   * Une session membre d'une paire emmène l'autre : l'onglet fusionné est une
+   * seule vignette à l'écran, il se déplace d'un bloc.
+   */
+  reorder(id: string, index: number): void {
+    const sessions = this._sessions();
+    const moving = this.pair()?.includes(id)
+      ? sessions.filter((session) => this.pair()?.includes(session.id))
+      : sessions.filter((session) => session.id === id);
+    if (!moving.length) {
+      return;
+    }
+    const rest = sessions.filter((session) => !moving.includes(session));
+    // `index` est un rang dans la liste AFFICHÉE, donc calculé avec les
+    // éléments déplacés encore en place : on le ramène dans le reste.
+    const before = sessions.slice(0, index).filter((session) => moving.includes(session)).length;
+    const at = Math.max(0, Math.min(index - before, rest.length));
+    if (sessions.indexOf(moving[0]) === at && moving.length === 1) {
+      return;
+    }
+    rest.splice(at, 0, ...moving);
+    this._sessions.set(rest);
+  }
+
   close(id: string): void {
     const session = this._sessions().find((candidate) => candidate.id === id);
     // La dernière session ne se ferme pas : `focused` garantit toujours une

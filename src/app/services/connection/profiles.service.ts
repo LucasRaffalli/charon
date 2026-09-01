@@ -6,10 +6,12 @@ import { Favorite, ServerProfile } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { ToastService } from '@app/services/workspace/toast.service';
 import { windowLabel } from '@app/services/system/window-scope';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Profils de serveurs enregistrés. Les secrets vivent dans le trousseau macOS, côté Rust. */
 @Injectable({ providedIn: 'root' })
 export class ProfilesService {
+  private readonly t = injectT();
   private readonly activity = inject(ActivityLogService);
   private readonly toasts = inject(ToastService);
 
@@ -89,13 +91,13 @@ export class ProfilesService {
     this.activity.log('anchor', 'remote', anchor ?? id, detail, done);
 
     if (!done) {
-      this.toasts.error("L'ancre n'a pas pu être enregistrée", detail);
+      this.toasts.error(this.t('misc.anchor.failed'), detail);
     } else if (anchor) {
       // L'effet est pour la prochaine connexion : il n'y a rien à constater
       // tout de suite, donc il faut le dire.
-      this.toasts.success('Ancre posée, vous arriverez ici', anchor);
+      this.toasts.success(this.t('misc.anchor.remoteSet'), anchor);
     } else {
-      this.toasts.success('Ancre retirée', 'Arrivée au dossier personnel');
+      this.toasts.success(this.t('misc.anchor.localRemoved'), this.t('misc.anchor.remoteHome'));
     }
     return done;
   }
@@ -132,7 +134,7 @@ export class ProfilesService {
       return true;
     }
     const done = await this.setFavorites(id, [...current, favorite]);
-    this.activity.log('anchor', 'remote', favorite.path, 'ajouté aux favoris', done);
+    this.activity.log('favorite', 'remote', favorite.path, 'ajouté aux favoris', done);
     return done;
   }
 
@@ -141,7 +143,7 @@ export class ProfilesService {
       id,
       this.favoritesOf(id).filter((item) => item.path !== path),
     );
-    this.activity.log('anchor', 'remote', path, 'retiré des favoris', done);
+    this.activity.log('favorite', 'remote', path, 'retiré des favoris', done);
     return done;
   }
 

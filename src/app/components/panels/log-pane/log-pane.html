@@ -5,21 +5,22 @@
     <input
       class="bar__filter"
       type="text"
-      placeholder="Filtrer…"
+      [placeholder]="t('logs.filter')"
       spellcheck="false"
+      autocorrect="off"
       #filterInput
       [value]="filter()"
       (input)="filter.set(filterInput.value)"
     />
     @if (tail.running()) {
-      <button type="button" class="bar__action" title="Arrêter le suivi" (click)="tail.close()">
+      <button type="button" class="bar__action" [title]="t('logs.stop')" (click)="tail.close()">
         <app-icon name="close" [size]="13" />
       </button>
     } @else {
       <button
         type="button"
         class="bar__action"
-        title="Reprendre le suivi"
+        [title]="t('logs.resume')"
         (click)="tail.open(path)"
       >
         <app-icon name="refresh" [size]="13" />
@@ -36,13 +37,12 @@
       <div class="line">{{ line.text }}</div>
     } @empty {
       <p class="notice">
-        {{ filter() ? 'Aucune ligne ne correspond au filtre.' : 'En attente de contenu…' }}
+        {{ t(filter() ? 'logs.noMatch' : 'logs.empty') }}
       </p>
     }
   </div>
 } @else {
   <p class="notice">
-    Clic droit sur un fichier du serveur → « Suivre en direct » pour voir son contenu
-    défiler ici (session SSH requise).
+    {{ t('logs.hint') }}
   </p>
 }

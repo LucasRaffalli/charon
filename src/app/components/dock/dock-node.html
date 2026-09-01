@@ -29,12 +29,19 @@
       [style.--tab-tint]="tintOf(g)"
       [style.--tab-from]="tintFrom(g)"
     >
-      <div class="group__tabs-strip" role="tablist" [class.group__tabs-strip--dense]="g.panels.length > 4">
-        @for (panel of g.panels; track panel) {
+      <div
+        class="group__tabs-strip"
+        role="tablist"
+        [class.group__tabs-strip--dense]="g.panels.length > 4"
+        [class.group__tabs-strip--append]="insertAt(g) === g.panels.length"
+      >
+        @for (panel of g.panels; track panel; let i = $index) {
           <button
             type="button"
             role="tab"
             class="group__tab"
+            [class.group__tab--insert]="insertAt(g) === i"
+            [attr.data-dock-tab]="panel"
             [class.group__tab--active]="g.active === panel"
             [class.group__tab--dragged]="dock.drag()?.panel === panel"
             [title]="tabLabel(panel)"

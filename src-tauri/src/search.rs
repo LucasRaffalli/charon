@@ -114,10 +114,19 @@ pub(crate) fn emit_error(app: &AppHandle, id: &str, message: &str) {
 
 // ---------- Validation ----------
 
-/// Racine de recherche : absolue et sans remontée, comme partout ailleurs.
+/// Racine de recherche : absolue, sans remontée, et sans caractère de contrôle.
+///
+/// Le refus des contrôles n'est pas décoratif : en FTP cette racine part dans
+/// un `LIST` sur le canal de contrôle, où un retour à la ligne permettrait
+/// d'injecter une commande (RUSTSEC-2026-0271). Les entrées de listing sont
+/// filtrées par `is_safe_entry_name`, mais la racine, elle, vient du front,
+/// où l'on peut coller un chemin à la main.
 fn ensure_search_root(path: &str) -> Result<(), String> {
     if !path.starts_with('/') || path.split('/').any(|c| c == "..") {
         return Err("Chemin de recherche invalide.".into());
+    }
+    if path.chars().any(char::is_control) {
+        return Err("Chemin de recherche invalide (caractère de contrôle).".into());
     }
     Ok(())
 }

@@ -1,14 +1,14 @@
 @if (sftp.protocol() !== 'sftp') {
-  <p class="notice">Le terminal n'est disponible qu'en SFTP (session SSH).</p>
+  <p class="notice">{{ t('terminal.sftpOnly') }}</p>
 } @else {
   @if (error(); as message) {
     <p class="notice notice--error">{{ message }}</p>
   }
   @if (closed()) {
     <p class="notice notice--ended">
-      <span>Session du terminal terminée.</span>
+      <span>{{ t('terminal.ended') }}</span>
       <button type="button" class="notice__act" [disabled]="restarting()" (click)="restart()">
-        Relancer
+        {{ t('terminal.restart') }}
       </button>
     </p>
   }
@@ -19,10 +19,10 @@
       [class.term-follow--on]="following()"
       [attr.aria-pressed]="following()"
       [disabled]="closed()"
-      title="Le terminal se place dans le dossier affiché à chaque navigation. Rien n'est écrit tant qu'un programme tourne ou qu'une ligne est en cours."
+      title=""
       (click)="toggleFollow()"
     >
-      Suivre le dossier
+      {{ t('terminal.followDir') }}
     </button>
     @if (pending(); as path) {
       <span class="term-bar__wait" [title]="'Le shell est occupé : ' + path + ' partira dès qu\'il rendra la main.'">

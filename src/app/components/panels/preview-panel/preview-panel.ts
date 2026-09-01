@@ -26,6 +26,7 @@ import { toOctal } from '@app/services/files/permissions';
 import { PreviewDoc, PreviewService } from '@app/services/files/preview.service';
 import { ComparePickService } from '@app/services/files/compare-pick.service';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
+import { injectT } from '@app/lang/i18n.service';
 
 const MARKDOWN_VIEWS: readonly SegmentedOption[] = [
   { value: 'rendered', label: 'Aperçu' },
@@ -69,6 +70,7 @@ interface SessionDiff {
   // ailleurs il filtre le dossier.
 })
 export class PreviewPanel {
+  protected readonly t = injectT();
   protected readonly sessionRegistry = inject(SessionRegistry);
   private readonly localFs = inject(LocalFsService);
   private readonly actions = inject(FileActionsService);

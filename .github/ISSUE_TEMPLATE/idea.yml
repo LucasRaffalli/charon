@@ -1,0 +1,16 @@
+name: Idée
+description: Une amélioration, un manque, une gêne
+labels: ['idée']
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: L'idée
+      placeholder: Ce que tu voudrais pouvoir faire.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Ce que ça résoudrait
+      placeholder: Le geste qui coince aujourd'hui, ou ce que tu contournes.

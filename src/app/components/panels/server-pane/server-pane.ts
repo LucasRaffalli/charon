@@ -21,6 +21,7 @@ import {
   SegmentedOption,
 } from '@app/components/ui/segmented-control/segmented-control';
 import { FileEntry } from '@app/interfaces';
+import { injectT } from '@app/lang/i18n.service';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { FileClipboardService } from '@app/services/connection/file-clipboard.service';
 import { LocalFsService } from '@app/services/connection/local-fs.service';
@@ -34,8 +35,8 @@ import { toOctal, toSymbolic } from '@app/services/files/permissions';
 import { PreviewService } from '@app/services/files/preview.service';
 import { CommandPaletteService } from '@app/services/workspace/command-palette.service';
 import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
+import { ToastService } from '@app/services/workspace/toast.service';
 import { DockService } from '@app/services/workspace/dock.service';
-import { SettingsService } from '@app/services/system/settings.service';
 
 /** Au-delà, un mouvement souris devient un glissé et non plus un clic. */
 const DRAG_THRESHOLD = 5;
@@ -78,8 +79,9 @@ export class ServerPane {
   protected readonly dragHint = inject(DragHintService);
   private readonly actions = inject(FileActionsService);
   protected readonly comparePick = inject(ComparePickService);
+  private readonly toasts = inject(ToastService);
+  protected readonly t = injectT();
   private readonly localFs = inject(LocalFsService);
-  private readonly settings = inject(SettingsService);
   private readonly contextMenu = inject(ContextMenuService);
   private readonly dock = inject(DockService);
   private readonly palette = inject(CommandPaletteService);
@@ -143,12 +145,12 @@ export class ServerPane {
    *  dit pas où il ramène oblige à essayer pour savoir. */
   protected readonly backTitle = computed(() => {
     const target = this.sftp.backTarget();
-    return target ? `Retour à ${target}` : 'Aucun dossier précédent';
+    return target ? `Retour à ${target}` : this.t('server.noPrevDir');
   });
 
   protected readonly forwardTitle = computed(() => {
     const target = this.sftp.forwardTarget();
-    return target ? `Aller à ${target}` : 'Aucun dossier suivant';
+    return target ? `Aller à ${target}` : this.t('server.noNextDir');
   });
 
   protected readonly toneColor = computed(
@@ -157,9 +159,10 @@ export class ServerPane {
 
   // --- Listing et filtre ---
 
-  protected readonly serverEntries = computed(() =>
-    this.withoutHidden(this.sftp.filteredEntries()),
-  );
+  // Les fichiers cachés sont écartés par le navigateur lui-même
+  // (`shownEntries`), pour que « tout sélectionner » ne porte que sur ce que
+  // l'écran montre.
+  protected readonly serverEntries = computed(() => this.sftp.filteredEntries());
 
   /** Le filtre du listing retire des lignes : dit combien, et lesquelles reviennent. */
   protected readonly serverFilterActive = computed(
@@ -176,8 +179,8 @@ export class ServerPane {
 
   /** Ce que le filtre laisse passer, sur ce que le dossier compte vraiment. */
   protected readonly serverFilterCount = computed(() => {
-    const total = this.withoutHidden(this.sftp.entries()).length;
-    return `${this.serverEntries().length} sur ${total}`;
+    const total = this.sftp.shownEntries().length;
+    return this.t('server.filterCount', { shown: this.serverEntries().length, total });
   });
 
   toggleServerFilter(): void {
@@ -214,12 +217,6 @@ export class ServerPane {
     this.sftp.kindFilter.set(value as 'all' | 'dirs' | 'files');
   }
 
-  private withoutHidden(entries: FileEntry[]): FileEntry[] {
-    return this.settings.showHidden()
-      ? entries
-      : entries.filter((entry) => !entry.name.startsWith('.'));
-  }
-
   // --- Le dépôt du Finder (relayé par explorer-page, événements fenêtre) ---
 
   /** Un glisser-déposer de fichiers du Finder survole ce panneau. */
@@ -234,11 +231,21 @@ export class ServerPane {
   protected open(entry: FileEntry): void {
     if (entry.isDir) {
       void this.sftp.openDir(entry.name);
-    } else {
-      // Rouvre le panneau Aperçu s'il était fermé (ou le focalise).
-      this.dock.openPanel('preview');
-      void this.preview.openFile(this.sftp.pathTo(entry.name), entry.name);
+      return;
     }
+    // L'aperçu lit par SFTP. En FTP, ouvrir son panneau donnait une surface
+    // vide qui invitait justement à double-cliquer : on le dit une fois, dans
+    // un toast à clé (il se remplace au lieu de s'empiler à chaque essai).
+    if (this.sftp.protocol() !== 'sftp') {
+      this.toasts.info(this.t('server.previewFtp'), {
+        detail: this.t('server.previewFtpHint'),
+        key: 'preview-ftp',
+      });
+      return;
+    }
+    // Rouvre le panneau Aperçu s'il était fermé (ou le focalise).
+    this.dock.openPanel('preview');
+    void this.preview.openFile(this.sftp.pathTo(entry.name), entry.name);
   }
 
   protected download(entry: FileEntry): void {
@@ -250,7 +257,10 @@ export class ServerPane {
   }
 
   protected deleteSelection(): void {
-    void this.actions.deleteSelection(this.session());
+    void this.actions.deleteSelection(
+      this.sftp,
+      this.sftp.protection() === 'confirm' ? this.sftp.host() : null,
+    );
   }
 
   // --- Sélection multiple (idée 01) ---
@@ -438,9 +448,9 @@ export class ServerPane {
     }
 
     const what =
-      this.dragged.length === 1 ? this.dragged[0].name : `${this.dragged.length} éléments`;
+      this.dragged.length === 1 ? this.dragged[0].name : this.t('server.dragItems', { count: this.dragged.length });
     // Le geste dit ce qu'il fera : déplacer, ou copier si ⌥ est enfoncé.
-    const label = event.altKey ? `Copier ${what}` : what;
+    const label = event.altKey ? this.t('menu.copyWith', { what: ' ' + what }) : what;
 
     // Hors de la fenêtre, le glissé continue peut-être dans une autre : macOS
     // nous livre toujours les événements tant que le bouton est enfoncé, mais
@@ -481,9 +491,9 @@ export class ServerPane {
           return;
         }
         const count =
-          this.dragged.length === 1 ? this.dragged[0].name : `${this.dragged.length} éléments`;
+          this.dragged.length === 1 ? this.dragged[0].name : this.t('server.dragItems', { count: this.dragged.length });
         this.dragLabel.set({
-          text: move.altKey ? `Copier ${count}` : count,
+          text: move.altKey ? this.t('menu.copyWith', { what: ' ' + count }) : count,
           x: move.clientX,
           y: move.clientY,
         });
@@ -727,15 +737,15 @@ export class ServerPane {
       this.sftp.selectOnly(entry.name);
     }
     const first: ContextMenuItem = entry.isDir
-      ? { label: 'Ouvrir', icon: 'folder', action: () => void this.sftp.openDir(entry.name) }
-      : { label: 'Télécharger', icon: 'download', action: () => this.download(entry) };
+      ? { label: this.t('menu.open'), icon: 'folder', action: () => void this.sftp.openDir(entry.name) }
+      : { label: this.t('common.buttons.download'), icon: 'download', action: () => this.download(entry) };
     const items: ContextMenuItem[] = [first];
     if (entry.isDir) {
       items.push(...this.folderActions(this.sftp.pathTo(entry.name)));
     }
     if (!entry.isDir && this.sftp.protocol() === 'sftp') {
       items.push({
-        label: 'Aperçu',
+        label: this.t('server.preview'),
         icon: 'file',
         action: () => {
           this.dock.openPanel('preview');
@@ -744,13 +754,13 @@ export class ServerPane {
       });
       if (this.sftp.protection() !== 'readonly') {
         items.push({
-          label: 'Éditer (éditeur système)',
+          label: this.t('server.editExternal'),
           icon: 'edit',
           action: () => void this.session().remoteEdit.start(this.sftp.pathTo(entry.name), entry.name),
         });
       }
       items.push({
-        label: 'Suivre en direct',
+        label: this.t('server.follow'),
         icon: 'logs',
         action: () => void this.followLog(entry),
       });
@@ -762,7 +772,7 @@ export class ServerPane {
         ...this.pasteAction(),
       );
       items.push({
-        label: 'Permissions…',
+        label: this.t('server.permissions'),
         icon: 'shield-check',
         action: () => this.session().permissions.open(entry, this.sftp.pathTo(entry.name)),
       });
@@ -770,12 +780,12 @@ export class ServerPane {
     items.push(
       { divider: true, label: '' },
       {
-        label: 'Copier le nom',
+        label: this.t('menu.copyName'),
         icon: 'copy',
         action: () => this.actions.copyPath(entry.name),
       },
       {
-        label: 'Copier le chemin',
+        label: this.t('menu.copyPath'),
         icon: 'copy',
         action: () => this.actions.copyPath(this.sftp.pathTo(entry.name)),
       },
@@ -793,22 +803,55 @@ export class ServerPane {
    * TOUJOURS le dossier courant : coller « dans » un fichier n'a pas de sens.
    */
   private pasteAction(): ContextMenuItem[] {
-    if (
-      !this.clipboard.hasContent() ||
-      this.sftp.protocol() !== 'sftp' ||
-      this.sftp.protection() === 'readonly'
-    ) {
+    if (!this.clipboard.hasContent() || this.sftp.protection() === 'readonly') {
       return [];
     }
     const count = this.clipboard.count();
+
+    // Contenu venu du disque : coller ici, c'est ENVOYER. Ça marche donc aussi
+    // en FTP, contrairement à la copie de serveur à serveur qui passe par le
+    // canal exec.
+    if (this.clipboard.fromDisk()) {
+      return [
+        {
+          label: this.t('menu.sendHere', { count }),
+          icon: 'upload',
+          action: () => void this.uploadClipped(),
+        },
+      ];
+    }
+    if (this.sftp.protocol() !== 'sftp') {
+      return [];
+    }
     return [
       {
         label:
-          this.clipboard.mode() === 'copy' ? `Coller ici (${count})` : `Déplacer ici (${count})`,
+          this.clipboard.mode() === 'copy'
+            ? this.t('menu.pasteHere', { count })
+            : this.t('menu.moveHere', { count }),
         icon: 'clipboard',
         action: () => void this.clipboard.pasteHere(),
       },
     ];
+  }
+
+  /** Envoie ici ce que le presse-papiers tient du disque local. */
+  private async uploadClipped(): Promise<void> {
+    const clipped = this.clipboard.clipped();
+    if (!clipped) {
+      return;
+    }
+    const files = clipped.entries.filter((entry) => !entry.isDir);
+    for (const entry of files) {
+      const from = clipped.fromDir === '/' ? `/${entry.name}` : `${clipped.fromDir}/${entry.name}`;
+      await this.actions.uploadWithGuard(
+        this.session(),
+        from,
+        this.sftp.pathTo(entry.name),
+        entry.name,
+      );
+    }
+    await this.sftp.refresh();
   }
 
   /**
@@ -852,7 +895,7 @@ export class ServerPane {
       items.push(...this.clipboardActions(this.sftp.selectedEntries()), ...this.pasteAction());
     }
     items.push({
-      label: 'Copier les chemins',
+      label: this.t('menu.copyPaths'),
       icon: 'copy',
       action: () =>
         this.actions.copyPath(
@@ -866,13 +909,13 @@ export class ServerPane {
       items.push({ divider: true, label: '' });
       if (this.session().trash.available()) {
         items.push({
-          label: `Mettre ${count} éléments à la corbeille`,
+          label: this.t('menu.trashCount', { count }),
           icon: 'trash',
           action: () => void this.actions.trashSelection(this.session(), this.sftp.selectedEntries()),
         });
       }
       items.push({
-        label: `Supprimer ${count} éléments définitivement`,
+        label: this.t('menu.deleteCount', { count }),
         icon: 'trash',
         danger: true,
         action: () => this.deleteSelection(),
@@ -897,7 +940,7 @@ export class ServerPane {
       ...this.folderActions(this.sftp.currentPath()),
       { divider: true, label: '' },
       {
-        label: 'Copier le chemin courant',
+        label: this.t('menu.copyCurrentPath'),
         icon: 'copy',
         action: () => this.actions.copyPath(this.sftp.currentPath()),
       },
@@ -914,7 +957,7 @@ export class ServerPane {
     // Le terminal n'existe qu'en SFTP (il vit sur la session SSH).
     if (this.sftp.protocol() === 'sftp') {
       items.push({
-        label: 'Ouvrir le terminal ici',
+        label: this.t('server.openTerminalHere'),
         icon: 'terminal',
         action: () => {
           this.dock.openPanel('terminal');
@@ -924,7 +967,7 @@ export class ServerPane {
     }
 
     items.push({
-      label: 'Chercher dans ce dossier',
+      label: this.t('server.searchHere'),
       icon: 'search',
       action: () => void this.palette.searchIn(path),
     });
@@ -938,13 +981,13 @@ export class ServerPane {
       items.push(
         known
           ? {
-              label: 'Retirer des favoris',
-              icon: 'anchor',
+              label: this.t('server.favoriteRemove'),
+              icon: 'star',
               action: () => void this.profiles.removeFavorite(profileId, path),
             }
           : {
-              label: 'Ajouter aux favoris',
-              icon: 'anchor',
+              label: this.t('server.favoriteAdd'),
+              icon: 'star',
               action: () => {
                 const label = path.split('/').filter(Boolean).pop() ?? '/';
                 void this.profiles
@@ -960,7 +1003,7 @@ export class ServerPane {
     }
 
     items.push({
-      label: 'Rechercher en profondeur…',
+      label: this.t('server.searchDeep'),
       icon: 'search',
       action: () => {
         this.session().search.seed('', path);
@@ -975,13 +1018,13 @@ export class ServerPane {
       const anchor = this.profiles.anchorOf(profileId);
       if (anchor !== path) {
         items.push({
-          label: 'Ancrer pour la connexion',
+          label: this.t('server.anchorSet'),
           icon: 'anchor',
           action: () => void this.profiles.setAnchor(profileId, path),
         });
       } else {
         items.push({
-          label: "Retirer l'ancre de connexion",
+          label: this.t('server.anchorClear'),
           icon: 'anchor',
           action: () => void this.profiles.setAnchor(profileId, null),
         });
@@ -999,7 +1042,7 @@ export class ServerPane {
     }
     const items: ContextMenuItem[] = [
       {
-        label: 'Renommer…',
+        label: this.t('menu.rename'),
         icon: 'pencil',
         action: () => void this.actions.renameEntry(this.sftp, entry),
       },
@@ -1008,13 +1051,13 @@ export class ServerPane {
     // qui se rattrape. La suppression définitive reste juste en dessous.
     if (this.session().trash.available()) {
       items.push({
-        label: 'Mettre à la corbeille',
+        label: this.t('menu.trash'),
         icon: 'trash',
         action: () => void this.actions.trashSelection(this.session(), [entry]),
       });
     }
     items.push({
-      label: 'Supprimer définitivement',
+      label: this.t('menu.deleteForever'),
       icon: 'trash',
       danger: true,
       action: () =>
@@ -1030,25 +1073,30 @@ export class ServerPane {
   /** Nouveau dossier / fichier / actualiser, sur ce panneau. */
   private areaActions(): ContextMenuItem[] {
     const refresh: ContextMenuItem = {
-      label: 'Actualiser',
+      label: this.t('menu.refresh'),
       icon: 'refresh',
       action: () => void this.sftp.refresh(),
     };
     if (this.sftp.protection() === 'readonly') {
       return [refresh];
     }
-    return [
+    const items: ContextMenuItem[] = [
       {
-        label: 'Nouveau dossier…',
+        label: this.t('menu.newDir'),
         icon: 'folder-plus',
-        action: () => void this.actions.createDirIn(this.sftp, 'Nouveau dossier sur le serveur'),
+        action: () => void this.actions.createDirIn(this.sftp, this.t('menu.newDirServer')),
       },
-      {
-        label: 'Nouveau fichier…',
-        icon: 'file',
-        action: () => void this.actions.createFileIn(this.sftp, 'Nouveau fichier sur le serveur'),
-      },
-      refresh,
     ];
+    // La création de fichier passe par `sftp_create_file`, sans équivalent
+    // FTP : le service la refusait déjà, mais le menu la proposait quand même.
+    if (this.sftp.protocol() === 'sftp') {
+      items.push({
+        label: this.t('menu.newFile'),
+        icon: 'file',
+        action: () => void this.actions.createFileIn(this.sftp, this.t('menu.newFileServer')),
+      });
+    }
+    items.push(refresh);
+    return items;
   }
 }

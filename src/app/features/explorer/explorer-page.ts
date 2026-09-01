@@ -34,6 +34,8 @@ import { TerminalPane } from '@app/components/panels/terminal-pane/terminal-pane
 import { TransferPanel } from '@app/components/panels/transfer-panel/transfer-panel';
 import { TrashPane } from '@app/components/panels/trash-pane/trash-pane';
 import { DockPanelId, FileEntry } from '@app/interfaces';
+import { injectT } from '@app/lang/i18n.service';
+import { FileBrowserState } from '@app/services/connection/file-browser-state';
 import { ForeignDrop } from '@app/services/connection/file-clipboard.service';
 import { FileClipboardService } from '@app/services/connection/file-clipboard.service';
 import { LocalFsService } from '@app/services/connection/local-fs.service';
@@ -49,7 +51,7 @@ import { SettingsService } from '@app/services/system/settings.service';
 import { UpdaterService } from '@app/services/system/updater.service';
 import { CommandPaletteService } from '@app/services/workspace/command-palette.service';
 import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
-import { DockService, PANEL_META } from '@app/services/workspace/dock.service';
+import { DockService, PANEL_META, SFTP_ONLY_PANELS } from '@app/services/workspace/dock.service';
 import { SessionRecapService } from '@app/services/workspace/session-recap.service';
 import { Shortcut, ShortcutsService } from '@app/services/workspace/shortcuts.service';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
@@ -119,6 +121,12 @@ const CUT_BLADE_MS = 620;
   templateUrl: './explorer-page.html',
   styleUrl: './explorer-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Le panneau touché en dernier est celui que les raccourcis visent : c'est
+    // le focus de n'importe quelle application. Un seul écouteur et une seule
+    // règle, plutôt qu'un `adopt()` à poser dans chaque panneau.
+    '(pointerdown)': 'noteScope($event)',
+  },
 })
 export class ExplorerPage {
   protected readonly sessionRegistry = inject(SessionRegistry);
@@ -160,6 +168,7 @@ export class ExplorerPage {
   private readonly palette = inject(CommandPaletteService);
   protected readonly updater = inject(UpdaterService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly t = injectT();
 
   /** Le panneau d'aperçu, pour lui router ⌘F quand il est au premier plan. */
   private readonly previewPanel = viewChild(PreviewPanel);
@@ -180,19 +189,45 @@ export class ExplorerPage {
   private readonly termSlotA = viewChild<ElementRef<HTMLElement>>('termSlotA');
   private readonly termSlotB = viewChild<ElementRef<HTMLElement>>('termSlotB');
 
-  /** Terminal 2 n'existe que le temps d'une vue double : hors split, son
-   *  bouton de réouverture n'a rien à rouvrir. */
-  /** Les seconds panneaux n'existent que le temps d'une vue double : hors
-   *  split, leur bouton de réouverture n'aurait rien à rouvrir. */
+  /**
+   * Les panneaux qu'on peut rouvrir depuis la barre de statut.
+   *
+   * Deux exclusions : les seconds panneaux n'existent que le temps d'une vue
+   * double, et les panneaux SFTP n'ont rien à montrer sur une connexion FTP :
+   * proposer un terminal qu'on ne peut pas ouvrir est le genre de promesse
+   * qu'une interface ne doit pas faire.
+   */
   protected readonly visibleClosedPanels = computed(() => {
     const split = this.sessionRegistry.displayed().length > 1;
+    const sftp = this.sftp.protocol() === 'sftp';
     return this.dock
       .closedPanels()
-      .filter((panel) => (panel !== 'terminal2' && panel !== 'server2') || split);
+      .filter((panel) => (panel !== 'terminal2' && panel !== 'server2') || split)
+      .filter((panel) => sftp || !SFTP_ONLY_PANELS.has(panel));
   });
 
-  protected readonly localEntries = computed(() =>
-    this.withoutHidden(this.localFs.filteredEntries()),
+  // Les fichiers cachés sont écartés par le navigateur lui-même
+  // (`shownEntries`) : ⌘A ne doit jamais embarquer une ligne invisible.
+  protected readonly localEntries = computed(() => this.localFs.filteredEntries());
+
+  /**
+   * Le panneau qui a la main, local ou serveur. Les raccourcis de sélection,
+   * de navigation et de fichiers tirent là où l'utilisateur travaille : sans
+   * cette notion, ⌘A dans le panneau local sélectionnait tout le dossier
+   * SERVEUR, sans que rien ne l'indique.
+   */
+  protected readonly paneScope = signal<'local' | 'server'>('server');
+
+  /** Le panneau local, pour lui router ⌘F quand il a la main. */
+  private readonly localPane = viewChild(FilePane);
+
+  /**
+   * L'aperçu lit par `sftp_read_text` : en FTP il n'a rien à montrer, et son
+   * état vide doit le dire plutôt que d'inviter à un double-clic sans effet.
+   * La session concernée est celle qui possède l'aperçu, pas la focalisée.
+   */
+  protected readonly previewAvailable = computed(
+    () => this.sessionRegistry.previewOwner().sftp.protocol() === 'sftp',
   );
 
   /** Le terminal ne démarre qu'à la première activation de son panneau. */
@@ -518,7 +553,7 @@ export class ExplorerPage {
       return;
     }
     if (session.sftp.protection() === 'readonly') {
-      session.sftp.reportError('Serveur en lecture seule : dépôt refusé.');
+      session.sftp.reportError(this.t('transfer.readonlyDrop'));
       return;
     }
     // Séquentiel : un seul dialogue « écraser ? » à la fois.
@@ -534,7 +569,190 @@ export class ExplorerPage {
     }
   }
 
-  // --- Panneau local : ouverture, envoi, menus ---
+  // --- Panneau local : sélection, ouverture, envoi, menus ---
+
+  /**
+   * Note quel panneau vient d'être touché. La règle est unique : le panneau
+   * local prend la main, tout autre panneau la rend au serveur.
+   *
+   * L'ONGLET compte autant que le contenu : mettre « Local » au premier plan
+   * est le geste qui dit « je travaille ici », et il précède forcément le
+   * premier clic dans la liste. Sans ça, cliquer l'onglet puis faire ⌘A
+   * sélectionnait le dossier serveur.
+   *
+   * Un clic ailleurs (barre de statut, onglets de session, modale) ne change
+   * rien : ce n'est pas un panneau, la main reste où elle était.
+   */
+  protected noteScope(event: Event): void {
+    const target = event.target as HTMLElement | null;
+    const panel =
+      target?.closest<HTMLElement>('[data-dock-tab]')?.dataset['dockTab'] ??
+      target?.closest<HTMLElement>('[data-dock-panel]')?.dataset['dockPanel'];
+    if (panel) {
+      this.paneScope.set(panel === 'local' ? 'local' : 'server');
+    }
+  }
+
+  /**
+   * Le navigateur que les raccourcis visent : celui du panneau touché, et le
+   * serveur si le panneau local a été fermé depuis, sinon une touche agirait
+   * sur une liste que plus personne ne voit.
+   */
+  private targetBrowser(): FileBrowserState {
+    return this.localHasHand() ? this.localFs : this.sftp;
+  }
+
+  private localHasHand(): boolean {
+    return this.paneScope() === 'local' && this.dock.activePanels().has('local');
+  }
+
+  /**
+   * Un clic sur une ligne locale, avec ses modificateurs, le même vocabulaire
+   * que le panneau serveur : Maj étend depuis l'ancre, Cmd/Ctrl ajoute ou
+   * retire, un clic nu remplace. Le double-clic garde l'ouverture.
+   */
+  protected onLocalClick(event: MouseEvent, entry: FileEntry): void {
+    if (event.shiftKey && (event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      this.localFs.extendTo(entry.name, true);
+      return;
+    }
+    if (event.shiftKey) {
+      // Sans ça, l'extension sélectionne aussi le texte des lignes traversées.
+      event.preventDefault();
+      this.localFs.extendTo(entry.name);
+    } else if (event.metaKey || event.ctrlKey) {
+      this.localFs.toggleSelection(entry.name);
+    } else {
+      this.localFs.selectOnly(entry.name);
+    }
+  }
+
+  /** Les flèches et Échap quand le panneau local a le focus. */
+  protected onLocalKeydown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('input, textarea')) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      this.localFs.clearSelection();
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = this.localFs.neighbour(
+        this.localFs.focused(),
+        event.key === 'ArrowDown' ? 1 : -1,
+      );
+      if (!next) {
+        return;
+      }
+      // Maj + flèche étend la plage, la flèche seule déplace la sélection.
+      if (event.shiftKey) {
+        this.localFs.extendTo(next);
+      } else {
+        this.localFs.selectOnly(next);
+      }
+      this.scrollLocalIntoView(next);
+    }
+  }
+
+  private scrollLocalIntoView(name: string): void {
+    setTimeout(() => {
+      this.document
+        .querySelector(`[data-dock-panel="local"] [data-entry="${CSS.escape(name)}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
+  /** Copie les chemins du lot local, une ligne par entrée. */
+  protected copyLocalPaths(): void {
+    this.actions.copyPath(
+      this.localFs
+        .selectedEntries()
+        .map((entry) => this.localFs.pathTo(entry.name))
+        .join('\n'),
+    );
+  }
+
+  /**
+   * Coller, dans le panneau qui a la main.
+   *
+   * Quatre combinaisons, et une seule porte : le presse-papiers dit d'où
+   * vient le contenu (disque ou serveur), le panneau touché dit où il va.
+   * Disque → disque est une copie de fichiers ; disque → serveur est un
+   * ENVOI et serveur → disque un TÉLÉCHARGEMENT, avec leur file de
+   * transferts ; serveur → serveur reste la copie sur place ou le pont.
+   */
+  protected async pasteHere(): Promise<void> {
+    const clipped = this.clipboard.clipped();
+    if (!clipped) {
+      return;
+    }
+    const toDisk = this.localHasHand();
+    if (this.clipboard.fromDisk()) {
+      if (toDisk) {
+        await this.clipboard.pasteOnDisk(this.localFs.currentPath());
+      } else {
+        await this.uploadClipped(clipped.fromDir, clipped.entries);
+      }
+      return;
+    }
+    if (toDisk) {
+      await this.downloadClipped(clipped.entries);
+      return;
+    }
+    await this.clipboard.pasteHere();
+  }
+
+  /** Envoie vers le dossier serveur courant ce que le presse-papiers tient. */
+  private async uploadClipped(
+    fromDir: string,
+    entries: readonly { name: string; isDir: boolean }[],
+  ): Promise<void> {
+    const session = this.focusedSession();
+    if (session.sftp.protection() === 'readonly') {
+      this.dialogToasts.error(this.t('transfer.readonlyServer'));
+      return;
+    }
+    const files = entries.filter((entry) => !entry.isDir);
+    if (files.length < entries.length) {
+      this.dialogToasts.info(this.t('transfer.foldersNotSent'), {
+        detail: this.t('transfer.foldersNotSentHint'),
+      });
+    }
+    for (const entry of files) {
+      await this.actions.uploadWithGuard(
+        session,
+        fromDir === '/' ? `/${entry.name}` : `${fromDir}/${entry.name}`,
+        session.sftp.pathTo(entry.name),
+        entry.name,
+      );
+    }
+    await session.sftp.refresh();
+  }
+
+  /** Télécharge dans le dossier local courant ce que le presse-papiers tient. */
+  private async downloadClipped(
+    entries: readonly { name: string; isDir: boolean }[],
+  ): Promise<void> {
+    const session = this.focusedSession();
+    const files = entries.filter((entry) => !entry.isDir);
+    if (!files.length) {
+      this.dialogToasts.info(this.t('transfer.foldersNotDownloaded'), {
+        detail: this.t('transfer.pickFiles'),
+      });
+      return;
+    }
+    for (const entry of files) {
+      await this.actions.download(session, { ...entry, size: 0 } as FileEntry);
+    }
+  }
+
+  /** Supprime le lot local. Pas de corbeille ici : c'est définitif, et dit. */
+  protected deleteLocalSelection(): void {
+    void this.actions.deleteSelection(this.localFs);
+  }
 
   protected openLocalDir(entry: FileEntry): void {
     void this.localFs.openDir(entry.name);
@@ -555,7 +773,7 @@ export class ExplorerPage {
   }
 
   /** Envoie la sélection du panneau local vers le serveur. */
-  private async uploadSelection(): Promise<void> {
+  protected async uploadSelection(): Promise<void> {
     const session = this.focusedSession();
     for (const entry of this.localFs.selectedEntries().filter((e) => !e.isDir)) {
       await this.actions.uploadWithGuard(
@@ -569,26 +787,39 @@ export class ExplorerPage {
   }
 
   protected openLocalEntryMenu(event: MouseEvent, entry: FileEntry): void {
+    // Clic droit DANS une sélection multiple : le menu porte sur le lot.
+    // Clic droit dehors : la sélection repart de cette ligne, comme partout.
+    if (this.localFs.selectionCount() > 1 && this.localFs.isSelected(entry.name)) {
+      this.openLocalSelectionMenu(event);
+      return;
+    }
+    if (!this.localFs.isSelected(entry.name)) {
+      this.localFs.selectOnly(entry.name);
+    }
     const first: ContextMenuItem = entry.isDir
-      ? { label: 'Ouvrir', icon: 'folder', action: () => void this.localFs.openDir(entry.name) }
-      : { label: 'Envoyer vers le serveur', icon: 'upload', action: () => void this.upload(entry) };
+      ? { label: this.t('menu.open'), icon: 'folder', action: () => void this.localFs.openDir(entry.name) }
+      : { label: this.t('menu.sendToServer'), icon: 'upload', action: () => void this.upload(entry) };
     this.contextMenu.open(event, [
       first,
+      ...(entry.isDir ? [this.localAnchorAction(this.localFs.pathTo(entry.name))] : []),
       { divider: true, label: '' },
-      { label: 'Copier le nom', icon: 'copy', action: () => this.actions.copyPath(entry.name) },
+      ...this.localClipboardActions([entry]),
+      ...this.localPasteAction(),
+      { divider: true, label: '' },
+      { label: this.t('menu.copyName'), icon: 'copy', action: () => this.actions.copyPath(entry.name) },
       {
-        label: 'Copier le chemin',
+        label: this.t('menu.copyPath'),
         icon: 'copy',
         action: () => this.actions.copyPath(this.localFs.pathTo(entry.name)),
       },
       { divider: true, label: '' },
       {
-        label: 'Renommer…',
+        label: this.t('menu.rename'),
         icon: 'pencil',
         action: () => void this.actions.renameEntry(this.localFs, entry),
       },
       {
-        label: 'Supprimer définitivement',
+        label: this.t('menu.deleteForever'),
         icon: 'trash',
         danger: true,
         action: () => void this.actions.deleteEntry(this.localFs, entry),
@@ -596,26 +827,129 @@ export class ExplorerPage {
     ]);
   }
 
-  protected openLocalAreaMenu(event: MouseEvent): void {
-    this.contextMenu.open(event, [
-      {
-        label: 'Nouveau dossier…',
-        icon: 'folder-plus',
-        action: () => void this.actions.createDirIn(this.localFs, 'Nouveau dossier local'),
-      },
-      {
-        label: 'Nouveau fichier…',
-        icon: 'file',
-        action: () => void this.actions.createFileIn(this.localFs, 'Nouveau fichier local'),
-      },
-      { label: 'Actualiser', icon: 'refresh', action: () => void this.localFs.refresh() },
-    ]);
+  /**
+   * Ancrer ou désancrer un dossier local (issue #5). Proposé sur le fond du
+   * panneau comme sur une ligne de dossier : ancrer se décide là où l'on est,
+   * pas dans un champ de réglages où il faudrait retaper le chemin.
+   */
+  protected toggleLocalAnchor(): void {
+    const path = this.localFs.currentPath();
+    this.localFs.anchorHere(this.settings.localHome() === path ? null : path);
   }
 
-  private withoutHidden(entries: FileEntry[]): FileEntry[] {
-    return this.settings.showHidden()
-      ? entries
-      : entries.filter((entry) => !entry.name.startsWith('.'));
+  private localAnchorAction(path: string): ContextMenuItem {
+    return this.settings.localHome() === path
+      ? {
+          label: this.t('menu.anchorClear'),
+          icon: 'anchor',
+          action: () => this.localFs.anchorHere(null),
+        }
+      : {
+          label: this.t('menu.anchorSet'),
+          icon: 'anchor',
+          action: () => this.localFs.anchorHere(path),
+        };
+  }
+
+  /** Le menu d'un lot local : envoyer, copier les chemins, supprimer. */
+  private openLocalSelectionMenu(event: MouseEvent): void {
+    const entries = this.localFs.selectedEntries();
+    const count = entries.length;
+    const files = entries.filter((entry) => !entry.isDir).length;
+    const items: ContextMenuItem[] = [];
+
+    if (files > 0 && this.sftp.protection() !== 'readonly') {
+      items.push({
+        label: `Envoyer ${files} fichier${files > 1 ? 's' : ''}`,
+        icon: 'upload',
+        action: () => void this.uploadSelection(),
+      });
+    }
+    items.push(...this.localClipboardActions(entries), ...this.localPasteAction());
+    items.push({
+      label: this.t('menu.copyPaths'),
+      icon: 'copy',
+      action: () => this.copyLocalPaths(),
+    });
+    items.push(
+      { divider: true, label: '' },
+      {
+        // Pas de corbeille sur le disque local : la suppression est définitive,
+        // et le dit. Les confirmations du lot restent celles de partout.
+        label: this.t('menu.deleteCount', { count }),
+        icon: 'trash',
+        danger: true,
+        action: () => this.deleteLocalSelection(),
+      },
+    );
+    this.contextMenu.open(event, items);
+  }
+
+  /** Copier / couper, côté disque. Le presse-papiers est le même que celui du
+   *  serveur : c'est le collage qui décide de ce que ça veut dire. */
+  private localClipboardActions(entries: FileEntry[]): ContextMenuItem[] {
+    const what = entries.length > 1 ? ` (${entries.length})` : '';
+    return [
+      {
+        label: this.t('menu.copyWith', { what }),
+        icon: 'copy',
+        action: () => this.clipboard.copyLocal(entries),
+      },
+      {
+        label: this.t('menu.cutWith', { what }),
+        icon: 'scissors',
+        action: () => this.clipboard.cutLocal(entries),
+      },
+    ];
+  }
+
+  /** « Coller ici », proposé partout où un clic droit peut tomber dans le
+   *  panneau local. La destination est toujours le dossier affiché. */
+  private localPasteAction(): ContextMenuItem[] {
+    if (!this.clipboard.hasContent()) {
+      return [];
+    }
+    const count = this.clipboard.count();
+    if (!this.clipboard.fromDisk()) {
+      // Contenu venu d'un serveur : coller ici, c'est TÉLÉCHARGER.
+      return [
+        {
+          label: this.t('menu.downloadHere', { count }),
+          icon: 'download',
+          action: () => void this.pasteHere(),
+        },
+      ];
+    }
+    return [
+      {
+        label:
+          this.clipboard.mode() === 'copy' ? this.t('menu.pasteHere', { count }) : this.t('menu.moveHere', { count }),
+        icon: 'clipboard',
+        action: () => void this.pasteHere(),
+      },
+    ];
+  }
+
+  protected openLocalAreaMenu(event: MouseEvent): void {
+    this.contextMenu.open(event, [
+      ...this.localPasteAction(),
+      ...(this.clipboard.hasContent() ? [{ divider: true, label: '' } as ContextMenuItem] : []),
+      {
+        label: this.t('menu.newDir'),
+        icon: 'folder-plus',
+        action: () => void this.actions.createDirIn(this.localFs, this.t('menu.newDirLocal')),
+      },
+      {
+        label: this.t('menu.newFile'),
+        icon: 'file',
+        action: () => void this.actions.createFileIn(this.localFs, this.t('menu.newFileLocal')),
+      },
+      { label: this.t('menu.refresh'), icon: 'refresh', action: () => void this.localFs.refresh() },
+      // L'ancre en dernier, comme côté serveur : c'est un réglage qu'on pose
+      // une fois, pas un geste du quotidien.
+      { divider: true, label: '' },
+      this.localAnchorAction(this.localFs.currentPath()),
+    ]);
   }
 
   // --- Le glissé venu d'une AUTRE fenêtre (relais backend) ---
@@ -654,8 +988,8 @@ export class ExplorerPage {
       if (!pane || !session || !this.canReceiveForeignDrop(session)) {
         this.dialogToasts.error(
           session && session.sftp.protection() === 'readonly'
-            ? 'Cette session est en lecture seule.'
-            : 'Le dépôt entre fenêtres demande une session SFTP.',
+            ? this.t('transfer.readonlySession')
+            : this.t('transfer.needSftp'),
         );
         return;
       }
@@ -697,75 +1031,98 @@ export class ExplorerPage {
     const pickedFiles = () =>
       this.sftp.selectedEntries().filter((entry) => !entry.isDir).length;
 
+    // Les gestes qui existent des deux côtés visent le panneau touché en
+    // dernier. `local` dit lequel, `target` donne le navigateur, et
+    // `changeable` remplace `writable` : le disque local n'a pas de lecture
+    // seule, c'est un garde-fou de serveur.
+    const local = () => this.localHasHand();
+    const target = () => this.targetBrowser();
+    const changeable = () => (local() ? true : writable());
+    const targetPicked = () => target().hasSelection();
+
     return [
       // --- Sélection ---
       {
         keys: 'mod+a',
-        label: 'Tout sélectionner (entrées visibles)',
-        group: 'Sélection',
+        label: this.t('shortcuts.selectAll'),
+        group: this.t('shortcuts.groups.selection'),
         when: connected,
-        run: () => this.sftp.selectAll(),
+        run: () => target().selectAll(),
       },
       {
         keys: 'escape',
-        label: 'Vider la sélection',
-        group: 'Sélection',
-        when: () => picked() || this.clipboard.hasContent(),
+        label: this.t('shortcuts.clearSelection'),
+        group: this.t('shortcuts.groups.selection'),
+        when: () => targetPicked() || this.clipboard.hasContent(),
         run: () => {
-          this.sftp.clearSelection();
+          target().clearSelection();
           this.clipboard.clear();
         },
       },
       {
         keys: 'mod+c',
-        label: 'Copier la sélection',
-        group: 'Fichiers',
-        when: () => connected() && picked() && this.sftp.protocol() === 'sftp',
-        run: () => this.clipboard.copy(this.sftp.selectedEntries()),
+        label: this.t('shortcuts.copySelection'),
+        group: this.t('shortcuts.groups.files'),
+        // Le disque n'a pas de restriction de protocole ; le serveur, si (la
+        // copie sur place passe par le canal exec, donc par SSH).
+        when: () =>
+          local()
+            ? this.localFs.hasSelection()
+            : connected() && picked() && this.sftp.protocol() === 'sftp',
+        run: () =>
+          local()
+            ? this.clipboard.copyLocal(this.localFs.selectedEntries())
+            : this.clipboard.copy(this.sftp.selectedEntries()),
       },
       {
         keys: 'mod+x',
-        label: 'Couper la sélection',
-        group: 'Fichiers',
-        when: () => writable() && picked() && this.sftp.protocol() === 'sftp',
-        run: () => this.clipboard.cut(this.sftp.selectedEntries()),
+        label: this.t('shortcuts.cutSelection'),
+        group: this.t('shortcuts.groups.files'),
+        when: () =>
+          local()
+            ? this.localFs.hasSelection()
+            : writable() && picked() && this.sftp.protocol() === 'sftp',
+        run: () =>
+          local()
+            ? this.clipboard.cutLocal(this.localFs.selectedEntries())
+            : this.clipboard.cut(this.sftp.selectedEntries()),
       },
       {
         keys: 'mod+v',
-        label: 'Coller dans ce dossier',
-        group: 'Fichiers',
-        when: () => writable() && this.clipboard.hasContent(),
-        run: () => void this.clipboard.pasteHere(),
+        label: this.t('shortcuts.pasteInto'),
+        group: this.t('shortcuts.groups.files'),
+        when: () => (local() ? this.clipboard.hasContent() : writable() && this.clipboard.hasContent()),
+        run: () => void this.pasteHere(),
       },
 
       // --- Naviguer ---
       {
         keys: 'mod+arrowleft',
-        label: 'Dossier précédent',
-        group: 'Naviguer',
-        when: () => connected() && this.sftp.canGoBack(),
-        run: () => void this.sftp.goBack(),
+        label: this.t('shortcuts.prevDir'),
+        group: this.t('shortcuts.groups.navigate'),
+        when: () => connected() && target().canGoBack(),
+        run: () => void target().goBack(),
       },
       {
         keys: 'mod+arrowright',
-        label: 'Dossier suivant',
-        group: 'Naviguer',
-        when: () => connected() && this.sftp.canGoForward(),
-        run: () => void this.sftp.goForward(),
+        label: this.t('shortcuts.nextDir'),
+        group: this.t('shortcuts.groups.navigate'),
+        when: () => connected() && target().canGoForward(),
+        run: () => void target().goForward(),
       },
       {
         keys: 'mod+arrowup',
-        label: 'Dossier parent',
-        group: 'Naviguer',
-        when: () => connected() && !this.sftp.atRoot(),
-        run: () => void this.sftp.navigateUp(),
+        label: this.t('shortcuts.parentDir'),
+        group: this.t('shortcuts.groups.navigate'),
+        when: () => connected() && !target().atRoot(),
+        run: () => void target().navigateUp(),
       },
       {
         keys: 'mod+r',
-        label: 'Actualiser le dossier',
-        group: 'Naviguer',
+        label: this.t('shortcuts.refreshDir'),
+        group: this.t('shortcuts.groups.navigate'),
         when: connected,
-        run: () => void this.sftp.refresh(),
+        run: () => void target().refresh(),
       },
       {
         // Une lettre, et non `mod+shift+.` : sur un clavier français le point
@@ -773,14 +1130,14 @@ export class ExplorerPage {
         // celui-ci volerait l'annulation des transferts. `h` pour « hidden »,
         // et `shift` parce que ⌘H masque l'application sur macOS.
         keys: 'mod+shift+h',
-        label: 'Afficher les fichiers cachés',
-        group: 'Naviguer',
+        label: this.t('shortcuts.hidden'),
+        group: this.t('shortcuts.groups.navigate'),
         run: () => this.settings.update({ showHidden: !this.settings.showHidden() }),
       },
       {
         keys: 'mod+f',
-        label: 'Filtrer le dossier, ou chercher dans le fichier ouvert',
-        group: 'Naviguer',
+        label: this.t('shortcuts.find'),
+        group: this.t('shortcuts.groups.navigate'),
         when: connected,
         run: () => {
           // Un seul point de décision : l'aperçu au premier plan avec un
@@ -792,6 +1149,8 @@ export class ExplorerPage {
             !this.preview.markdownView();
           if (inPreview) {
             this.previewPanel()?.openFind();
+          } else if (local()) {
+            this.localPane()?.focusFilter();
           } else {
             this.focusedPane()?.toggleServerFilter();
           }
@@ -799,8 +1158,8 @@ export class ExplorerPage {
       },
       {
         keys: 'mod+shift+f',
-        label: 'Chercher récursivement sur le serveur',
-        group: 'Naviguer',
+        label: this.t('shortcuts.deepSearch'),
+        group: this.t('shortcuts.groups.navigate'),
         when: connected,
         run: () => {
           this.searchService.seed('');
@@ -809,8 +1168,8 @@ export class ExplorerPage {
       },
       {
         keys: 'mod+shift+g',
-        label: 'Aller à un chemin',
-        group: 'Naviguer',
+        label: this.t('shortcuts.goToPath'),
+        group: this.t('shortcuts.groups.navigate'),
         when: connected,
         run: () => {
           this.palette.setQuery('/');
@@ -821,44 +1180,52 @@ export class ExplorerPage {
       // --- Fichiers ---
       {
         keys: 'f2',
-        label: 'Renommer',
-        group: 'Fichiers',
-        when: () => writable() && this.sftp.selectionCount() === 1,
+        label: this.t('shortcuts.rename'),
+        group: this.t('shortcuts.groups.files'),
+        when: () => changeable() && target().selectionCount() === 1,
         run: () => void this.renameSelection(),
       },
       {
         keys: 'mod+enter',
-        label: 'Renommer (variante)',
-        group: 'Fichiers',
-        when: () => writable() && this.sftp.selectionCount() === 1,
+        label: this.t('shortcuts.renameAlt'),
+        group: this.t('shortcuts.groups.files'),
+        when: () => changeable() && target().selectionCount() === 1,
         run: () => void this.renameSelection(),
       },
       {
         keys: 'mod+backspace',
-        label: 'Mettre la sélection à la corbeille',
-        group: 'Fichiers',
-        when: () => writable() && picked() && this.trash.available(),
+        label: this.t('shortcuts.trashOrDelete'),
+        group: this.t('shortcuts.groups.files'),
+        // Le disque local n'a pas de corbeille : la même touche y supprime,
+        // avec la confirmation qui va avec.
+        when: () => (local() ? targetPicked() : writable() && picked() && this.trash.available()),
         run: () =>
-          void this.actions.trashSelection(this.focusedSession(), this.sftp.selectedEntries()),
+          local()
+            ? this.deleteLocalSelection()
+            : void this.actions.trashSelection(this.focusedSession(), this.sftp.selectedEntries()),
       },
       {
         keys: 'mod+shift+backspace',
-        label: 'Supprimer définitivement',
-        group: 'Fichiers',
-        when: () => writable() && picked(),
-        run: () => void this.actions.deleteSelection(this.focusedSession()),
+        label: this.t('menu.deleteForever'),
+        group: this.t('shortcuts.groups.files'),
+        when: () => changeable() && targetPicked(),
+        run: () => void this.deleteTargetSelection(),
       },
       {
         keys: 'mod+shift+n',
-        label: 'Nouveau dossier',
-        group: 'Fichiers',
-        when: writable,
-        run: () => void this.actions.createDirIn(this.sftp, 'Nouveau dossier sur le serveur'),
+        label: this.t('shortcuts.newDir'),
+        group: this.t('shortcuts.groups.files'),
+        when: changeable,
+        run: () =>
+          void this.actions.createDirIn(
+            target(),
+            local() ? this.t('menu.newDirLocal') : this.t('menu.newDirServer'),
+          ),
       },
       {
         keys: 'mod+s',
-        label: 'Enregistrer le fichier ouvert',
-        group: 'Fichiers',
+        label: this.t('shortcuts.save'),
+        group: this.t('shortcuts.groups.files'),
         // On est dans le textarea de l'éditeur : la touche doit tirer là.
         evenWhileTyping: true,
         when: () => this.preview.canSave(),
@@ -868,22 +1235,22 @@ export class ExplorerPage {
       // --- Transférer ---
       {
         keys: 'mod+d',
-        label: 'Télécharger la sélection',
-        group: 'Transférer',
+        label: this.t('shortcuts.downloadSelection'),
+        group: this.t('shortcuts.groups.transfer'),
         when: () => picked() && pickedFiles() > 0,
         run: () => void this.actions.downloadSelection(this.focusedSession()),
       },
       {
         keys: 'mod+u',
-        label: 'Envoyer la sélection locale',
-        group: 'Transférer',
+        label: this.t('shortcuts.uploadSelection'),
+        group: this.t('shortcuts.groups.transfer'),
         when: () => writable() && this.localFs.hasSelection(),
         run: () => void this.uploadSelection(),
       },
       {
         keys: 'mod+.',
-        label: 'Annuler les transferts en cours',
-        group: 'Transférer',
+        label: this.t('shortcuts.cancelTransfers'),
+        group: this.t('shortcuts.groups.transfer'),
         when: () => this.transfers.activeCount() > 0,
         run: () => this.transfers.cancelAll(),
       },
@@ -891,15 +1258,15 @@ export class ExplorerPage {
       // --- Panneaux ---
       {
         keys: 'control+`',
-        label: 'Ouvrir le terminal',
-        group: 'Panneaux',
+        label: this.t('shortcuts.openTerminal'),
+        group: this.t('shortcuts.groups.panels'),
         when: () => connected() && this.sftp.protocol() === 'sftp',
         run: () => this.dock.openPanel('terminal'),
       },
       {
         keys: 'mod+b',
-        label: 'Afficher ou masquer l’arborescence',
-        group: 'Panneaux',
+        label: this.t('shortcuts.toggleTree'),
+        group: this.t('shortcuts.groups.panels'),
         when: connected,
         run: () =>
           this.dock.activePanels().has('tree')
@@ -908,8 +1275,8 @@ export class ExplorerPage {
       },
       {
         keys: 'mod+w',
-        label: 'Fermer l’onglet',
-        group: 'Application',
+        label: this.t('shortcuts.closeTab'),
+        group: this.t('shortcuts.groups.app'),
         when: connected,
         // Ferme la SESSION focalisée (bilan compris) ; la dernière ferme la
         // fenêtre par le chemin du feu rouge.
@@ -917,20 +1284,44 @@ export class ExplorerPage {
       },
       ...PANEL_ORDER.map((panel, index) => ({
         keys: `mod+${index + 1}`,
-        label: `Panneau ${PANEL_META[panel].label}`,
-        group: 'Panneaux',
-        when: connected,
-        run: () => this.dock.openPanel(panel),
+        label: this.t('shortcuts.panel', { name: this.t(PANEL_META[panel].label) }),
+        group: this.t('shortcuts.groups.panels'),
+        // Même règle que la barre de statut : un panneau SFTP ne s'ouvre pas
+        // sur une connexion FTP.
+        when: () =>
+          connected() && (this.sftp.protocol() === 'sftp' || !SFTP_ONLY_PANELS.has(panel)),
+        run: () => {
+          this.dock.openPanel(panel);
+          // Aller à un panneau au clavier, c'est s'y installer : la main suit,
+          // sinon le ⌘A qui vient ensuite tirerait dans l'autre panneau.
+          this.paneScope.set(panel === 'local' ? 'local' : 'server');
+        },
       })),
     ];
   }
 
-  /** Renomme l'unique entrée sélectionnée de la session focalisée. */
+  /** Renomme l'unique entrée sélectionnée du panneau qui a la main. */
   private async renameSelection(): Promise<void> {
-    const entry = this.sftp.selectedEntries()[0];
+    const browser = this.targetBrowser();
+    const entry = browser.selectedEntries()[0];
     if (entry) {
-      await this.actions.renameEntry(this.sftp, entry);
+      await this.actions.renameEntry(browser, entry);
     }
+  }
+
+  /**
+   * Supprime la sélection du panneau qui a la main. Le nom d'hôte à retaper
+   * est propre au serveur protégé : le disque local n'en a pas.
+   */
+  private async deleteTargetSelection(): Promise<void> {
+    if (this.localHasHand()) {
+      this.deleteLocalSelection();
+      return;
+    }
+    await this.actions.deleteSelection(
+      this.sftp,
+      this.sftp.protection() === 'confirm' ? this.sftp.host() : null,
+    );
   }
 
   // --- Fermeture ---

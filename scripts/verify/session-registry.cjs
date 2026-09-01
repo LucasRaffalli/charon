@@ -333,5 +333,57 @@ function freshWorld() {
   check('dissolution : focus au survivant', registry.focused().id === 's1');
 }
 
+// --- Réordonnancement des onglets ------------------------------------------
+// L'ordre des sessions EST l'ordre de la barre, et `reorder` prend un rang
+// exprimé dans cette liste. L'arithmétique se vérifie mal à la lecture : un
+// élément retiré décale ce qui le suit, et un onglet fusionné vaut DEUX
+// sessions qui doivent voyager ensemble.
+{
+  const order = (registry) => registry.sessions().map((s) => s.id).join(',');
+
+  {
+    const { registry } = freshWorld();
+    registry.ensure();
+    registry.create();
+    registry.create();
+    check('ordre initial', order(registry) === 's1,s2,s3');
+
+    registry.reorder('s3', 0);
+    check('déplacer le dernier en tête', order(registry) === 's3,s1,s2');
+
+    registry.reorder('s3', 3);
+    check('déplacer la tête en queue', order(registry) === 's1,s2,s3');
+
+    registry.reorder('s2', 1);
+    check('déposer à sa propre place ne change rien', order(registry) === 's1,s2,s3');
+
+    registry.reorder('s1', 2);
+    check('déplacer d\'un cran vers la droite', order(registry) === 's2,s1,s3');
+
+    registry.reorder('inconnue', 0);
+    check('session inconnue : sans effet', order(registry) === 's2,s1,s3');
+
+    registry.reorder('s1', 99);
+    check('rang hors bornes : ramené en queue', order(registry) === 's2,s3,s1');
+  }
+
+  {
+    // Une paire se déplace d'un bloc : c'est une seule vignette à l'écran.
+    const { registry } = freshWorld();
+    registry.ensure();
+    registry.create();
+    registry.create();
+    registry.split('s1', 's2');
+    check('paire posée', JSON.stringify(registry.pair()) === '["s1","s2"]');
+
+    registry.reorder('s1', 3);
+    check('la paire part en queue, groupée', order(registry) === 's3,s1,s2');
+
+    registry.reorder('s2', 0);
+    check('saisir l\'autre membre déplace la paire aussi', order(registry) === 's1,s2,s3');
+    check('la paire survit au déplacement', JSON.stringify(registry.pair()) === '["s1","s2"]');
+  }
+}
+
 console.log(`\n${pass} vérifications passées, ${fail} échec(s).`);
 process.exit(fail ? 1 : 0);

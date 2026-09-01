@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
 import { injectTauriListen } from '@app/services/system/scoped-listen';
+import { injectT } from '@app/lang/i18n.service';
 
 import { FileEntry, StatInfo } from '@app/interfaces';
 import { SftpService } from '@app/services/connection/sftp.service';
@@ -11,6 +12,7 @@ import { TransfersService } from '@app/services/files/transfers.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
 import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { LocalFsService } from '@app/services/connection/local-fs.service';
 import { windowLabel } from '@app/services/system/window-scope';
 
 /** Au-delà, on ne compare pas : lire deux fichiers entiers pour un diff que
@@ -36,6 +38,16 @@ export interface ForeignDrop {
   copy: boolean;
   entries: { name: string; isDir: boolean }[];
 }
+
+/**
+ * L'identifiant de connexion des éléments venus du DISQUE local.
+ *
+ * Une sentinelle plutôt qu'un champ de plus : `connectionId` est déjà ce qui
+ * décide, au collage, entre la copie sur place et le pont : le disque devient
+ * une troisième provenance dans le même aiguillage. Le format `schéma://`
+ * ne peut entrer en collision avec un vrai identifiant (`user@hôte:port#n`).
+ */
+export const DISK_SOURCE = 'disk://local';
 
 /** Le presse-papiers tel que le backend le tient, commun à toutes les fenêtres. */
 interface Clipped {
@@ -66,6 +78,8 @@ export class FileClipboardService {
   private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
   private readonly toasts = inject(ToastService);
+  private readonly localFs = inject(LocalFsService);
+  private readonly t = injectT();
   private readonly activity = injectSessionActivity();
   private readonly overwrite = inject(OverwriteService);
   private readonly dialog = inject(DialogService);
@@ -93,6 +107,21 @@ export class FileClipboardService {
 
   /** Les noms coupés, pour les afficher en attente dans la liste d'origine :
    *  la bonne session ET le bon dossier. */
+  /** Les noms coupés depuis le DISQUE, quand le dossier local affiché est
+   *  celui d'où ils viennent : la ligne s'estompe, comme côté serveur. */
+  readonly cutNamesLocal = computed<ReadonlySet<string>>(() => {
+    const clipped = this._clipped();
+    if (
+      !clipped ||
+      clipped.mode !== 'cut' ||
+      clipped.connectionId !== DISK_SOURCE ||
+      clipped.fromDir !== this.localFs.currentPath()
+    ) {
+      return new Set<string>();
+    }
+    return new Set(clipped.entries.map((entry) => entry.name));
+  });
+
   readonly cutNames = computed<ReadonlySet<string>>(() => {
     const clipped = this._clipped();
     if (
@@ -114,28 +143,43 @@ export class FileClipboardService {
     this.put('cut', entries);
   }
 
+  /** Copier/couper depuis le panneau local : même presse-papiers, autre
+   *  provenance. Coller décidera de ce que ça veut dire selon la destination. */
+  copyLocal(entries: FileEntry[]): void {
+    this.put('copy', entries, true);
+  }
+
+  cutLocal(entries: FileEntry[]): void {
+    this.put('cut', entries, true);
+  }
+
+  /** La provenance du presse-papiers : le disque, ou un serveur. */
+  fromDisk(): boolean {
+    return this._clipped()?.connectionId === DISK_SOURCE;
+  }
+
   clear(): void {
     this._clipped.set(null);
     void invoke('clip_clear').catch(() => undefined);
   }
 
-  private put(mode: ClipboardMode, entries: FileEntry[]): void {
-    const connectionId = this.sftp.connectionId();
+  private put(mode: ClipboardMode, entries: FileEntry[], disk = false): void {
+    const connectionId = disk ? DISK_SOURCE : this.sftp.connectionId();
     if (!entries.length || !connectionId) {
       return;
     }
     const clip: Clipped = {
       mode,
       connectionId,
-      host: this.sftp.host(),
-      fromDir: this.sftp.currentPath(),
+      host: disk ? 'Cet ordinateur' : this.sftp.host(),
+      fromDir: disk ? this.localFs.currentPath() : this.sftp.currentPath(),
       entries: entries.map((entry) => ({ name: entry.name, isDir: entry.isDir })),
     };
     this._clipped.set(clip);
     void invoke('clip_set', { clip }).catch(() => undefined);
-    const what = entries.length === 1 ? entries[0].name : `${entries.length} éléments`;
-    this.toasts.success(mode === 'copy' ? `${what} à copier` : `${what} à déplacer`, {
-      detail: 'Coller dans le dossier de destination',
+    const what = entries.length === 1 ? entries[0].name : this.t('clipboard.items', { count: entries.length });
+    this.toasts.success(mode === 'copy' ? this.t('clipboard.toCopy', { what }) : this.t('clipboard.toMove', { what }), {
+      detail: this.t('clipboard.pasteHint'),
       key: 'clipboard',
     });
   }
@@ -159,6 +203,18 @@ export class FileClipboardService {
    * passer par le presse-papiers : un glissé ne doit ni l'écraser ni le vider.
    */
   async receiveDrop(payload: ForeignDrop, targetDir: string): Promise<number> {
+    // Le glissé ne PART jamais d'un panneau FTP (le panneau le refuse), mais
+    // il peut y arriver : depuis l'autre moitié de la vue double, ou d'une
+    // autre fenêtre. La copie côté serveur et le pont sont des commandes
+    // `sftp_*`, on le dit ici plutôt que de laisser le backend répondre qu'il
+    // ne trouve pas la connexion.
+    if (this.sftp.protocol() !== 'sftp') {
+      this.toasts.error(this.t('clipboard.ftpRefused'), {
+        detail: this.t('clipboard.ftpRefusedHint'),
+        key: 'drop-ftp',
+      });
+      return 0;
+    }
     return this.pasteInto(
       {
         mode: payload.copy ? 'copy' : 'cut',
@@ -193,12 +249,18 @@ export class FileClipboardService {
     targetDir: string,
     fromClipboard: boolean,
   ): Promise<number> {
+    // Une source disque ne se colle pas sur un serveur par ce chemin : c'est
+    // un ENVOI, avec sa file de transferts et son dialogue d'écrasement. Le
+    // panneau serveur s'en charge (voir `ServerPane.pasteAction`).
+    if (clipped.connectionId === DISK_SOURCE) {
+      return 0;
+    }
     const sameServer = this.sameServer(clipped.connectionId, this.sftp.connectionId());
     if (sameServer && clipped.fromDir === targetDir) {
       this.toasts.error(
         clipped.mode === 'cut'
-          ? 'Ces éléments sont déjà dans ce dossier.'
-          : 'Copier dans le dossier d’origine créerait un doublon du même nom.',
+          ? this.t('clipboard.sameDirCut')
+          : this.t('clipboard.sameDirCopy'),
       );
       return 0;
     }
@@ -303,7 +365,112 @@ export class FileClipboardService {
     if (failed) {
       this.toasts.error(
         `${failed} élément${failed > 1 ? 's' : ''} sur ${clipped.entries.length} n’${failed > 1 ? 'ont' : 'a'} pas pu être traité${failed > 1 ? 's' : ''}`,
-        { detail: 'Voir le journal pour le détail' },
+        { detail: this.t('clipboard.seeJournal') },
+      );
+    } else if (skipped && !done) {
+      this.toasts.info(`${skipped} élément${skipped > 1 ? 's' : ''} ignoré${skipped > 1 ? 's' : ''}`, {
+        detail: 'Rien n’a été écrasé',
+      });
+    } else if (done) {
+      this.toasts.success(
+        clipped.mode === 'copy'
+          ? `${done} élément${done > 1 ? 's' : ''} copié${done > 1 ? 's' : ''}`
+          : `${done} élément${done > 1 ? 's' : ''} déplacé${done > 1 ? 's' : ''}`,
+        { detail: targetDir },
+      );
+    }
+    return done;
+  }
+
+  /**
+   * Collage DISQUE → DISQUE : le pendant local de `pasteLocal`.
+   *
+   * `local_copy` pour une copie (récursive, dossiers compris), un `rename`
+   * pour un déplacement : sur le même système de fichiers il ne bouge que des
+   * métadonnées. Les conflits passent par le même dialogue que partout
+   * ailleurs, en interrogeant le disque au lieu de la connexion.
+   */
+  async pasteOnDisk(targetDir: string, fromClipboard = true): Promise<number> {
+    const clipped = this._clipped();
+    if (!clipped || clipped.connectionId !== DISK_SOURCE) {
+      return 0;
+    }
+    if (clipped.fromDir === targetDir) {
+      this.toasts.error(
+        clipped.mode === 'cut'
+          ? this.t('clipboard.sameDirCut')
+          : this.t('clipboard.sameDirCopy'),
+      );
+      return 0;
+    }
+
+    let done = 0;
+    let failed = 0;
+    let skipped = 0;
+    let blanket: 'overwrite-all' | 'skip-all' | null = null;
+
+    for (const entry of clipped.entries) {
+      const from = this.joinDir(clipped.fromDir, entry.name);
+      const to = this.joinDir(targetDir, entry.name);
+
+      const verdict = await this.resolveConflict(
+        from,
+        to,
+        entry,
+        clipped.entries.length > 1,
+        blanket,
+        targetDir,
+        undefined,
+        true,
+      );
+      if (verdict.action === 'overwrite-all' || verdict.action === 'skip-all') {
+        blanket = verdict.action;
+      }
+      if (verdict.action === 'skip' || verdict.action === 'skip-all') {
+        skipped++;
+        continue;
+      }
+      const destination = verdict.as ? this.joinDir(targetDir, verdict.as) : to;
+
+      try {
+        // Écraser, c'est retirer d'abord : `local_copy` et `rename` refusent
+        // tous deux une cible existante, et c'est ce qu'on veut par défaut,
+        // seule une décision explicite du dialogue passe par ici.
+        if (!verdict.as) {
+          const existing = await this.localFs.stat(destination);
+          if (existing?.exists) {
+            await this.localFs.removeSilently(destination, existing.isDir);
+          }
+        }
+        if (clipped.mode === 'copy') {
+          await invoke('local_copy', { from, to: destination });
+          this.activity.log('upload', 'local', destination, `copié depuis ${from}`);
+        } else {
+          await this.localFs.moveTo(from, destination);
+          this.activity.log('rename', 'local', from, `déplacé vers ${destination}`);
+        }
+        done++;
+      } catch (error) {
+        failed++;
+        this.activity.log(
+          clipped.mode === 'copy' ? 'upload' : 'rename',
+          'local',
+          from,
+          String(error),
+          false,
+        );
+      }
+    }
+
+    if (clipped.mode === 'cut' && fromClipboard) {
+      this.clear();
+    }
+    await this.localFs.refresh();
+
+    if (failed) {
+      this.toasts.error(
+        `${failed} élément${failed > 1 ? 's' : ''} sur ${clipped.entries.length} n’${failed > 1 ? 'ont' : 'a'} pas pu être traité${failed > 1 ? 's' : ''}`,
+        { detail: this.t('clipboard.seeJournal') },
       );
     } else if (skipped && !done) {
       this.toasts.info(`${skipped} élément${skipped > 1 ? 's' : ''} ignoré${skipped > 1 ? 's' : ''}`, {
@@ -336,7 +503,7 @@ export class FileClipboardService {
     if (dirs > 0) {
       this.toasts.info(
         `${dirs} dossier${dirs > 1 ? 's' : ''} ignoré${dirs > 1 ? 's' : ''}`,
-        { detail: 'Le pont entre serveurs ne copie que des fichiers pour l’instant' },
+        { detail: this.t('clipboard.bridgeFilesOnly') },
       );
     }
 
@@ -388,7 +555,7 @@ export class FileClipboardService {
           path: from,
           isDir: false,
         }).catch(() => {
-          this.toasts.error(`« ${entry.name} » copié mais pas retiré de la source`, {
+          this.toasts.error(this.t('clipboard.copiedNotRemoved', { name: entry.name }), {
             detail: clipped.host,
           });
         });
@@ -403,7 +570,7 @@ export class FileClipboardService {
     if (failed) {
       this.toasts.error(
         `${failed} fichier${failed > 1 ? 's' : ''} sur ${files.length} n’${failed > 1 ? 'ont' : 'a'} pas traversé`,
-        { detail: 'Voir le panneau Transferts pour le détail' },
+        { detail: this.t('clipboard.seeTransfers') },
       );
     } else if (done) {
       this.toasts.success(
@@ -433,8 +600,11 @@ export class FileClipboardService {
     blanket: 'overwrite-all' | 'skip-all' | null,
     targetDir: string,
     sourceConnectionId?: string,
+    /** Les deux côtés sont sur le DISQUE local : on interroge `local_*` au
+     *  lieu de la connexion. Le dialogue, lui, ne change pas. */
+    disk = false,
   ): Promise<ConflictVerdict> {
-    const target = await this.sftp.stat(to);
+    const target = disk ? await this.localFs.stat(to) : await this.sftp.stat(to);
     if (!target?.exists) {
       return { action: 'go' };
     }
@@ -445,20 +615,22 @@ export class FileClipboardService {
       // Fusionner deux arborescences demande des règles qu'on n'a pas ;
       // écraser un dossier entier par surprise serait pire. Mais garder les
       // deux reste possible : ça ne détruit rien.
-      const free = await this.freeName(entry.name, targetDir);
+      const free = await this.freeName(entry.name, targetDir, disk);
       const keep = await this.dialog.confirm({
         title: `« ${entry.name} » existe déjà`,
-        message: `Un dossier ne peut pas être remplacé sans être fusionné, ce que Charon ne fait pas. Le copier sous le nom « ${free} » ?`,
-        confirmLabel: 'Garder les deux',
+        message: this.t('clipboard.mergeQuestion', { name: free }),
+        confirmLabel: this.t('clipboard.keepBoth'),
       });
       return keep ? { action: 'go', as: free } : { action: 'skip' };
     }
 
     const sourceConn = sourceConnectionId ?? this.sftp.connectionId();
-    const source = (await invoke<StatInfo>('sftp_stat', {
-      connectionId: sourceConn,
-      path: from,
-    }).catch(() => null)) ?? {
+    const source = (disk
+      ? await this.localFs.stat(from)
+      : await invoke<StatInfo>('sftp_stat', {
+          connectionId: sourceConn,
+          path: from,
+        }).catch(() => null)) ?? {
       exists: true,
       isDir: false,
       size: 0,
@@ -476,11 +648,13 @@ export class FileClipboardService {
       remote: target,
       loadDiff: async () => {
         const read = (connectionId: string | null, path: string) =>
-          invoke<string>('sftp_read_text', {
-            connectionId,
-            path,
-            maxBytes: DIFF_MAX_BYTES,
-          }).catch(() => undefined);
+          disk
+            ? this.localFs.readText(path, DIFF_MAX_BYTES)
+            : invoke<string>('sftp_read_text', {
+                connectionId,
+                path,
+                maxBytes: DIFF_MAX_BYTES,
+              }).catch(() => undefined);
         const [targetText, sourceText] = await Promise.all([
           read(this.sftp.connectionId(), to),
           read(sourceConn, from),
@@ -516,13 +690,15 @@ export class FileClipboardService {
    * L'extension est préservée, sinon un « rapport.pdf (2) » ne s'ouvrirait plus. Le
    * point compte, pas sa position : un `.env` n'a pas d'extension à garder.
    */
-  private async freeName(name: string, dir: string): Promise<string> {
+  private async freeName(name: string, dir: string, disk = false): Promise<string> {
     const dot = name.lastIndexOf('.');
     const stem = dot > 0 ? name.slice(0, dot) : name;
     const ext = dot > 0 ? name.slice(dot) : '';
     for (let n = 2; n < 100; n++) {
       const candidate = `${stem} (${n})${ext}`;
-      if (!(await this.sftp.stat(this.joinDir(dir, candidate)))?.exists) {
+      const at = this.joinDir(dir, candidate);
+      const taken = disk ? await this.localFs.stat(at) : await this.sftp.stat(at);
+      if (!taken?.exists) {
         return candidate;
       }
     }
@@ -576,7 +752,7 @@ export class FileClipboardService {
     if (failed) {
       this.toasts.error(
         `${failed} élément${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} pas pu être ${verb}${failed > 1 ? 's' : ''}`,
-        { detail: 'Voir le journal pour le détail' },
+        { detail: this.t('clipboard.seeJournal') },
       );
     }
     return done;

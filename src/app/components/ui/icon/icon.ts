@@ -48,6 +48,7 @@ import {
   ScrollText,
   Search,
   Sparkles,
+  Star,
   SquareTerminal,
   Server,
   Settings,
@@ -62,6 +63,7 @@ import {
 // Registre des icônes Lucide utilisées par l'application.
 const ICONS = {
   anchor: Anchor,
+  star: Star,
   folder: Folder,
   file: File,
   // Icônes par type de fichier (voir `services/file-icon.ts`).

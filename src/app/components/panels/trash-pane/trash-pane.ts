@@ -7,6 +7,7 @@ import { SessionRegistry } from '@app/services/connection/session-registry';
 import { fileIconFor } from '@app/services/files/file-icon';
 import { TrashEntry, TrashService } from '@app/services/files/trash.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Le panneau Corbeille : ce qui a été jeté dans le dossier affiché, et de quoi
@@ -24,6 +25,7 @@ import { DialogService } from '@app/services/workspace/dialog.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TrashPane {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get sftp(): SftpService {
@@ -86,8 +88,8 @@ export class TrashPane {
 
   protected async destroy(entry: TrashEntry): Promise<void> {
     const confirmed = await this.dialog.confirm({
-      title: `Supprimer « ${entry.name} » définitivement ?`,
-      message: 'Il ne sera plus récupérable.',
+      title: this.t('trashPane.deleteTitle', { name: entry.name }),
+      message: this.t('trashPane.deleteMessage'),
       confirmLabel: 'Supprimer',
       danger: true,
     });
@@ -101,7 +103,7 @@ export class TrashPane {
   protected async empty(): Promise<void> {
     const count = this.entries().length;
     const confirmed = await this.dialog.confirm({
-      title: `Vider la corbeille de ce dossier ?`,
+      title: this.t('trashPane.emptyTitle'),
       message: `${count} élément${count > 1 ? 's' : ''} ${count > 1 ? 'seront supprimés' : 'sera supprimé'} définitivement.`,
       confirmLabel: 'Vider',
       danger: true,

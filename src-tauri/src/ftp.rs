@@ -3,10 +3,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 
-use futures_util::io::{AsyncReadExt as FtpRead, AsyncWriteExt as FtpWrite};
 use suppaftp::async_native_tls::TlsConnector;
+use suppaftp::tokio::{AsyncNativeTlsConnector, AsyncNativeTlsFtpStream};
 use suppaftp::types::FileType;
-use suppaftp::{AsyncNativeTlsConnector, AsyncNativeTlsFtpStream};
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
@@ -89,6 +88,31 @@ pub async fn reap_idle_connections(app: &AppHandle) {
     }
 }
 
+/// Refuse tout argument contenant un retour chariot ou un saut de ligne.
+///
+/// Le protocole FTP sépare ses commandes par CRLF : un chemin, un nom
+/// d'utilisateur ou un mot de passe qui en contient permet d'INJECTER une
+/// commande dans le canal de contrôle. C'était RUSTSEC-2026-0271, corrigé en
+/// amont depuis (nous sommes montés de suppaftp 6 à 11).
+///
+/// La garde RESTE malgré la montée de version, et ce n'est pas de la
+/// superstition : elle ne dépend d'aucune promesse d'une dépendance, elle
+/// refuse une entrée qui n'a de toute façon aucune raison d'exister, et elle
+/// survivra au jour où la crate changera encore de mainteneur ou d'API.
+///
+/// La garde vit ICI, au bord du protocole, plutôt que chez chaque appelant :
+/// c'est le seul endroit par lequel tout passe forcément. Elle reste utile
+/// après la montée de version : une entrée pareille n'a de toute façon aucune
+/// raison d'exister.
+fn ensure_no_crlf(label: &str, value: &str) -> Result<(), String> {
+    if value.contains('\r') || value.contains('\n') {
+        return Err(format!(
+            "{label} refusé : un retour à la ligne dans un argument FTP permettrait d'injecter une commande."
+        ));
+    }
+    Ok(())
+}
+
 // ---------- Commands ----------
 
 /// Ouvre une connexion FTP (ou FTPS explicite si `secure`) et la stocke.
@@ -104,9 +128,12 @@ pub async fn ftp_connect(
     secure: bool,
     profile_id: Option<String>,
 ) -> Result<String, String> {
+    ensure_no_crlf("Hôte", &host)?;
+    ensure_no_crlf("Utilisateur", &user)?;
+
     let mut stream = AsyncNativeTlsFtpStream::connect(format!("{host}:{port}"))
         .await
-        .map_err(|e| format!("Connexion impossible : {e}"))?;
+        .map_err(|e| crate::errors::user_err("connect", format!("{e}")))?;
 
     if secure {
         stream = stream
@@ -123,10 +150,14 @@ pub async fn ftp_connect(
         },
     };
 
+    if let Some(secret) = password.as_deref() {
+        ensure_no_crlf("Mot de passe", secret)?;
+    }
+
     stream
         .login(user.as_str(), password.as_deref().unwrap_or(""))
         .await
-        .map_err(|e| format!("Authentification refusée : {e}"))?;
+        .map_err(|e| crate::errors::user_err("auth", format!("{e}")))?;
     stream
         .transfer_type(FileType::Binary)
         .await
@@ -156,12 +187,13 @@ pub async fn ftp_list_dir(
     connection_id: String,
     path: String,
 ) -> Result<Vec<FileEntry>, String> {
+    ensure_no_crlf("Chemin", &path)?;
     let conn = get_connection(&pool, &connection_id).await?;
     let mut stream = conn.stream.lock().await;
     let lines = stream
         .list(Some(&path))
         .await
-        .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
     drop(stream);
 
     let mut files: Vec<FileEntry> = lines
@@ -204,12 +236,13 @@ pub async fn ftp_mkdir(
     connection_id: String,
     path: String,
 ) -> Result<(), String> {
+    ensure_no_crlf("Chemin", &path)?;
     let conn = get_connection(&pool, &connection_id).await?;
     let mut stream = conn.stream.lock().await;
     stream
         .mkdir(&path)
         .await
-        .map_err(|e| format!("Création de {path} impossible : {e}"))
+        .map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
 }
 
 /// Supprime un fichier, ou un dossier vide.
@@ -220,6 +253,7 @@ pub async fn ftp_remove(
     path: String,
     is_dir: bool,
 ) -> Result<(), String> {
+    ensure_no_crlf("Chemin", &path)?;
     let conn = get_connection(&pool, &connection_id).await?;
     let mut stream = conn.stream.lock().await;
     if is_dir {
@@ -231,7 +265,7 @@ pub async fn ftp_remove(
         stream
             .rm(&path)
             .await
-            .map_err(|e| format!("Suppression de {path} impossible : {e}"))
+            .map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
     }
 }
 
@@ -243,6 +277,7 @@ pub async fn ftp_remove_all(
     connection_id: String,
     path: String,
 ) -> Result<u64, String> {
+    ensure_no_crlf("Chemin", &path)?;
     let conn = get_connection(&pool, &connection_id).await?;
     let mut stream = conn.stream.lock().await;
 
@@ -307,12 +342,14 @@ pub async fn ftp_rename(
     from: String,
     to: String,
 ) -> Result<(), String> {
+    ensure_no_crlf("Chemin", &from)?;
+    ensure_no_crlf("Chemin", &to)?;
     let conn = get_connection(&pool, &connection_id).await?;
     let mut stream = conn.stream.lock().await;
     stream
         .rename(&from, &to)
         .await
-        .map_err(|e| format!("Renommage de {from} impossible : {e}"))
+        .map_err(|e| crate::errors::user_err("rename", format!("{from} : {e}")))
 }
 
 /// Télécharge un fichier distant en streaming (mêmes garanties que SFTP :
@@ -330,6 +367,7 @@ pub async fn ftp_download(
     transfer_id: String,
     resume: bool,
 ) -> Result<u64, String> {
+    ensure_no_crlf("Chemin distant", &remote_path)?;
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
     let conn = get_connection(&pool, &connection_id).await?;
@@ -415,7 +453,7 @@ async fn stream_download(
             let _ = stream.finalize_retr_stream(data).await;
             return Err(CANCELLED_TAG.into());
         }
-        let read = FtpRead::read(&mut data, &mut buffer)
+        let read = AsyncReadExt::read(&mut data, &mut buffer)
             .await
             .map_err(|e| format!("Lecture de {remote_path} impossible : {e}"))?;
         if read == 0 {
@@ -462,6 +500,7 @@ pub async fn ftp_upload(
     transfer_id: String,
     resume: bool,
 ) -> Result<u64, String> {
+    ensure_no_crlf("Chemin distant", &remote_path)?;
     let local = shellexpand_tilde(&local_path);
     ensure_no_parent_dir(&local)?;
     let conn = get_connection(&pool, &connection_id).await?;
@@ -550,7 +589,7 @@ async fn stream_upload(
         if read == 0 {
             break;
         }
-        FtpWrite::write_all(&mut data, &buffer[..read])
+        AsyncWriteExt::write_all(&mut data, &buffer[..read])
             .await
             .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
         transferred += read as u64;
@@ -561,7 +600,7 @@ async fn stream_upload(
         }
     }
 
-    FtpWrite::flush(&mut data)
+    AsyncWriteExt::flush(&mut data)
         .await
         .map_err(|e| format!("Écriture de {part} impossible : {e}"))?;
     stream

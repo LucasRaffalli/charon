@@ -5,6 +5,7 @@ import { AppearanceService } from '@app/services/appearance/appearance.service';
 import { DockLayout } from '@app/services/workspace/dock-tree';
 import { DockService } from '@app/services/workspace/dock.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
+import { TranslationKey } from '@app/lang/i18n.service';
 
 interface DesignSnapshot {
   theme: Theme;
@@ -24,8 +25,10 @@ export type DesignPanelId = 'base' | 'gradient';
 
 /** Un thème tout fait : le point de départ, pas une prison. */
 export interface DesignTemplate {
-  label: string;
-  hint: string;
+  /** Clés de traduction : un préréglage est une constante de module, il ne
+   *  peut pas lire la langue. Le panneau traduit à l'affichage. */
+  label: TranslationKey;
+  hint: TranslationKey;
   theme: Theme;
   accent: Accent;
   appearance: Appearance;
@@ -33,15 +36,15 @@ export interface DesignTemplate {
 
 export const DESIGN_TEMPLATES: readonly DesignTemplate[] = [
   {
-    label: 'Sobre',
-    hint: 'Le Charon d\'origine, sans dégradé.',
+    label: 'themes.soberName',
+    hint: 'themes.sober',
     theme: 'dark',
     accent: 'charon',
     appearance: { ...DEFAULT_APPEARANCE },
   },
   {
-    label: 'Clair de jour',
-    hint: 'Fond clair, halo discret.',
+    label: 'themes.dayName',
+    hint: 'themes.day',
     theme: 'light',
     accent: 'charon',
     appearance: {
@@ -52,8 +55,8 @@ export const DESIGN_TEMPLATES: readonly DesignTemplate[] = [
     },
   },
   {
-    label: 'Aurore',
-    hint: 'Écharpe verte en travers.',
+    label: 'themes.auroraName',
+    hint: 'themes.jade',
     theme: 'dark',
     accent: 'jade',
     appearance: {
@@ -64,8 +67,8 @@ export const DESIGN_TEMPLATES: readonly DesignTemplate[] = [
     },
   },
   {
-    label: 'Braise',
-    hint: 'Une montée de rouge depuis le bas.',
+    label: 'themes.emberName',
+    hint: 'themes.ember',
     theme: 'dark',
     accent: 'unloved',
     appearance: {
@@ -76,8 +79,8 @@ export const DESIGN_TEMPLATES: readonly DesignTemplate[] = [
     },
   },
   {
-    label: 'Lisible',
-    hint: 'Contraste élevé, angles nets, texte grand.',
+    label: 'themes.readableName',
+    hint: 'themes.readable',
     theme: 'contrast',
     accent: 'charon',
     appearance: {

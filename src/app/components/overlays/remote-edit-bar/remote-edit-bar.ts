@@ -11,6 +11,7 @@ import { Icon } from '@app/components/ui/icon/icon';
 import { formatClock } from '@app/services/system/date-format';
 import { RemoteEditService } from '@app/services/files/remote-edit.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Après ce délai sans activité, une ligne de la barre se masque (toast). */
 const AUTO_HIDE_MS = 10_000;
@@ -24,6 +25,7 @@ const AUTO_HIDE_MS = 10_000;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RemoteEditBar {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get edit(): RemoteEditService {

@@ -20,6 +20,7 @@ import { Session } from '@app/services/connection/session-registry';
 import { TerminalService } from '@app/services/workspace/terminal.service';
 import { DockService } from '@app/services/workspace/dock.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
+import { injectT } from '@app/lang/i18n.service';
 
 interface TermEvent {
   id: string;
@@ -72,6 +73,7 @@ export class TerminalPane {
    *  xterm survivent aux bascules d'onglet (le pane est masqué, pas détruit). */
   readonly session = input.required<Session>();
 
+  protected readonly t = injectT();
   private readonly theme = inject(ThemeService);
   private readonly dock = inject(DockService);
   private readonly destroyRef = inject(DestroyRef);

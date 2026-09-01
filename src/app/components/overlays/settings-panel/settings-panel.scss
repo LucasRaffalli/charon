@@ -200,9 +200,22 @@
   font-weight: 600;
 }
 
+// Deux actions pour un même réglage (signaler un bug ou une idée).
+.setting__row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
 .setting__desc {
   font-size: calc(11.5px * var(--text-scale));
   color: var(--text-faint);
+}
+
+// Un réglage qui ne peut pas s'appliquer le dit sur place, en avertissement :
+// la couleur vient du thème, jamais d'une valeur en dur.
+.setting__warn {
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--warning);
 }
 
 .setting__seg {

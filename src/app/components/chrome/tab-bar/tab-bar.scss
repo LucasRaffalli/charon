@@ -44,8 +44,23 @@
   }
 
   &--active {
+    // La surface de l'onglet actif, en trois couches : la base du fond, le
+    // MÊME dégradé que `body::before` (donc `background-attachment: fixed`,
+    // aligné sur la fenêtre et pas sur l'onglet, il montre exactement le
+    // morceau qui serait là s'il n'y avait pas d'onglet), puis un voile de
+    // base qui lui rend son intensité, le `--grad` du calque de fond ne
+    // pouvant pas s'appliquer à une seule couche de `background`.
+    //
+    // Sans dégradé, `--grad` vaut 0 : le voile est opaque et l'onglet est
+    // exactement `--elev-0`, comme avant.
+    --tab-veil: color-mix(in srgb, var(--elev-0) calc((1 - var(--grad)) * 100%), transparent);
+
     z-index: 1;
-    background: var(--elev-0);
+    background:
+      linear-gradient(var(--tab-veil), var(--tab-veil)),
+      var(--grad-image, none),
+      linear-gradient(var(--elev-0), var(--elev-0));
+    background-attachment: fixed;
     color: var(--text);
 
     .tab__close {
@@ -57,35 +72,85 @@
     // le reste porte la couleur du contenu ; l'onglet se fond dans la surface
     // du dessous. Le rayon est celui du thème : en « net » il est petit et la
     // forme redevient carrée d'elle-même.
+    //
+    // `bottom: 0` et pas `-1px` : le pixel du filet est DÉJÀ rattrapé par le
+    // `margin-bottom: -1px` de l'onglet, qui descend avec lui ses congés. Le
+    // compter une seconde fois ici les faisait pendre sous la barre, deux
+    // petites oreilles sombres posées sur la page, d'autant plus visibles
+    // que la page ne porte pas forcément la couleur de l'onglet (l'écran de
+    // connexion et ses lueurs). Le congé s'arrête où l'onglet s'arrête.
+    // Les pieds reprennent la surface de l'onglet (`background: inherit`, donc
+    // le dégradé aussi, toujours aligné sur la fenêtre) et c'est un MASQUE qui
+    // y découpe le quart de cercle. Peindre la forme dans un dégradé, comme
+    // avant, obligeait à y écrire une couleur en dur : le pied restait noir
+    // pendant que l'onglet, lui, portait le dégradé.
     &::before,
     &::after {
       content: '';
       position: absolute;
-      bottom: -1px;
+      bottom: 0;
       width: var(--radius-md);
-      height: calc(var(--radius-md) + 1px);
+      height: var(--radius-md);
       pointer-events: none;
+      background: inherit;
+      background-attachment: fixed;
     }
 
     &::before {
       left: calc(-1 * var(--radius-md));
-      background: radial-gradient(
+      -webkit-mask-image: radial-gradient(
         circle var(--radius-md) at 0 0,
         transparent calc(var(--radius-md) - 0.5px),
-        var(--elev-0) var(--radius-md)
+        #000 var(--radius-md)
+      );
+      mask-image: radial-gradient(
+        circle var(--radius-md) at 0 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        #000 var(--radius-md)
       );
     }
 
     &::after {
       right: calc(-1 * var(--radius-md));
-      background: radial-gradient(
+      -webkit-mask-image: radial-gradient(
         circle var(--radius-md) at 100% 0,
         transparent calc(var(--radius-md) - 0.5px),
-        var(--elev-0) var(--radius-md)
+        #000 var(--radius-md)
+      );
+      mask-image: radial-gradient(
+        circle var(--radius-md) at 100% 0,
+        transparent calc(var(--radius-md) - 0.5px),
+        #000 var(--radius-md)
       );
     }
   }
 }
+
+// Le trait d'insertion pendant un réordonnancement : il dit où l'onglet se
+// posera. L'onglet suivi ne bouge pas : faire sauter la barre sous le curseur
+// se lit plus mal qu'un repère fixe.
+.tab--insert::before,
+.bar__insert {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 8px;
+  bottom: 1px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+// Dernier rang : le trait n'a pas d'onglet devant qui se placer, il prend sa
+// place dans le flux de la barre.
+.bar__insert {
+  position: relative;
+  left: 0;
+  flex: none;
+  align-self: stretch;
+  margin: 8px 2px 1px;
+}
+
 
 .tab__title {
   overflow: hidden;

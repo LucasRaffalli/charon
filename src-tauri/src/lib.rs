@@ -1,3 +1,4 @@
+mod errors;
 mod edit;
 mod fs;
 mod ftp;
@@ -165,6 +166,7 @@ pub fn run() {
             fs::local_remove,
             fs::local_remove_all,
             fs::local_rename,
+            fs::local_copy,
             profiles::profiles_list,
             profiles::profile_save,
             profiles::profile_delete,

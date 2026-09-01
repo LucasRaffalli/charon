@@ -10,6 +10,7 @@ import { LocalFsService } from '@app/services/connection/local-fs.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Balise émise par le backend quand un transfert est annulé. */
 const CANCELLED_TAG = 'CHARON_CANCELLED';
@@ -39,6 +40,7 @@ const VERIFY_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 @Injectable({ providedIn: 'root' })
 export class TransfersService {
+  private readonly t = injectT();
   private readonly tauriListen = injectTauriListen();
   private readonly sftp = inject(SftpService);
 
@@ -224,7 +226,7 @@ export class TransfersService {
       return false;
     }
     if (direction === 'upload' && this.sftp.protection() === 'readonly') {
-      this.sftp.reportError('Serveur en lecture seule : envoi refusé.');
+      this.sftp.reportError(this.t('misc.transfers.readonly'));
       this.activity.log('error', 'remote', remotePath, 'upload : lecture seule', false);
       return false;
     }
@@ -280,7 +282,7 @@ export class TransfersService {
     if (transfer.transferred > VERIFY_MAX_BYTES) {
       this.patch(id, {
         verify: 'skipped',
-        verifyDetail: 'Fichier trop volumineux pour une vérification rapide',
+        verifyDetail: this.t('misc.transfers.tooBig'),
       });
       return;
     }
@@ -305,8 +307,8 @@ export class TransfersService {
           'empreintes différentes après transfert',
           false,
         );
-        this.toasts.error(`${transfer.name} : les empreintes diffèrent`, {
-          detail: 'Le fichier transféré n’est pas identique à la source',
+        this.toasts.error(this.t('misc.transfers.mismatch', { name: transfer.name }), {
+          detail: this.t('misc.transfers.mismatchHint'),
         });
       }
     } catch (error) {

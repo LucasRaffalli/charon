@@ -1,4 +1,7 @@
-import { computed, signal } from '@angular/core';
+import { computed, inject, signal } from '@angular/core';
+
+import { SettingsService } from '@app/services/system/settings.service';
+import { injectErrorText } from '@app/lang/i18n.service';
 
 import { FileEntry, FileEntryDto, PathSegment } from '@app/interfaces';
 
@@ -7,6 +10,9 @@ import { FileEntry, FileEntryDto, PathSegment } from '@app/interfaces';
  * état réactif, navigation et gestion centralisée des erreurs.
  */
 export abstract class FileBrowserState {
+  protected readonly settings = inject(SettingsService);
+  private readonly errorText = injectErrorText();
+
   protected readonly _currentPath = signal('/');
   protected readonly _entries = signal<FileEntry[]>([]);
   protected readonly _loading = signal(false);
@@ -24,13 +30,26 @@ export abstract class FileBrowserState {
   readonly kindFilter = signal<'all' | 'dirs' | 'files'>('all');
 
   /**
+   * Les entrées que l'écran peut montrer : le réglage « fichiers cachés »
+   * s'applique ICI et non plus dans chaque panneau. C'est ce qui rend « tout
+   * sélectionner » honnête : ⌘A ne doit jamais embarquer des lignes que
+   * personne ne voit, sinon le ⌘⌫ qui suit emporte des fichiers cachés.
+   */
+  readonly shownEntries = computed<FileEntry[]>(() => {
+    const list = this._entries();
+    return this.settings.showHidden()
+      ? list
+      : list.filter((entry) => !entry.name.startsWith('.'));
+  });
+
+  /**
    * Les entrées vues à travers le filtre. Les consommateurs qui veulent le
    * dossier entier (palette, transferts) gardent `entries`.
    */
   readonly filteredEntries = computed<FileEntry[]>(() => {
     const needle = this.filter().trim().toLowerCase();
     const kind = this.kindFilter();
-    let list = this._entries();
+    let list = this.shownEntries();
     if (kind !== 'all') {
       list = list.filter((entry) => entry.isDir === (kind === 'dirs'));
     }
@@ -357,6 +376,15 @@ export abstract class FileBrowserState {
     return this.refresh();
   }
 
+  /**
+   * Supprime sans rafraîchir : une suppression en lot relit le dossier une
+   * seule fois, à la fin. Les garde-fous de `removeEntry` (lecture seule,
+   * escalade sudo côté serveur) restent ceux du navigateur concerné.
+   */
+  async removeSilently(path: string, isDir: boolean): Promise<void> {
+    await this.removeEntry(path, isDir);
+  }
+
   async rename(entry: FileEntry, newName: string): Promise<boolean> {
     if (!(await this.runVoid(() => this.renameEntry(this.pathTo(entry.name), this.pathTo(newName))))) {
       return false;
@@ -394,13 +422,14 @@ export abstract class FileBrowserState {
     }
   }
 
+  /**
+   * Le message d'une erreur, traduit s'il vient du backend sous forme de code.
+   *
+   * C'est l'entonnoir : listing, création, suppression, renommage passent tous
+   * par `run`/`runVoid`, donc par ici. Traduire à cet endroit couvre d'un coup
+   * tout ce que les deux navigateurs affichent en cas d'échec.
+   */
   private toMessage(error: unknown): string {
-    if (typeof error === 'string') {
-      return error;
-    }
-    if (error instanceof Error) {
-      return error.message;
-    }
-    return String(error);
+    return this.errorText(error);
   }
 }

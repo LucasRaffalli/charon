@@ -34,6 +34,8 @@ import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
 import { ConfigSyncService } from '@app/services/system/config-sync.service';
 import { ShortcutsService } from '@app/services/workspace/shortcuts.service';
+import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
 import { windowLabel } from '@app/services/system/window-scope';
@@ -94,6 +96,8 @@ export class App {
   private readonly shortcuts = inject(ShortcutsService);
   private readonly settings = inject(SettingsService);
   private readonly whatsNew = inject(WhatsNewService);
+  private readonly toasts = inject(ToastService);
+  private readonly t = injectT();
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
@@ -126,57 +130,88 @@ export class App {
       }
     });
 
+    // L'annonce d'une mise à jour disponible, en toast collant : elle décrit
+    // un état qui dure, pas un geste qui vient d'aboutir, donc pas de compte à
+    // rebours. Une seule fois par lancement : la refermer ne doit pas la faire
+    // revenir, et la pastille des réglages continue de dire qu'elle attend.
+    //
+    // Ici et non sur l'écran de connexion, où elle vivait : elle y était posée
+    // À LA FIN DE L'OUVERTURE, soit ~3 s après le lancement, alors que la
+    // vérification ne part qu'à 5 s et met un aller-retour réseau à répondre.
+    // Elle tirait donc toujours avant la réponse, ne trouvait rien à annoncer,
+    // et RIEN ne la rappelait ensuite : le toast n'apparaissait jamais. En
+    // réagissant au statut, elle part quand la réponse arrive, et où que soit
+    // l'utilisateur, écran de connexion comme explorateur.
+    let announced = false;
+    effect(() => {
+      const status = this.updater.status();
+      if (announced || !this.updater.updateAvailable()) {
+        return;
+      }
+      announced = true;
+      const version = status.kind === 'available' ? status.version : null;
+      untracked(() =>
+        this.toasts.info(version ? this.t('app.updateReady', { version }) : this.t('app.updateReadyPlain'), {
+          title: this.t('app.updateTitle'),
+          detail: this.t('app.updateDetail'),
+          sticky: true,
+          key: 'update',
+          action: { label: this.t('app.install'), run: () => void this.updater.install() },
+        }),
+      );
+    });
+
     this.destroyRef.onDestroy(
       this.shortcuts.register([
         {
           keys: 'mod+k',
-          label: 'Palette de commandes',
-          group: 'Application',
+          label: this.t('app.palette'),
+          group: this.t('shortcuts.groups.app'),
           // Doit tirer même en train de taper : c'est la porte de sortie.
           evenWhileTyping: true,
           run: () => this.palette.toggle(),
         },
         {
           keys: 'mod+/',
-          label: 'Liste des raccourcis',
-          group: 'Application',
+          label: this.t('app.shortcutsList'),
+          group: this.t('shortcuts.groups.app'),
           run: () => this.shortcuts.listOpen.update((open) => !open),
         },
         {
           keys: 'mod+,',
           label: 'Réglages',
-          group: 'Application',
+          group: this.t('shortcuts.groups.app'),
           run: () => this.settings.openPanel(),
         },
         {
           keys: 'mod+shift+w',
-          label: 'Nouveautés de cette version',
-          group: 'Application',
+          label: this.t('app.whatsNew'),
+          group: this.t('shortcuts.groups.app'),
           run: () => this.whatsNew.show(),
         },
         {
           keys: 'mod+n',
-          label: 'Nouvelle fenêtre',
-          group: 'Application',
+          label: this.t('app.newWindow'),
+          group: this.t('shortcuts.groups.app'),
           run: () => void invoke('window_open', {}).catch(() => undefined),
         },
         {
           keys: 'mod+t',
-          label: 'Nouvel onglet',
-          group: 'Application',
+          label: this.t('app.newTab'),
+          group: this.t('shortcuts.groups.app'),
           run: () => this.tabBar.openTab(),
         },
         {
           keys: 'mod+alt+arrowright',
-          label: 'Onglet suivant',
-          group: 'Application',
+          label: this.t('app.nextTab'),
+          group: this.t('shortcuts.groups.app'),
           when: () => this.tabBar.visible(),
           run: () => this.tabBar.next(),
         },
         {
           keys: 'mod+alt+arrowleft',
-          label: 'Onglet précédent',
-          group: 'Application',
+          label: this.t('app.prevTab'),
+          group: this.t('shortcuts.groups.app'),
           when: () => this.tabBar.visible(),
           run: () => this.tabBar.previous(),
         },
@@ -184,8 +219,8 @@ export class App {
           // ⌘W ferme LA FENÊTRE, convention macOS. Ici le cas déconnecté ;
           // connecté, l'explorateur prend la main avec le bilan de session.
           keys: 'mod+w',
-          label: 'Fermer l’onglet',
-          group: 'Application',
+          label: this.t('shortcuts.closeTab'),
+          group: this.t('shortcuts.groups.app'),
           when: () => !this.sftp.settled(),
           // Session vierge : la retirer, ou fermer la fenêtre si c'est la
           // dernière (closeSession route les deux cas).

@@ -85,7 +85,12 @@ export class ActivityLogService {
       if (session && entry.session !== session) {
         continue;
       }
-      if (entry.kind === 'connect' || entry.kind === 'disconnect' || entry.kind === 'anchor') {
+      if (
+        entry.kind === 'connect' ||
+        entry.kind === 'disconnect' ||
+        entry.kind === 'anchor' ||
+        entry.kind === 'favorite'
+      ) {
         continue;
       }
       const seen = counted.get(entry.kind);

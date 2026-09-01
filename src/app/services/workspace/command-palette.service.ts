@@ -11,10 +11,12 @@ import { PreviewService } from '@app/services/files/preview.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SearchService } from '@app/services/connection/search.service';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
+import { injectIssueReporter } from '@app/services/system/links';
 import { SettingsService } from '@app/services/system/settings.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
 import { ACCENT_OPTIONS, THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Où la recherche a lieu. Les résultats sont groupés par catégorie, et choisir
@@ -104,6 +106,9 @@ export class CommandPaletteService {
     return this.sessionRegistry.focused().search;
   }
   private readonly whatsNew = inject(WhatsNewService);
+  /** Le formulaire d'issue GitHub, version et système déjà remplis. */
+  private readonly report = injectIssueReporter();
+  private readonly t = injectT();
   private readonly flow = inject(ConnectionFlowService);
   private readonly settings = inject(SettingsService);
   private readonly dock = inject(DockService);
@@ -310,10 +315,10 @@ export class CommandPaletteService {
         list.push({
           id: `connect:${profile.id}`,
           category: 'profils',
-          label: `Se connecter à ${profile.name}`,
+          label: this.t('palette.connectTo', { name: profile.name }),
           icon: 'server',
-          hint: profile.environment ?? 'connexion',
-          keywords: 'connexion serveur profil',
+          hint: profile.environment ?? this.t('palette.hints.connection'),
+          keywords: this.t('palette.connectKeywords'),
           run: () => void this.flow.connectProfile(profile),
         });
       }
@@ -322,7 +327,7 @@ export class CommandPaletteService {
         {
           id: 'refresh',
           category: 'commandes',
-          label: 'Actualiser le dossier',
+          label: this.t('palette.refresh'),
           icon: 'refresh',
           hint: 'navigation',
           keywords: 'recharger refresh',
@@ -331,7 +336,7 @@ export class CommandPaletteService {
         {
           id: 'up',
           category: 'commandes',
-          label: 'Dossier parent',
+          label: this.t('palette.parent'),
           icon: 'arrow-up',
           hint: 'navigation',
           keywords: 'remonter parent',
@@ -342,14 +347,14 @@ export class CommandPaletteService {
         list.push({
           id: 'mkdir',
           category: 'commandes',
-          label: 'Nouveau dossier sur le serveur…',
+          label: this.t('palette.newDir'),
           icon: 'folder-plus',
           hint: 'action',
-          keywords: 'créer mkdir dossier',
+          keywords: this.t('palette.newDirKeywords'),
           run: async () => {
             const name = (
               await this.dialog.prompt({
-                title: 'Nouveau dossier sur le serveur',
+                title: this.t('menu.newDirServer'),
                 placeholder: 'nom-du-dossier',
                 confirmLabel: 'Créer',
               })
@@ -371,11 +376,11 @@ export class CommandPaletteService {
           list.push({
             id: 'anchor:set',
             category: 'commandes',
-            label: 'Ancrer ce dossier pour la connexion',
+            label: this.t('palette.anchorSet'),
             icon: 'anchor',
             hint: 'profil',
             detail: here,
-            keywords: 'ancre arrivée départ démarrage point de chute dossier par défaut',
+            keywords: this.t('palette.anchorSetKeywords'),
             run: () => void this.profiles.setAnchor(profileId, here),
           });
         }
@@ -383,11 +388,11 @@ export class CommandPaletteService {
           list.push({
             id: 'anchor:clear',
             category: 'commandes',
-            label: "Retirer l'ancre de connexion",
+            label: this.t('palette.anchorClear'),
             icon: 'anchor',
             hint: 'profil',
             detail: anchor,
-            keywords: 'ancre arrivée départ démarrage enlever supprimer',
+            keywords: this.t('palette.anchorClearKeywords'),
             run: () => void this.profiles.setAnchor(profileId, null),
           });
         }
@@ -396,9 +401,9 @@ export class CommandPaletteService {
       list.push({
         id: 'search:server',
         category: 'commandes',
-        label: 'Rechercher sur le serveur…',
+        label: this.t('palette.search'),
         icon: 'search',
-        hint: 'panneau',
+        hint: this.t('palette.hints.panel'),
         keywords: 'recherche récursive contenu grep find profondeur',
         run: () => {
           // La saisie de la palette devient celle de la recherche : on tape,
@@ -408,38 +413,43 @@ export class CommandPaletteService {
         },
       });
 
-      list.push(
-        {
+      // Le terminal vit sur la session SSH : rien à ouvrir en FTP. Le
+      // raccourci ⌃` posait déjà cette garde, la palette ne le faisait pas.
+      if (this.sftp.protocol() === 'sftp') {
+        list.push({
           id: 'panel:terminal',
           category: 'commandes',
-          label: 'Ouvrir le terminal',
+          label: this.t('palette.terminal'),
           icon: 'terminal',
-          hint: 'panneau',
+          hint: this.t('palette.hints.panel'),
           keywords: 'shell ssh console',
           run: () => this.dock.openPanel('terminal'),
-        },
+        });
+      }
+
+      list.push(
         {
           id: 'panel:transfers',
           category: 'commandes',
-          label: 'Voir les transferts',
+          label: this.t('palette.transfers'),
           icon: 'arrow-down-up',
-          hint: 'panneau',
+          hint: this.t('palette.hints.panel'),
           keywords: 'file téléchargements uploads',
           run: () => this.dock.openPanel('transfers'),
         },
         {
           id: 'panel:journal',
           category: 'commandes',
-          label: 'Voir le journal',
+          label: this.t('palette.journal'),
           icon: 'info',
-          hint: 'panneau',
+          hint: this.t('palette.hints.panel'),
           keywords: 'activité historique audit',
           run: () => this.dock.openPanel('journal'),
         },
         {
           id: 'disconnect',
           category: 'commandes',
-          label: 'Se déconnecter',
+          label: this.t('palette.disconnect'),
           icon: 'log-out',
           hint: 'session',
           keywords: 'débarquer quitter',
@@ -480,17 +490,38 @@ export class CommandPaletteService {
     list.push({
       id: 'whats-new',
       category: 'commandes',
-      label: 'Nouveautés de cette version',
+      label: this.t('palette.whatsNew'),
       icon: 'info',
       hint: 'application',
       keywords: 'changelog journal versions quoi de neuf historique',
       run: () => this.whatsNew.show(),
     });
 
+    list.push(
+      {
+        id: 'issue:bug',
+        category: 'commandes',
+        label: this.t('palette.reportBug'),
+        icon: 'alert-circle',
+        hint: 'github',
+        keywords: 'bug issue github rapport signaler problème panne',
+        run: () => this.report('bug'),
+      },
+      {
+        id: 'issue:idea',
+        category: 'commandes',
+        label: this.t('palette.reportIdea'),
+        icon: 'sparkles',
+        hint: 'github',
+        keywords: 'idée suggestion amélioration github issue',
+        run: () => this.report('idea'),
+      },
+    );
+
     list.push({
       id: 'settings',
       category: 'commandes',
-      label: 'Ouvrir les réglages',
+      label: this.t('palette.settings'),
       icon: 'settings',
       hint: 'app',
       keywords: 'préférences paramètres options',
@@ -556,11 +587,11 @@ export class CommandPaletteService {
       list.push({
         id: 'browse:goto',
         category: 'commandes',
-        label: 'Afficher ce dossier dans l\'explorateur',
+        label: this.t('palette.revealDir'),
         detail: target,
         icon: 'folder',
         hint: 'navigation',
-        keywords: 'aller naviguer ouvrir dossier',
+        keywords: this.t('palette.revealKeywords'),
         run: () => void this.sftp.listDir(target),
       });
     }
@@ -614,7 +645,7 @@ export class CommandPaletteService {
       hint: 'navigation',
       run: async () => {
         if (!(await this.sftp.listDir(path))) {
-          this.activity.log('error', 'remote', path, 'chemin introuvable', false);
+          this.activity.log('error', 'remote', path, this.t('palette.pathNotFound'), false);
         }
       },
     };

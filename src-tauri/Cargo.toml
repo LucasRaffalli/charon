@@ -1,6 +1,6 @@
 [package]
 name = "charon"
-version = "1.2.0"
+version = "1.2.1"
 description = "Client SFTP/FTP privé pour macOS"
 authors = ["lucas"]
 edition = "2021"
@@ -22,7 +22,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util
 # plusieurs côté client (DoS/panique face à un serveur malveillant).
 russh = "0.62.7"
 russh-sftp = "2"
-suppaftp = { version = "6", features = ["async-secure", "async-native-tls"] }
+suppaftp = { version = "11", features = ["async-secure", "tokio", "tokio-async-native-tls"] }
 futures-util = { version = "0.3", features = ["io"] }
 tauri-plugin-store = "2"
 thiserror = "2"

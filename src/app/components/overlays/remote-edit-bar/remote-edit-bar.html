@@ -1,8 +1,8 @@
 @if (visible().length > 0) {
-  <section class="bar" aria-label="Éditions en cours">
+  <section class="bar" [attr.aria-label]="t('panelsText.remoteEditsOngoing')">
     <header class="bar__head">
       <app-icon name="edit" [size]="13" />
-      <span>Édition distante</span>
+      <span>{{ t('panelsText.remoteEditTitle') }}</span>
     </header>
 
     <ul class="bar__list">
@@ -30,7 +30,7 @@
           <button
             type="button"
             class="row__stop"
-            title="Arrêter l'édition"
+            [title]="t('panelsText.remoteEditStop')"
             [attr.aria-label]="'Arrêter l’édition de ' + session.name"
             (click)="edit.stop(session.id)"
           >

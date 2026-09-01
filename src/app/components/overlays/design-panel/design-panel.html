@@ -24,23 +24,23 @@
   @if (!design.collapsed().base) {
   <div class="design__body">
     <div class="design__group">
-      <span class="design__label">Thèmes tout faits</span>
-      <div class="design__templates" role="group" aria-label="Thèmes tout faits">
+      <span class="design__label">{{ t('design.presets') }}</span>
+      <div class="design__templates" role="group" [attr.aria-label]="t('design.presets')">
         @for (template of design.templates; track template.label) {
           <button
             type="button"
             class="design__template"
-            [title]="template.hint"
+            [title]="t(template.hint)"
             (click)="applyTemplate(template)"
           >
-            {{ template.label }}
+            {{ t(template.label) }}
           </button>
         }
       </div>
     </div>
 
     <div class="design__group">
-      <span class="design__label">Thème</span>
+      <span class="design__label">{{ t('design.theme') }}</span>
       <app-segmented-control
         ariaLabel="Thème"
         [options]="themeOptions"
@@ -69,20 +69,20 @@
     </div>
 
     <div class="design__group">
-      <span class="design__label">Rayon des angles</span>
+      <span class="design__label">{{ t('design.radius') }}</span>
       <app-segmented-control
-        ariaLabel="Rayon des angles"
+        [ariaLabel]="t('design.radius')"
         [options]="radiusOptions"
         [value]="appearance.radius()"
         (valueChange)="setRadius($event)"
       />
       <span class="design__note">
-        Les marges intérieures suivent, pour que le contenu ne touche jamais l'arc.
+        {{ t('design.radiusDesc') }}
       </span>
     </div>
 
     <div class="design__group">
-      <span class="design__label">Taille du texte</span>
+      <span class="design__label">{{ t('design.textSize') }}</span>
       <app-segmented-control
         ariaLabel="Taille du texte"
         [options]="textOptions"
@@ -92,7 +92,7 @@
     </div>
 
     <div class="design__group">
-      <span class="design__label">Filigrane du logo</span>
+      <span class="design__label">{{ t('design.watermark') }}</span>
       <app-segmented-control
         ariaLabel="Filigrane du logo"
         [options]="watermarkOptions"
@@ -104,9 +104,9 @@
 
   <footer class="design__foot">
     <span class="design__state" [class.design__state--dirty]="design.dirty()">
-      {{ design.dirty() ? 'Non enregistré' : 'Aucun changement' }}
+      {{ t(design.dirty() ? 'design.dirty' : 'design.clean') }}
     </span>
-    <button type="button" class="design__done" (click)="design.save()">Terminé</button>
+    <button type="button" class="design__done" (click)="design.save()">{{ t('design.done') }}</button>
   </footer>
   }
 } @else {
@@ -132,8 +132,8 @@
   @if (!design.collapsed().gradient) {
   <div class="design__body">
     <div class="design__group">
-      <span class="design__label">Motif du dégradé</span>
-      <div class="design__grads" role="group" aria-label="Motif du dégradé">
+      <span class="design__label">{{ t('design.gradient') }}</span>
+      <div class="design__grads" role="group" [attr.aria-label]="t('design.gradient')">
         @for (option of gradientOptions; track option.value) {
           <button
             type="button"
@@ -155,13 +155,13 @@
         <div class="design__colors">
           <input
             type="color"
-            aria-label="Première couleur"
+            [attr.aria-label]="t('design.firstColor')"
             [value]="appearance.effectiveColors().from"
             (input)="setColor('from', $event)"
           />
           <input
             type="color"
-            aria-label="Seconde couleur"
+            [attr.aria-label]="t('design.secondColor')"
             [value]="appearance.effectiveColors().to"
             (input)="setColor('to', $event)"
           />
@@ -174,7 +174,7 @@
             {{ followsAccent() ? 'Suit l\'accent' : 'Suivre l\'accent' }}
           </button>
         </div>
-        <div class="design__presets" role="group" aria-label="Préréglages de couleurs">
+        <div class="design__presets" role="group" [attr.aria-label]="t('design.colorPresets')">
           @for (preset of presets; track preset.label) {
             <button
               type="button"
@@ -189,7 +189,7 @@
       </div>
 
       <div class="design__group">
-        <span class="design__label">Intensité</span>
+        <span class="design__label">{{ t('design.intensity') }}</span>
         <div class="slider">
           <div class="slider__track">
             <div class="slider__fill" [style.width.%]="appearance.intensity()"></div>
@@ -201,7 +201,7 @@
             min="0"
             max="100"
             step="1"
-            aria-label="Intensité du dégradé, en pourcentage"
+            [attr.aria-label]="t('design.intensityAria')"
             [value]="appearance.intensity()"
             (input)="setIntensity($event)"
           />
@@ -209,7 +209,7 @@
         <div class="slider__legend">
           <span>Doux</span>
           <span class="slider__value">{{ appearance.intensity() }} %</span>
-          <span>Marqué</span>
+          <span>{{ t('design.marked') }}</span>
         </div>
       </div>
     }
@@ -217,26 +217,26 @@
     <div class="design__group">
       <span class="design__label">Panneaux</span>
       <app-segmented-control
-        ariaLabel="Opacité des panneaux"
+        [ariaLabel]="t('design.panelOpacity')"
         [options]="panelOptions"
         [value]="appearance.panels()"
         (valueChange)="setPanels($event)"
       />
       @if (hiddenByPanels()) {
         <span class="design__note">
-          Les gouttières ne font que 4 px : passe les panneaux en translucides pour voir le dégradé.
+          {{ t('design.gutterHint') }}
         </span>
       }
       @if (translucencyIgnored()) {
         <span class="design__note">
-          En contraste élevé, la lisibilité prime : les panneaux restent opaques.
+          {{ t('design.contrastHint') }}
         </span>
       }
     </div>
 
     <div class="design__group">
-      <span class="design__label">Disposition des panneaux</span>
-      <div class="design__templates" role="group" aria-label="Disposition des panneaux">
+      <span class="design__label">{{ t('design.layout') }}</span>
+      <div class="design__templates" role="group" [attr.aria-label]="t('design.layout')">
         @for (layout of dock.layouts; track layout.label) {
           <button
             type="button"
@@ -249,10 +249,10 @@
         }
       </div>
       <button type="button" class="design__wide" (click)="resetDock()">
-        Réinitialiser les panneaux
+        {{ t('design.reset') }}
       </button>
       <span class="design__note">
-        Un panneau absent d'une disposition n'est pas perdu : il se rouvre depuis la barre de statut.
+        {{ t('design.resetHint') }}
       </span>
     </div>
   </div>
@@ -261,9 +261,9 @@
 
 <!-- La question de fermeture n'existe qu'une fois, portée par le panneau de gauche. -->
 @if (side() === 'base' && design.asking()) {
-  <div class="ask" role="dialog" aria-modal="true" aria-label="Enregistrer ce thème ?">
+  <div class="ask" role="dialog" aria-modal="true" [attr.aria-label]="t('design.saveTitle')">
     <div class="ask__box">
-      <span class="ask__title">Enregistrer ce thème ?</span>
+      <span class="ask__title">{{ t('design.saveTitle') }}</span>
       <p class="ask__text">
         Les changements sont appliqués pour que tu voies le résultat, mais ils ne sont pas encore
         enregistrés. Abandonner remettra l'apparence d'avant.

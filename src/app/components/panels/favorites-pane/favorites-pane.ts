@@ -7,6 +7,7 @@ import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
 import { ContextMenuItem, ContextMenuService } from '@app/services/workspace/context-menu.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Panneau des raccourcis vers les dossiers du serveur courant. */
 @Component({
@@ -17,6 +18,7 @@ import { ToastService } from '@app/services/workspace/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FavoritesPane {
+  protected readonly t = injectT();
   private readonly registry = inject(SessionRegistry);
   private readonly profiles = inject(ProfilesService);
   private readonly contextMenu = inject(ContextMenuService);

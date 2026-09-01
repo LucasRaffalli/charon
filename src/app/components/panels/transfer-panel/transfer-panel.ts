@@ -5,6 +5,7 @@ import { Transfer, VerifyState } from '@app/interfaces';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { Session, SessionRegistry } from '@app/services/connection/session-registry';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Une ligne du panneau : le transfert, et la session qui le porte. */
 interface TransferRow {
@@ -26,6 +27,7 @@ interface TransferRow {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TransferPanel {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
   private readonly tabBar = inject(TabBarService);
 

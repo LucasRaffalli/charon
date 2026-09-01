@@ -1,16 +1,16 @@
 @if (edit.state(); as state) {
   <app-modal
-    title="Modifier le favori"
+    [title]="t('favorites.editTitle')"
     subtitle="Le nom et l'icône ne servent qu'ici : le dossier du serveur n'est pas touché."
     icon="anchor"
     size="md"
     (closed)="edit.close()"
   >
     <div class="edit" (keydown)="onKeydown($event)">
-      <app-text-field label="Nom" placeholder="Nom du raccourci" [autofocus]="true" [(value)]="label" />
+      <app-text-field [label]="t('favorites.name')" [placeholder]="t('favorites.namePlaceholder')" [autofocus]="true" [(value)]="label" />
 
       <div class="edit__field">
-        <span class="edit__label">Icône</span>
+        <span class="edit__label">{{ t('favorites.icon') }}</span>
         <div class="edit__icons">
           @for (name of icons; track name) {
             <button

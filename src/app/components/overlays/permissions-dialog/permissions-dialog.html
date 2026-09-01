@@ -48,9 +48,9 @@
       </div>
 
       @if (request.entry.isDir) {
-        <app-toggle label="Appliquer à tout le contenu" ariaLabel="Appliquer récursivement" [checked]="recursive()" (checkedChange)="recursive.set($event)" />
+        <app-toggle [label]="t('panelsText.permsRecursive')" [ariaLabel]="t('panelsText.permsRecursiveAria')" [checked]="recursive()" (checkedChange)="recursive.set($event)" />
         @if (recursive()) {
-          <p class="perms__warn">Les mêmes droits s'appliqueront aux fichiers comme aux dossiers : les fichiers deviendront exécutables si le bit l'est.</p>
+          <p class="perms__warn">{{ t('panelsText.permsRecursiveHint') }}</p>
         }
       }
 

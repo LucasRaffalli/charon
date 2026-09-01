@@ -6,6 +6,7 @@ import { SftpService } from '@app/services/connection/sftp.service';
 import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Ce que le backend rend d'une mise à la corbeille. */
 interface Trashed {
@@ -36,6 +37,7 @@ export interface TrashEntry {
  */
 @Injectable({ providedIn: 'root' })
 export class TrashService {
+  private readonly t = injectT();
   private readonly sftp = inject(SftpService);
   private readonly toasts = inject(ToastService);
   private readonly activity = injectSessionActivity();
@@ -103,8 +105,8 @@ export class TrashService {
 
     if (done.length) {
       const what =
-        done.length === 1 ? `« ${entries[0].name} »` : `${done.length} éléments`;
-      this.toasts.success(`${what} à la corbeille`, {
+        done.length === 1 ? `« ${entries[0].name} »` : this.t('trash.items', { count: done.length });
+      this.toasts.success(this.t('trash.toTrash', { what }), {
         key: 'trash',
         // Plus long que le barème : il faut le temps de voir le bouton, de
         // décider, et de le viser. Le survol suspend de toute façon.
@@ -115,7 +117,7 @@ export class TrashService {
     if (failed) {
       this.toasts.error(
         `${failed} élément${failed > 1 ? 's' : ''} n’${failed > 1 ? 'ont' : 'a'} pas pu être jeté${failed > 1 ? 's' : ''}`,
-        { detail: 'Voir le journal pour le détail' },
+        { detail: this.t('trash.seeJournal') },
       );
     }
     return done.length;
@@ -145,7 +147,7 @@ export class TrashService {
       this.toasts.success(`${restored} élément${restored > 1 ? 's' : ''} restauré${restored > 1 ? 's' : ''}`);
     } else {
       this.toasts.error('Rien n’a pu être restauré', {
-        detail: 'Le dossier d’origine a peut-être disparu',
+        detail: this.t('trash.originGone'),
       });
     }
   }
@@ -180,8 +182,8 @@ export class TrashService {
       return true;
     } catch (error) {
       this.activity.log('rename', 'remote', entry.path, String(error), false);
-      this.toasts.error(`« ${entry.name} » n’a pas pu être restauré`, {
-        detail: 'Un élément du même nom a peut-être repris sa place',
+      this.toasts.error(this.t('trash.restoreFailed', { name: entry.name }), {
+        detail: this.t('trash.restoreHint'),
       });
       return false;
     }
@@ -210,7 +212,7 @@ export class TrashService {
       }
     }
     if (removed) {
-      this.toasts.success(`Corbeille vidée`, {
+      this.toasts.success(this.t('trash.emptied'), {
         detail: `${removed} élément${removed > 1 ? 's' : ''} supprimé${removed > 1 ? 's' : ''}`,
       });
     }

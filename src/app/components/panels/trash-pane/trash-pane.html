@@ -1,5 +1,5 @@
 @if (sftp.protocol() !== 'sftp') {
-  <p class="notice">La corbeille n'existe qu'en SFTP.</p>
+  <p class="notice">{{ t('panelsText.trashSftpOnly') }}</p>
 } @else {
   <header class="bar">
     <span class="bar__where" [title]="dir()">{{ dir() }}</span>
@@ -21,7 +21,7 @@
         <button
           type="button"
           class="row__act"
-          title="Remettre à sa place"
+          [title]="t('panelsText.trashRestore')"
           (click)="restore(entry)"
         >
           <app-icon name="corner-up" [size]="13" />
@@ -29,7 +29,7 @@
         <button
           type="button"
           class="row__act row__act--danger"
-          title="Supprimer définitivement"
+          [title]="t('panelsText.trashDeleteForever')"
           (click)="destroy(entry)"
         >
           <app-icon name="trash" [size]="13" />

@@ -5,7 +5,7 @@
       <aside class="panel__nav">
         <h2 class="panel__brand">
           <app-icon name="settings" [size]="14" />
-          Réglages
+          {{ t('settingsPanel.title') }}
         </h2>
 
         <nav class="panel__nav-list" role="tablist">
@@ -44,8 +44,8 @@
             @case ('files') {
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Fichiers cachés</span>
-                  <span class="setting__desc">Afficher les fichiers commençant par un point.</span>
+                  <span class="setting__name">{{ t('settingsPanel.hidden.name') }}</span>
+                  <span class="setting__desc">{{ t('settingsPanel.hidden.desc') }}</span>
                 </div>
                 <app-toggle
                   ariaLabel="Afficher les fichiers cachés"
@@ -56,13 +56,13 @@
 
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Vérifier les transferts</span>
+                  <span class="setting__name">{{ t('settingsPanel.verify.name') }}</span>
                   <span class="setting__desc">
-                    Comparer les empreintes sha256 après chaque transfert. Coûte une lecture complète des deux côtés. SFTP uniquement.
+                    {{ t('settingsPanel.verify.desc') }}
                   </span>
                 </div>
                 <app-toggle
-                  ariaLabel="Vérifier l'intégrité des transferts"
+                  [ariaLabel]="t('settingsPanel.verify.aria')"
                   [checked]="settings.verifyTransfers()"
                   (checkedChange)="settings.update({ verifyTransfers: $event })"
                 />
@@ -70,14 +70,13 @@
 
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Formater à l'enregistrement</span>
+                  <span class="setting__name">{{ t('settingsPanel.format.name') }}</span>
                   <span class="setting__desc">
-                    Prettier repasse sur le fichier quand tu enregistres depuis l'aperçu (JS/TS, JSON, CSS, HTML, Markdown, YAML). Une erreur de syntaxe
-                    n'empêche jamais d'enregistrer.
+                    {{ t('settingsPanel.format.desc') }}
                   </span>
                 </div>
                 <app-toggle
-                  ariaLabel="Formater avec Prettier à l'enregistrement"
+                  [ariaLabel]="t('settingsPanel.format.aria')"
                   [checked]="settings.formatOnSave()"
                   (checkedChange)="settings.update({ formatOnSave: $event })"
                 />
@@ -85,17 +84,16 @@
 
               <div class="setting setting--stack">
                 <div class="setting__text">
-                  <span class="setting__name">Corbeille distante</span>
+                  <span class="setting__name">{{ t('settingsPanel.trash.name') }}</span>
                   <span class="setting__desc">
-                    Supprimer déplace vers un dossier .charon-trash au lieu d'effacer. Purgée à la connexion au-delà de ce nombre de jours. 0 = ne jamais
-                    purger.
+                    {{ t('settingsPanel.trash.desc') }}
                   </span>
                 </div>
                 <app-text-field
                   class="setting__minutes"
                   type="number"
                   name="trash-days"
-                  ariaLabel="Jours de rétention de la corbeille"
+                  [ariaLabel]="t('settingsPanel.trash.aria')"
                   [value]="'' + settings.trashDays()"
                   (valueChange)="setTrashDays($event)"
                 />
@@ -103,11 +101,30 @@
 
               <div class="setting setting--stack">
                 <div class="setting__text">
-                  <span class="setting__name">Éditeur externe</span>
-                  <span class="setting__desc"> Application pour « Éditer (éditeur système) ». Vide = défaut du système. </span>
+                  <span class="setting__name">{{ t('settingsPanel.localHome.name') }}</span>
+                  <span class="setting__desc">
+                    {{ t('settingsPanel.localHome.desc') }}
+                  </span>
+                  @if (localHomeMissing()) {
+                    <span class="setting__warn">{{ t('settingsPanel.localHome.missing') }}</span>
+                  }
                 </div>
                 <app-text-field
-                  ariaLabel="Éditeur externe"
+                  [ariaLabel]="t('settingsPanel.localHome.name')"
+                  name="local-home"
+                  placeholder="/Users/moi/Sites"
+                  [value]="settings.localHome()"
+                  (valueChange)="setLocalHome($event)"
+                />
+              </div>
+
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.editor.name') }}</span>
+                  <span class="setting__desc"> {{ t('settingsPanel.editor.desc') }} </span>
+                </div>
+                <app-text-field
+                  [ariaLabel]="t('settingsPanel.editor.name')"
                   name="editor-app"
                   placeholder="Visual Studio Code"
                   [value]="settings.editorApp()"
@@ -118,12 +135,13 @@
             @case ('connection') {
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Fermeture après inactivité</span>
-                  <span class="setting__desc"> Minutes avant fermeture d'une session inutilisée. 0 = jamais. </span>
+                  <span class="setting__name">{{ t('settingsPanel.idle.name') }}</span>
+                  <span class="setting__desc"> {{ t('settingsPanel.idle.desc') }}
+                  </span>
                 </div>
                 <app-text-field
                   class="setting__minutes"
-                  ariaLabel="Minutes d'inactivité avant fermeture"
+                  [ariaLabel]="t('settingsPanel.idle.aria')"
                   name="idle-minutes"
                   type="number"
                   [value]="'' + settings.idleMinutes()"
@@ -135,31 +153,95 @@
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">Raccourcis clavier</span>
-                  <span class="setting__desc"> Tout ce que Charon écoute au clavier. Accessible aussi par ⌘/. </span>
+                  <span class="setting__desc"> {{ t('settingsPanel.shortcuts.desc') }}
+                  </span>
                 </div>
               </div>
               <app-shortcuts-list />
             }
-            @case ('data') {
-              <div class="setting setting--stack">
+            @case ('about') {
+              <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Exporter la configuration</span>
+                  <span class="setting__name">{{ t('settings.language.name') }}</span>
+                  <span class="setting__desc">{{ t('settings.language.desc') }}</span>
+                </div>
+                <app-segmented-control
+                  class="setting__seg"
+                  [options]="langOptions"
+                  [value]="settings.lang()"
+                  (valueChange)="setLang($event)"
+                />
+              </div>
+
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">Charon {{ updater.currentVersion() }}</span>
                   <span class="setting__desc">
-                    Un fichier JSON dans ton dossier Téléchargements : apparence, disposition des panneaux, réglages et coordonnées de tes serveurs.
+                    {{ t('settingsPanel.about.desc', { os: os }) }}
                   </span>
                 </div>
-                <app-button variant="ghost" (click)="exporter.run()">
-                  <app-icon name="file" [size]="14" />
-                  Exporter
+              </div>
+
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.about.report') }}</span>
+                  <span class="setting__desc">
+                    {{ t('settingsPanel.about.reportDesc') }}
+                  </span>
+                </div>
+                <div class="setting__row">
+                  <app-button variant="ghost" (click)="reportIssue('bug')">
+                    <app-icon name="alert-circle" [size]="14" />
+                    {{ t('settingsPanel.about.bug') }}
+                  </app-button>
+                  <app-button variant="ghost" (click)="reportIssue('idea')">
+                    <app-icon name="sparkles" [size]="14" />
+                    {{ t('settingsPanel.about.idea') }}
+                  </app-button>
+                </div>
+              </div>
+
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.about.repo') }}</span>
+                  <span class="setting__desc">{{ repoUrl }}</span>
+                </div>
+                <app-button variant="ghost" (click)="openLink(repoUrl)">
+                  <app-icon name="server" [size]="14" />
+                  {{ t('settingsPanel.about.open') }}
                 </app-button>
               </div>
 
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Ce qui n'y est pas</span>
+                  <span class="setting__name">{{ t('settingsPanel.about.author') }}</span>
+                  <span class="setting__desc">{{ userUrl }}</span>
+                </div>
+                <app-button variant="ghost" (click)="openLink(userUrl)">
+                  <app-icon name="monitor" [size]="14" />
+                  {{ t('settingsPanel.about.open') }}
+                </app-button>
+              </div>
+            }
+            @case ('data') {
+              <div class="setting setting--stack">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.data.export') }}</span>
                   <span class="setting__desc">
-                    Aucun mot de passe, aucune passphrase. Ils vivent dans le trousseau du système et ne sont jamais lisibles depuis l'application. Un profil
-                    exporté indique seulement qu'un secret existe, pour savoir lesquels le redemanderont.
+                    {{ t('settingsPanel.data.exportDesc') }}
+                  </span>
+                </div>
+                <app-button variant="ghost" (click)="exporter.run()">
+                  <app-icon name="file" [size]="14" />
+                  {{ t('settingsPanel.data.exportAction') }}
+                </app-button>
+              </div>
+
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.data.absent') }}</span>
+                  <span class="setting__desc">
+                    {{ t('settingsPanel.data.absentDesc') }}
                   </span>
                 </div>
               </div>
@@ -169,7 +251,7 @@
               }
               @if (exporter.exportedPath(); as path) {
                 <p class="panel__update-status">
-                  Exporté dans <span class="data">{{ path }}</span>
+                  {{ t('settingsPanel.data.exportedIn') }} <span class="data">{{ path }}</span>
                 </p>
               }
               @if (exporter.exportError(); as message) {
@@ -179,12 +261,12 @@
             @case ('modules') {
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Dossier des modules</span>
-                  <span class="setting__desc"> Installe un module en déposant son dossier ici, puis actualise. </span>
+                  <span class="setting__name">{{ t('settingsPanel.modules.folder') }}</span>
+                  <span class="setting__desc"> {{ t('settingsPanel.modules.folderDesc') }} </span>
                 </div>
                 <app-button variant="ghost" (click)="modules.openFolder()">
                   <app-icon name="folder" [size]="14" />
-                  Ouvrir
+                  {{ t('settingsPanel.about.open') }}
                 </app-button>
               </div>
 
@@ -224,7 +306,7 @@
                         </div>
                       }
 
-                      <button type="button" class="module__delete" title="Supprimer ce module" (click)="deleteModule(module.slug, module.name)">
+                      <button type="button" class="module__delete" [title]="t('settingsPanel.modules.remove')" (click)="deleteModule(module.slug, module.name)">
                         <app-icon name="trash" [size]="13" />
                         Supprimer
                       </button>
@@ -232,40 +314,40 @@
                   }
                 </ul>
               } @else {
-                <p class="panel__update-status">Aucun module installé. Dépose un dossier de module dans le dossier ci-dessus.</p>
+                <p class="panel__update-status">{{ t('settingsPanel.modules.empty') }}</p>
               }
             }
             @case ('updates') {
               <div class="setting">
                 <div class="setting__text">
-                  <span class="setting__name">Version installée</span>
+                  <span class="setting__name">{{ t('settingsPanel.updates.installed') }}</span>
                 </div>
                 <span class="panel__version data">{{ updater.currentVersion() }}</span>
               </div>
 
               @switch (updater.status().kind) {
                 @case ('checking') {
-                  <p class="panel__update-status">Vérification en cours…</p>
+                  <p class="panel__update-status">{{ t('settingsPanel.updates.checking') }}</p>
                 }
                 @case ('upToDate') {
-                  <p class="panel__update-status">Charon est à jour.</p>
+                  <p class="panel__update-status">{{ t('settingsPanel.updates.upToDate') }}</p>
                 }
                 @case ('available') {
                   <p class="panel__update-status">
                     @if (updater.status(); as status) {
                       @if (status.kind === 'available') {
-                        Version {{ status.version }} disponible :
+                        {{ t('settingsPanel.updates.available', { version: status.version }) }}
                       }
                     }
-                    l'installation vérifie la signature avant d'appliquer quoi que ce soit.
+                    {{ t('settingsPanel.updates.signed') }}
                   </p>
                   @if (updater.notes(); as notes) {
                     <div class="panel__changelog">
-                      <span class="panel__changelog-title">Nouveautés</span>
+                      <span class="panel__changelog-title">{{ t('settingsPanel.updates.news') }}</span>
                       <pre class="panel__changelog-body">{{ notes }}</pre>
                     </div>
                   }
-                  <app-button (click)="updater.install()">Installer et redémarrer</app-button>
+                  <app-button (click)="updater.install()">{{ t('settingsPanel.updates.installRestart') }}</app-button>
                 }
                 @case ('downloading') {
                   <p class="panel__update-status">
@@ -278,7 +360,7 @@
                   </p>
                 }
                 @case ('ready') {
-                  <p class="panel__update-status">Installée, redémarrage…</p>
+                  <p class="panel__update-status">{{ t('settingsPanel.updates.installing') }}</p>
                 }
                 @case ('error') {
                   @if (updater.status(); as status) {
@@ -300,7 +382,7 @@
                 (click)="updater.checkForUpdates()"
               >
                 <app-icon name="refresh" [size]="14" />
-                Vérifier les mises à jour
+                {{ t('settingsPanel.updates.check') }}
               </app-button>
 
               <!-- Historique embarqué au build : survit aux mises à jour.
@@ -310,7 +392,7 @@
                    en scène de la dernière. -->
               @if (changelog.length > 0) {
                 <div class="panel__history">
-                  <span class="panel__history-title">Historique des versions</span>
+                  <span class="panel__history-title">{{ t('settingsPanel.updates.history') }}</span>
                   <div class="log">
                     @for (entry of versions(); track entry.version) {
                       <button
@@ -324,7 +406,7 @@
                         <span class="vrow__v data">{{ entry.version }}</span>
                         <span class="vrow__name">{{ entry.title || '·' }}</span>
                         @if (entry.installed) {
-                          <span class="vrow__badge">installée</span>
+                          <span class="vrow__badge">{{ t('settingsPanel.updates.installedBadge') }}</span>
                         }
                         <!-- La répartition avant l'ouverture : elle dit la
                              nature d'une version sans qu'on la déplie. -->

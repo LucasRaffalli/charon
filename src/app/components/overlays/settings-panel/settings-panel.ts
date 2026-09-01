@@ -3,8 +3,11 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { Button } from '@app/components/ui/button/button';
 import { ShortcutsList } from '@app/components/panels/shortcuts-list/shortcuts-list';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { SegmentedControl } from '@app/components/ui/segmented-control/segmented-control';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { Toggle } from '@app/components/ui/toggle/toggle';
+import { openUrl } from '@tauri-apps/plugin-opener';
+
 import changelogData from '../../../../assets/changelog.json';
 
 import { ChangeKind, ChangelogEntry } from '@app/interfaces';
@@ -13,6 +16,9 @@ import { formatReleaseDate } from '@app/services/system/date-format';
 import { DesignService } from '@app/services/appearance/design.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
 import { DockService } from '@app/services/workspace/dock.service';
+import { LocalFsService } from '@app/services/connection/local-fs.service';
+import { GITHUB_REPO, GITHUB_USER, injectIssueReporter, osLabel } from '@app/services/system/links';
+import { I18nService, Lang, injectT } from '@app/lang/i18n.service';
 import { ModulesService } from '@app/services/modules/modules.service';
 import { SettingsService } from '@app/services/system/settings.service';
 import { THEME_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
@@ -28,7 +34,15 @@ const GROUP_LABELS: Record<ChangeKind, [string, string]> = {
 /** L'ordre de lecture : ce qui est nouveau d'abord, ce qui est réparé ensuite. */
 const KIND_ORDER: ChangeKind[] = ['new', 'better', 'fixed'];
 
-type SettingsTab = 'design' | 'files' | 'connection' | 'shortcuts' | 'data' | 'modules' | 'updates';
+type SettingsTab =
+  | 'design'
+  | 'files'
+  | 'connection'
+  | 'shortcuts'
+  | 'data'
+  | 'modules'
+  | 'updates'
+  | 'about';
 
 interface TabOption {
   id: SettingsTab;
@@ -38,7 +52,7 @@ interface TabOption {
 
 @Component({
   selector: 'app-settings-panel',
-  imports: [Button, Icon, ShortcutsList, TextField, Toggle],
+  imports: [Button, Icon, SegmentedControl, ShortcutsList, TextField, Toggle],
   templateUrl: './settings-panel.html',
   styleUrl: './settings-panel.scss',
   host: {
@@ -55,6 +69,7 @@ export class SettingsPanel {
   protected readonly exporter = inject(ConfigExportService);
   private readonly dialog = inject(DialogService);
   private readonly design = inject(DesignService);
+  private readonly localFs = inject(LocalFsService);
 
   protected readonly activeTab = signal<SettingsTab>('files');
 
@@ -119,10 +134,39 @@ export class SettingsPanel {
     { id: 'data', icon: 'file', label: 'Données' },
     { id: 'modules', icon: 'layout-grid', label: 'Modules' },
     { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
+    { id: 'about', icon: 'info', label: 'À propos' },
   ];
+
+  // Le dépôt, son auteur, et le formulaire d'issue pré-rempli.
+  protected readonly repoUrl = GITHUB_REPO;
+  protected readonly userUrl = GITHUB_USER;
+  protected readonly os = osLabel();
+  protected readonly reportIssue = injectIssueReporter();
+
+  // La langue de l'interface. Elle vit dans les réglages, donc elle est
+  // persistée, exportée et synchronisée entre fenêtres comme le reste.
+  private readonly i18n = inject(I18nService);
+  protected readonly t = injectT();
+  protected readonly langOptions = [
+    { value: 'fr', label: 'Français' },
+    { value: 'en', label: 'English' },
+  ];
+  protected setLang(value: string): void {
+    void this.i18n.use(value as Lang);
+  }
+  protected openLink(url: string): void {
+    void openUrl(url).catch(() => undefined);
+  }
 
   /** Titre de la section affichée (en-tête du contenu). */
   protected readonly activeLabel = computed(() => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '');
+
+  /**
+   * Le dossier d'ouverture du panneau local a disparu. Un réglage qui ne fait
+   * rien sans le dire est un piège : au démarrage on retombe silencieusement
+   * sur le dossier personnel, donc c'est ICI qu'il faut l'annoncer.
+   */
+  protected readonly localHomeMissing = signal(false);
 
   constructor() {
     // (Re)scanne les modules à l'ouverture de leur onglet.
@@ -131,6 +175,33 @@ export class SettingsPanel {
         void this.modules.refresh();
       }
     });
+
+    // Le dossier ancré est vérifié à l'ouverture de l'onglet, pas seulement
+    // quand on touche au champ : il a pu disparaître entre-temps.
+    effect(() => {
+      if (this.settings.panelOpen() && this.activeTab() === 'files') {
+        void this.checkLocalHome(this.settings.localHome());
+      }
+    });
+  }
+
+  protected setLocalHome(value: string): void {
+    const path = value.trim();
+    this.settings.update({ localHome: path });
+    void this.checkLocalHome(path);
+  }
+
+  private async checkLocalHome(path: string): Promise<void> {
+    if (!path.trim()) {
+      this.localHomeMissing.set(false);
+      return;
+    }
+    const info = await this.localFs.stat(path.trim());
+    // Le champ a pu changer pendant l'aller-retour : on ne pose le verdict que
+    // s'il porte encore sur ce qui est affiché.
+    if (this.settings.localHome().trim() === path.trim()) {
+      this.localHomeMissing.set(!info?.exists || !info.isDir);
+    }
   }
 
   protected async toggleModule(slug: string, enabled: boolean): Promise<void> {
@@ -141,8 +212,8 @@ export class SettingsPanel {
   protected async deleteModule(slug: string, name: string): Promise<void> {
     const typed = (
       await this.dialog.prompt({
-        title: `Supprimer le module « ${name} » ?`,
-        message: `Le dossier du module sera supprimé définitivement. Tape « ${name} » pour confirmer.`,
+        title: this.t('misc.moduleDelete.title', { name }),
+        message: this.t('misc.moduleDelete.message', { name }),
         placeholder: name,
         confirmLabel: 'Supprimer',
         danger: true,

@@ -20,14 +20,14 @@
   <app-button
     variant="ghost"
     iconOnly
-    title="Dossier parent"
+    [title]="t('panes.header.parent')"
     [disabled]="sftp.atRoot() || sftp.loading()"
     (click)="sftp.navigateUp()"
   >
     <app-icon name="corner-up" [size]="14" />
   </app-button>
 
-  <nav class="explorer__breadcrumb" aria-label="Chemin courant sur le serveur">
+  <nav class="explorer__breadcrumb" [attr.aria-label]="t('server.currentPath')">
     <button
       type="button"
       class="crumb"
@@ -59,8 +59,10 @@
         #serverFilter
         class="explorer__filter-field"
         type="text"
-        placeholder="Filtrer"
-        aria-label="Filtrer le dossier serveur"
+        [placeholder]="t('panes.filter.placeholder')"
+        spellcheck="false"
+        autocorrect="off"
+        [attr.aria-label]="t('server.filterServer')"
         [value]="sftp.filter()"
         (input)="sftp.filter.set(serverFilter.value)"
         (keydown.escape)="onServerFilterEscape()"
@@ -83,8 +85,8 @@
     class="explorer__filter-toggle"
     [class.explorer__filter-toggle--on]="serverFilterOpen()"
     [attr.aria-expanded]="serverFilterOpen()"
-    title="Filtrer ce dossier"
-    aria-label="Filtrer ce dossier"
+    [title]="t('server.filterThis')"
+    [attr.aria-label]="t('server.filterThis')"
     (click)="toggleServerFilter()"
   >
     <app-icon name="funnel" [size]="14" />
@@ -137,7 +139,7 @@
         <button
           type="button"
           class="entry__action"
-          title="Télécharger dans le dossier local courant"
+          [title]="t('server.downloadHint')"
           [attr.aria-label]="'Télécharger : ' + row.entry.name"
           (click)="download(row.entry)"
         >
@@ -149,9 +151,9 @@
     <li class="explorer__empty">
       <app-icon name="folder" [size]="30" />
       @if (serverFilterActive()) {
-        <p>Rien ne correspond au filtre</p>
+        <p>{{ t('panes.empty.filtered') }}</p>
       } @else {
-        <p>Dossier vide</p>
+        <p>{{ t('panes.empty.dir') }}</p>
       }
     </li>
   }
@@ -163,7 +165,7 @@
     [fileCount]="selectedFileCount()"
     [writable]="sftp.protection() !== 'readonly'"
     (clear)="sftp.clearSelection()"
-    (download)="downloadSelection()"
+    (action)="downloadSelection()"
     (copy)="clipboard.copy(sftp.selectedEntries())"
     (remove)="deleteSelection()"
   />
@@ -180,7 +182,7 @@
     <div class="explorer__dropzone-card">
       <app-icon name="upload" [size]="28" />
       <p>
-        Déposer pour envoyer vers <strong>{{ sftp.currentPath() }}</strong>
+        {{ t('server.dropHere') }} <strong>{{ sftp.currentPath() }}</strong>
       </p>
     </div>
   </div>

@@ -6,7 +6,17 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
-  <body>
+  <!--
+    Aucun correcteur nulle part : Charon ne manipule que des noms de fichiers,
+    des chemins, des motifs et du code. Les trois attributs s'HÉRITENT, donc
+    posés ici ils valent pour tous les champs, y compris ceux qui n'existent
+    pas encore ; un champ qui voudrait le contraire n'aurait qu'à les remettre
+    à `true`/`on` sur lui-même. Ils restent quand même déclarés sur les champs
+    eux-mêmes (voir `TextField` et les filtres) : l'héritage d'`autocorrect`
+    est récent, et un champ de saisie ne doit pas dépendre de la version de
+    WebKit embarquée.
+  -->
+  <body spellcheck="false" autocorrect="off" autocapitalize="off">
     <app-root></app-root>
   </body>
 </html>

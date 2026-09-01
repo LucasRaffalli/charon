@@ -24,7 +24,9 @@
   color: var(--text-muted);
 }
 
-.pane__up {
+// Même gabarit pour les deux boutons de l'en-tête : ancrer et remonter.
+.pane__up,
+.pane__anchor {
   display: grid;
   place-items: center;
   padding: 4px;
@@ -43,6 +45,11 @@
     opacity: 0.4;
     cursor: default;
   }
+}
+
+// Ancre posée : la couleur d'accent dit que ce dossier est celui d'ouverture.
+.pane__anchor--on {
+  color: var(--accent);
 }
 
 .pane__path {
@@ -76,35 +83,48 @@
   }
 }
 
-.pane__entry {
+// La ligne porte le survol et le bouton d'envoi ; le bouton du dessous ne
+// porte que le nom, pour qu'ils restent voisins (pas de bouton dans un bouton).
+.pane__row {
   position: relative;
+
+  &:hover .pane__action,
+  .pane__action:focus-visible {
+    opacity: 1;
+  }
+}
+
+.pane__row--picked .pane__entry {
+  background: var(--state-selected);
+}
+
+// Éléments coupés, en attente de collage : présents mais déjà partis.
+.pane__row--cut .pane__entry {
+  opacity: 0.45;
+}
+
+.pane__entry {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
   width: 100%;
-  padding: 5px 8px;
+  // Gouttière de droite constante, comme dans le panneau serveur : le nom ne
+  // doit pas passer sous le bouton d'envoi quand il apparaît.
+  padding: 5px 28px 5px 8px;
   border: none;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--text);
   font-size: calc(13px * var(--text-scale));
   text-align: left;
+  cursor: pointer;
 
   &:hover {
     background: var(--state-hover);
   }
 
-  &--dir {
-    cursor: pointer;
-
-    .pane__entry-icon {
-      color: var(--accent);
-    }
-  }
-
-  &:hover .pane__action,
-  .pane__action:focus-visible {
-    opacity: 1;
+  &--dir .pane__entry-icon {
+    color: var(--accent);
   }
 }
 
@@ -122,7 +142,9 @@
 
 .pane__action {
   position: absolute;
+  top: 50%;
   right: 4px;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   padding: 4px;

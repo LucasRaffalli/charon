@@ -23,7 +23,7 @@
         <span class="hdr__mark" #headerGlyph><app-charon-glyph /></span>
         <div class="hdr__id">
           <span class="hdr__name">Charon</span>
-          <span class="hdr__tag">Le passeur de fichiers</span>
+          <span class="hdr__tag">{{ t('connect.tagline') }}</span>
         </div>
         <app-segmented-control
           class="hdr__switch"
@@ -51,7 +51,7 @@
 
           <div class="sect st" style="--d: 0.07s">
             <div class="sect__lab">
-              <span>Serveur</span>
+              <span>{{ t('connect.server') }}</span>
               <app-segmented-control
                 variant="chip"
                 ariaLabel="Protocole"
@@ -61,7 +61,7 @@
               />
             </div>
 
-            <app-text-field label="Hôte" name="host" placeholder="styx.exemple.net" [(value)]="host" />
+            <app-text-field [label]="t('connect.host')" name="host" placeholder="styx.exemple.net" [(value)]="host" />
 
             <div class="row2">
               <app-text-field label="Utilisateur" name="user" placeholder="nocher" [(value)]="user" />
@@ -81,7 +81,7 @@
               @if (protocol() === 'sftp') {
                 <app-segmented-control
                   variant="chip"
-                  ariaLabel="Méthode d'authentification"
+                  [ariaLabel]="t('connect.authMethod')"
                   [options]="authOptions"
                   [value]="authMethod()"
                   (valueChange)="onAuthMethod($event)"
@@ -111,7 +111,7 @@
               }
             } @else {
               <app-text-field
-                label="Mot de passe"
+                [label]="t('connect.password')"
                 name="ftp-password"
                 type="password"
                 placeholder="••••••••"
@@ -132,7 +132,7 @@
           <div class="slot st" style="--d: 0.21s">
             @if (namePrompted()) {
               <app-text-field
-                label="Nom du profil"
+                [label]="t('connect.profileName')"
                 name="profile-name"
                 placeholder="Mon VPS"
                 [(value)]="profileName"
@@ -164,7 +164,7 @@
               type="submit"
               [disabled]="!canSubmit() || sftp.loading()"
             >
-              {{ sftp.loading() ? 'Traversée en cours…' : 'Embarquer' }}
+              {{ sftp.loading() ? t('connect.boarding') : t('connect.board') }}
               @if (!sftp.loading()) {
                 <span class="go__kbd">↵</span>
               }
@@ -197,7 +197,7 @@
                 <button
                   type="button"
                   class="srv__act"
-                  title="Modifier ce profil"
+                  [title]="t('connect.editProfile')"
                   [attr.aria-label]="'Modifier le profil ' + profile.name"
                   (click)="editProfile(profile)"
                 >
@@ -206,7 +206,7 @@
                 <button
                   type="button"
                   class="srv__act srv__act--del"
-                  title="Supprimer ce profil"
+                  [title]="t('connect.deleteProfile')"
                   [attr.aria-label]="'Supprimer le profil ' + profile.name"
                   (click)="removeProfile(profile)"
                 >
@@ -214,13 +214,13 @@
                 </button>
               </div>
             }
-            <span class="servers__hint">Un clic embarque directement.</span>
+            <span class="servers__hint">{{ t('connect.clickToBoard') }}</span>
           } @else {
             <div class="servers__empty">
               <app-icon name="server" [size]="22" />
-              <p class="servers__empty-title">Aucun serveur enregistré</p>
+              <p class="servers__empty-title">{{ t('connect.noProfile') }}</p>
               <p class="servers__empty-hint">
-                Donne un nom à un serveur lors d'une connexion pour le retrouver ici.
+                {{ t('connect.noProfileHint') }}
               </p>
               <app-button variant="ghost" (click)="setPanel('form')">Nouvelle connexion</app-button>
             </div>
@@ -241,7 +241,7 @@
   <button
     type="button"
     class="connect__version"
-    title="Voir les nouveautés"
+    [title]="t('connect.seeNews')"
     (click)="whatsNew.show()"
   >
     Charon · v.{{ version() }}

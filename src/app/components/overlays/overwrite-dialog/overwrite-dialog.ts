@@ -6,6 +6,7 @@ import { Icon } from '@app/components/ui/icon/icon';
 import { FileSizePipe } from '@app/pipes/file-size-pipe';
 import { DiffLine, diffStats, toSplitRows } from '@app/services/files/diff';
 import { OverwriteRequest, OverwriteSides, UPLOAD_SIDES, OverwriteService } from '@app/services/files/overwrite.service';
+import { injectT } from '@app/lang/i18n.service';
 
 type DiffState =
   | { kind: 'idle' }
@@ -29,6 +30,7 @@ export class OverwriteDialog {
     return request.sides ?? UPLOAD_SIDES;
   }
 
+  protected readonly t = injectT();
   protected readonly overwrite = inject(OverwriteService);
   protected readonly diff = signal<DiffState>({ kind: 'idle' });
   protected readonly view = signal<DiffView>('split');

@@ -1,10 +1,22 @@
 <header class="pane__header">
   <app-icon class="pane__header-icon" [name]="icon()" [size]="15" />
   <span class="pane__title">{{ title() }}</span>
+  @if (anchorable()) {
+    <button
+      type="button"
+      class="pane__anchor"
+      [class.pane__anchor--on]="anchored()"
+      [title]="t(anchored() ? 'panes.header.anchorClear' : 'panes.header.anchorSet')"
+      [attr.aria-pressed]="anchored()"
+      (click)="anchorToggle.emit()"
+    >
+      <app-icon name="anchor" [size]="14" />
+    </button>
+  }
   <button
     type="button"
     class="pane__up"
-    title="Dossier parent"
+    [title]="t('panes.header.parent')"
     [disabled]="atRoot() || loading()"
     (click)="navigateUp.emit()"
   >
@@ -23,8 +35,10 @@
     #filterField
     class="pane__filter"
     type="text"
-    placeholder="Filtrer"
-    [attr.aria-label]="'Filtrer : ' + title()"
+    [placeholder]="t('panes.filter.placeholder')"
+    spellcheck="false"
+    autocorrect="off"
+    [attr.aria-label]="t('panes.filter.ariaOf', { title: title() })"
     [value]="filter()"
     (input)="filter.set(filterField.value)"
     (keydown.escape)="filter.set('')"
@@ -35,33 +49,60 @@
   class="pane__list"
   [class.pane__list--loading]="loading()"
   (contextmenu)="areaMenu.emit($event)"
+  (click)="onListClick($event)"
+  (keydown)="listKeydown.emit($event)"
 >
-  @for (entry of visibleEntries(); track entry.name) {
-    <li (contextmenu)="entryMenu.emit({ event: $event, entry })">
-      @if (entry.isDir) {
-        <button type="button" class="pane__entry pane__entry--dir" (click)="openDir.emit(entry)">
-          <app-icon class="pane__entry-icon" name="folder" [size]="15" />
-          <span class="pane__name">{{ entry.name }}</span>
+  @for (row of rows(); track row.entry.name) {
+    <li
+      class="pane__row"
+      [class.pane__row--picked]="row.selected"
+      [class.pane__row--cut]="row.cut"
+      [attr.data-entry]="row.entry.name"
+      (contextmenu)="entryMenu.emit({ event: $event, entry: row.entry })"
+    >
+      <button
+        type="button"
+        class="pane__entry"
+        [class.pane__entry--dir]="row.entry.isDir"
+        [attr.aria-selected]="row.selected"
+        (click)="entryClick.emit({ event: $event, entry: row.entry })"
+        (dblclick)="open(row.entry)"
+        (keyup.enter)="open(row.entry)"
+      >
+        <app-icon
+          class="pane__entry-icon"
+          [name]="row.entry.isDir ? 'folder' : 'file'"
+          [size]="15"
+        />
+        <span class="pane__name">{{ row.entry.name }}</span>
+      </button>
+      @if (!row.entry.isDir && actionIcon(); as action) {
+        <button
+          type="button"
+          class="pane__action"
+          [title]="actionLabel()"
+          [attr.aria-label]="actionLabel() + ' : ' + row.entry.name"
+          (click)="fileAction.emit(row.entry)"
+        >
+          <app-icon [name]="action" [size]="14" />
         </button>
-      } @else {
-        <div class="pane__entry">
-          <app-icon class="pane__entry-icon" name="file" [size]="15" />
-          <span class="pane__name">{{ entry.name }}</span>
-          @if (actionIcon(); as action) {
-            <button
-              type="button"
-              class="pane__action"
-              [title]="actionLabel()"
-              [attr.aria-label]="actionLabel() + ' : ' + entry.name"
-              (click)="fileAction.emit(entry)"
-            >
-              <app-icon [name]="action" [size]="14" />
-            </button>
-          }
-        </div>
       }
     </li>
   } @empty {
-    <li class="pane__empty">{{ filter().trim() ? 'Rien ne correspond' : 'Dossier vide' }}</li>
+    <li class="pane__empty">{{ t(filter().trim() ? 'panes.empty.filtered' : 'panes.empty.dir') }}</li>
   }
 </ul>
+
+@if (selected().length) {
+  <app-selection-bar
+    [count]="selected().length"
+    [fileCount]="selectedFileCount()"
+    actionIcon="upload"
+    [actionLabel]="t('common.buttons.send')"
+    [copyLabel]="t('panes.selection.copyPaths')"
+    (clear)="selectionClear.emit()"
+    (action)="selectionSend.emit()"
+    (copy)="selectionCopy.emit()"
+    (remove)="selectionRemove.emit()"
+  />
+}

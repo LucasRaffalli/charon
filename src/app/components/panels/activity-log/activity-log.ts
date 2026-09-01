@@ -20,6 +20,7 @@ const KIND_ICONS: Record<ActivityKind, IconName> = {
   cancel: 'close',
   edit: 'edit',
   anchor: 'anchor',
+  favorite: 'star',
   error: 'alert-circle',
 };
 

@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS: Settings = {
   trashDays: 7,
   idleMinutes: 15,
   editorApp: '',
+  localHome: '',
+  lang: 'fr',
 };
 
 /** Préférences de l'application, persistées dans le stockage local. */
@@ -29,6 +31,8 @@ export class SettingsService {
   readonly trashDays = computed(() => this._settings().trashDays);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly editorApp = computed(() => this._settings().editorApp);
+  readonly localHome = computed(() => this._settings().localHome);
+  readonly lang = computed(() => this._settings().lang);
 
   constructor() {
     effect(() => {
@@ -81,6 +85,10 @@ export class SettingsService {
         trashDays: Math.min(365, Math.max(0, parsed.trashDays ?? DEFAULT_SETTINGS.trashDays)),
         idleMinutes: parsed.idleMinutes ?? DEFAULT_SETTINGS.idleMinutes,
         editorApp: parsed.editorApp ?? DEFAULT_SETTINGS.editorApp,
+        localHome: parsed.localHome ?? DEFAULT_SETTINGS.localHome,
+        // Une langue inconnue (réglage bricolé à la main, version future
+        // relue par une plus ancienne) retombe sur la source.
+        lang: parsed.lang === 'en' ? 'en' : DEFAULT_SETTINGS.lang,
       };
     } catch {
       return DEFAULT_SETTINGS;

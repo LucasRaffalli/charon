@@ -205,11 +205,18 @@ export const insertAtZone = (
   targetGroupId: string,
   panel: DockPanelId,
   zone: DockZone,
+  index?: number,
 ): DockNode => {
   if (zone === 'center') {
     return mapNode(tree, targetGroupId, (n) => {
       const g = n as DockGroup;
-      return { ...g, panels: [...g.panels, panel], active: panel };
+      const panels = [...g.panels];
+      // `index` vient de la barre d'onglets survolée : il vaut le rang où le
+      // curseur se trouve, borné au cas où le groupe aurait changé entre le
+      // survol et le dépôt. Sans lui, on empile en bout comme avant.
+      const at = index === undefined ? panels.length : Math.max(0, Math.min(index, panels.length));
+      panels.splice(at, 0, panel);
+      return { ...g, panels, active: panel };
     });
   }
 

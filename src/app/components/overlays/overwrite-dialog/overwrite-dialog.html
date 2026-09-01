@@ -13,7 +13,7 @@
         <p class="dialog__conflict">
           <app-icon name="alert-circle" [size]="14" />
           <span>
-            La version de destination est <strong>plus récente</strong> que celle qui
+            La version de destination est <strong>{{ t('overwrite.newerWord') }}</strong> que celle qui
             arrive : vous risquez d'écraser des changements faits ailleurs.
           </span>
         </p>
@@ -22,7 +22,7 @@
       <p class="dialog__intro">
         @if (request.canKeepBoth) {
           Un fichier de ce nom est déjà là. Vous pouvez le
-          <strong>remplacer</strong>, <strong>garder les deux</strong> (une copie sera créée
+          <strong>remplacer</strong>, <strong>{{ t('overwrite.keepBothWord') }}</strong> (une copie sera créée
           à côté), ou comparer les deux versions avant de choisir.
         } @else {
           Ce fichier existe déjà sur le serveur. L'envoi va
@@ -40,9 +40,7 @@
           <span class="meta__val" [class.meta__val--warn]="request.remoteNewer">
             @if (ms(request.remote.mtime); as t) {
               modifié le {{ stamp(t) }}
-            } @else {
-              date inconnue
-            }
+            } @else { {{ t('overwrite.unknownDate') }} }
           </span>
         </div>
         <div class="meta meta--local">
@@ -54,9 +52,7 @@
           <span class="meta__val">
             @if (ms(request.local.mtime); as t) {
               modifié le {{ stamp(t) }}
-            } @else {
-              date inconnue
-            }
+            } @else { {{ t('overwrite.unknownDate') }} }
           </span>
         </div>
       </div>
@@ -64,15 +60,15 @@
       @switch (diff().kind) {
         @case ('idle') {
           <button type="button" class="dialog__diff-btn" (click)="showDiff()">
-            Voir les différences
+            {{ t('overwrite.seeDiff') }}
           </button>
         }
         @case ('loading') {
-          <p class="dialog__diff-note">Calcul des différences…</p>
+          <p class="dialog__diff-note">{{ t('overwrite.computing') }}</p>
         }
         @case ('unavailable') {
           <p class="dialog__diff-note">
-            Aperçu indisponible (fichier binaire ou trop volumineux).
+            {{ t('overwrite.diffUnavailable') }}
           </p>
         }
         @case ('ready') {
@@ -85,14 +81,14 @@
                 [class.diff-toggle--active]="view() === 'split'"
                 (click)="view.set('split')"
               >
-                Côte à côte
+                {{ t('overwrite.sideBySide') }}
               </button>
               <button
                 type="button"
                 [class.diff-toggle--active]="view() === 'unified'"
                 (click)="view.set('unified')"
               >
-                Unifié
+                {{ t('overwrite.unified') }}
               </button>
             </div>
           </div>
@@ -139,14 +135,14 @@
             Ignorer tout
           </app-button>
           <app-button variant="ghost" (click)="all('overwrite-all')">
-            Écraser tout
+            {{ t('overwrite.overwriteAll') }}
           </app-button>
         }
         @if (request.canKeepBoth) {
-          <app-button variant="ghost" (click)="all('keep-both')">Garder les deux</app-button>
+          <app-button variant="ghost" (click)="all('keep-both')">{{ t('overwrite.keepBoth') }}</app-button>
         }
         <app-button variant="ghost" (click)="cancel()">Ignorer</app-button>
-        <app-button variant="danger-solid" (click)="confirm()">Écraser</app-button>
+        <app-button variant="danger-solid" (click)="confirm()">{{ t('overwrite.overwrite') }}</app-button>
       </div>
     </section>
   </div>

@@ -35,6 +35,10 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  // Le motif est nommé (`--grad-image`) au lieu d'être posé ici directement :
+  // la barre de sessions le reprend pour son onglet actif, qui doit montrer le
+  // MÊME morceau de dégradé que la page sous lui. Sans motif, `none`.
+  background: var(--grad-image, none);
   opacity: var(--grad);
   transition: opacity var(--transition-base);
 }
@@ -48,22 +52,22 @@ app-root {
 // un réglage séparé : « lequel » et « combien » ne se mélangent pas.
 
 // Halo : deux foyers en diagonale, le plus discret.
-:root[data-gradient='halo'] body::before {
-  background:
+:root[data-gradient='halo'] {
+  --grad-image:
     radial-gradient(62% 46% at 10% -4%, var(--glow), transparent 68%),
     radial-gradient(54% 42% at 96% 104%, var(--glow2), transparent 68%);
 }
 
 // Aube : une montée de lumière depuis le bas, comme un lever de jour.
-:root[data-gradient='aube'] body::before {
-  background:
+:root[data-gradient='aube'] {
+  --grad-image:
     linear-gradient(to top, var(--glow) -18%, transparent 52%),
     radial-gradient(80% 30% at 50% 108%, var(--glow2), transparent 72%);
 }
 
 // Aurore : une écharpe oblique qui traverse l'écran, le plus graphique.
-:root[data-gradient='aurore'] body::before {
-  background: linear-gradient(
+:root[data-gradient='aurore'] {
+  --grad-image: linear-gradient(
     112deg,
     transparent 14%,
     var(--glow) 42%,
@@ -73,8 +77,8 @@ app-root {
 }
 
 // Maille : quatre foyers décalés en deux teintes, le plus riche.
-:root[data-gradient='maille'] body::before {
-  background:
+:root[data-gradient='maille'] {
+  --grad-image:
     radial-gradient(42% 38% at 6% 8%, var(--glow), transparent 62%),
     radial-gradient(38% 34% at 88% 14%, var(--glow2), transparent 62%),
     radial-gradient(46% 40% at 74% 92%, var(--glow), transparent 64%),
@@ -82,8 +86,8 @@ app-root {
 }
 
 // Voûte : bords assombris, respiration au centre.
-:root[data-gradient='voute'] body::before {
-  background:
+:root[data-gradient='voute'] {
+  --grad-image:
     radial-gradient(78% 70% at 50% 42%, var(--glow), transparent 66%),
     radial-gradient(120% 100% at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.55));
 }

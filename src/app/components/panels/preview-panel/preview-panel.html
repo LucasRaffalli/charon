@@ -14,7 +14,7 @@
       }
       <span class="ftab__name">{{ row.doc.name }}</span>
       @if (row.session.preview.isDirty(row.doc)) {
-        <span class="ftab__mod" title="Modifications non enregistrées"></span>
+        <span class="ftab__mod" [title]="t('preview.unsaved')"></span>
       }
       <span
         class="ftab__close"
@@ -36,7 +36,7 @@
     ><span class="head__name">{{ preview.name() }}</span>
   </span>
   @if (preview.dirty() && !preview.readonly()) {
-    <span class="head__dirty" title="Modifications non enregistrées"></span>
+    <span class="head__dirty" [title]="t('preview.unsaved')"></span>
   }
 
   <span class="head__meta data">
@@ -54,7 +54,7 @@
   @if (preview.kind() === 'text' && preview.isMarkdown()) {
     <app-segmented-control
       class="head__views"
-      ariaLabel="Affichage du markdown"
+      [ariaLabel]="t('preview.markdownView')"
       [options]="markdownViews"
       [value]="preview.markdownView() ? 'rendered' : 'source'"
       (valueChange)="onMarkdownView($event)"
@@ -62,13 +62,13 @@
   }
 
   @if (preview.kind() === 'text' && !diff()) {
-    <app-tool-button icon="columns" label="Comparer" (pressed)="onCompare()" />
+    <app-tool-button icon="columns" [label]="t('preview.compare')" (pressed)="onCompare()" />
   }
   @if (preview.kind() === 'text' && !preview.readonly()) {
-    <app-tool-button icon="edit" label="Éditeur système" (pressed)="openSystemEditor()" />
+    <app-tool-button icon="edit" [label]="t('preview.systemEditor')" (pressed)="openSystemEditor()" />
   }
-  <app-tool-button icon="download" label="Télécharger" (pressed)="download()" />
-  <app-tool-button icon="copy" label="Copier le chemin" (pressed)="copyPath()" />
+  <app-tool-button icon="download" [label]="t('common.buttons.download')" (pressed)="download()" />
+  <app-tool-button icon="copy" [label]="t('menu.copyPath')" (pressed)="copyPath()" />
 
   @if (preview.kind() === 'text' && !preview.readonly()) {
     <app-tool-button
@@ -80,7 +80,7 @@
     />
   }
 
-  <button type="button" class="head__close" aria-label="Fermer l'aperçu" (click)="preview.close()">
+  <button type="button" class="head__close" [attr.aria-label]="t('preview.closePreview')" (click)="preview.close()">
     <app-icon name="close" [size]="15" />
   </button>
 </header>
@@ -91,8 +91,10 @@
       #findField
       class="find__field"
       type="text"
-      placeholder="Rechercher dans le fichier"
-      aria-label="Rechercher dans le fichier"
+      [placeholder]="t('preview.findInFile')"
+      spellcheck="false"
+      autocorrect="off"
+      [attr.aria-label]="t('preview.findInFile')"
       [class.find__field--bad]="preview.findInvalid()"
       [value]="preview.findQuery()"
       (input)="preview.findQuery.set(findField.value)"
@@ -102,7 +104,7 @@
     <button
       type="button"
       class="find__nav"
-      aria-label="Occurrence précédente"
+      [attr.aria-label]="t('preview.prevMatch')"
       [disabled]="!preview.findMatches().length"
       (click)="preview.findPrev()"
     >
@@ -111,7 +113,7 @@
     <button
       type="button"
       class="find__nav"
-      aria-label="Occurrence suivante"
+      [attr.aria-label]="t('preview.nextMatch')"
       [disabled]="!preview.findMatches().length"
       (click)="preview.findNext()"
     >
@@ -135,7 +137,7 @@
     >
       casse
     </button>
-    <button type="button" class="find__close" aria-label="Fermer la recherche" (click)="preview.closeFind()">
+    <button type="button" class="find__close" [attr.aria-label]="t('preview.closeFind')" (click)="preview.closeFind()">
       <app-icon name="close" [size]="13" />
     </button>
   </div>
@@ -144,7 +146,7 @@
 @if (comparePick.armed()) {
   <div class="find pickbar">
     <app-icon name="columns" [size]="13" />
-    <span class="pickbar__msg">Clique le fichier à comparer, dans n'importe quel panneau serveur.</span>
+    <span class="pickbar__msg">{{ t('preview.pickFile') }}</span>
     <app-tool-button icon="close" label="Annuler" (pressed)="comparePick.settle(null)" />
   </div>
 }
@@ -169,20 +171,20 @@
       <app-tool-button
         class="cmp__exit"
         icon="folder"
-        label="Autre fichier"
+        [label]="t('preview.otherFile')"
         (pressed)="onCompare()"
       />
-      <app-tool-button icon="close" label="Quitter le diff" (pressed)="exitDiff()" />
+      <app-tool-button icon="close" [label]="t('preview.exitDiff')" (pressed)="exitDiff()" />
     </div>
     @if (d.missing) {
       <div class="cmp__missing">
         <p>« {{ d.otherPath }} » n'a pas pu être lu sur « {{ sessionTitle(d.other) }} ».</p>
         <app-button variant="primary" (click)="onCompare()">
-          Désigner un autre fichier…
+          {{ t('preview.pickAnother') }}
         </app-button>
       </div>
     } @else if (d.identical) {
-      <p class="notice">Les deux versions sont identiques.</p>
+      <p class="notice">{{ t('preview.identical') }}</p>
     } @else {
       <div class="cmp__grid">
         <div class="cmp__col">
@@ -224,7 +226,7 @@
           écraser le reste.
         </p>
       } @else if (preview.readonly() && !preview.markdownView()) {
-        <p class="notice">Serveur en lecture seule : édition désactivée.</p>
+        <p class="notice">{{ t('preview.readonly') }}</p>
       }
 
       @if (preview.markdownView()) {
@@ -243,6 +245,8 @@
               #ta
               class="editor__input"
               spellcheck="false"
+              autocorrect="off"
+              autocapitalize="off"
               wrap="off"
               [readonly]="preview.readonly()"
               [value]="preview.content()"
@@ -264,11 +268,11 @@
         />
       </div>
       <div class="media-bar">
-        <button type="button" class="media-bar__btn" aria-label="Zoom arrière" (click)="zoomOut()">−</button>
+        <button type="button" class="media-bar__btn" [attr.aria-label]="t('preview.zoomOut')" (click)="zoomOut()">−</button>
         <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomReset()">
           {{ zoomLabel() }}
         </button>
-        <button type="button" class="media-bar__btn" aria-label="Zoom avant" (click)="zoomIn()">＋</button>
+        <button type="button" class="media-bar__btn" [attr.aria-label]="t('preview.zoomIn')" (click)="zoomIn()">＋</button>
         <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomFit()">Ajuster</button>
         @if (imageDims(); as dims) {
           <span class="media-bar__dims data">{{ dims.w }} × {{ dims.h }}</span>
@@ -278,8 +282,8 @@
     @case ('binary') {
       <div class="binary">
         <app-icon [name]="preview.icon()" [size]="28" />
-        <p>Fichier binaire : pas d'aperçu texte.</p>
-        <app-button variant="primary" (click)="download()">Télécharger</app-button>
+        <p>{{ t('preview.binary') }}</p>
+        <app-button variant="primary" (click)="download()">{{ t('common.buttons.download') }}</app-button>
       </div>
     }
   }

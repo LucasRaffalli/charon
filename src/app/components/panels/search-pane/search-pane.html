@@ -3,6 +3,8 @@
     #field
     class="bar__field"
     type="text"
+    spellcheck="false"
+    autocorrect="off"
     [value]="search.query()"
     (input)="search.query.set(field.value)"
     (keydown)="onKeydown($event)"

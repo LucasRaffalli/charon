@@ -17,6 +17,7 @@ import {
 } from '@app/components/ui/segmented-control/segmented-control';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { UpdaterService } from '@app/services/system/updater.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Les options avancées de la connexion : un engrenage flottant dans le coin,
@@ -44,18 +45,19 @@ export class AdvancedOptions {
   readonly environmentChange = output<string>();
   readonly protectionChange = output<string>();
 
+  protected readonly t = injectT();
   protected readonly updater = inject(UpdaterService);
   protected readonly open = signal(false);
 
   protected readonly environmentOptions: readonly SegmentedOption[] = [
-    { value: '', label: 'Aucun' },
+    { value: '', label: this.t('advanced.none') },
     { value: 'dev', label: 'Dev' },
     { value: 'staging', label: 'Staging' },
     { value: 'prod', label: 'Prod', tone: 'danger' },
   ];
 
   protected readonly protectionOptions: readonly SegmentedOption[] = [
-    { value: '', label: 'Aucun' },
+    { value: '', label: this.t('advanced.none') },
     { value: 'confirm', label: 'Confirmation' },
     { value: 'readonly', label: 'Lecture seule' },
   ];

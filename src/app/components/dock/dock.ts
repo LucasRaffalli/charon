@@ -11,6 +11,7 @@ import { DockNodeView } from '@app/components/dock/dock-node';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { DockZone } from '@app/interfaces';
 import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/dock.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Racine du dock : rend l'arbre (splits + groupes), affiche le fantôme
@@ -33,6 +34,7 @@ import { DockService, PANEL_META, ROOT_TARGET } from '@app/services/workspace/do
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Dock {
+  protected readonly t = injectT();
   protected readonly dock = inject(DockService);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
@@ -41,7 +43,7 @@ export class Dock {
   );
   protected readonly ghostLabel = computed(() => {
     const panel = this.dock.drag()?.panel;
-    return panel ? PANEL_META[panel].label : '';
+    return panel ? this.t(PANEL_META[panel].label) : '';
   });
 
   /** Zone de bord de fenêtre survolée (dépôt au niveau racine). */

@@ -1,7 +1,8 @@
 @if (!connected()) {
-  <p class="empty">Connecte-toi pour retrouver tes raccourcis.</p>
+  <p class="empty">{{ t('favorites.connectFirst') }}</p>
 } @else if (!hasProfile()) {
-  <p class="empty">Cette connexion n'a pas de profil : les favoris se rangent dans un profil, enregistre-la pour en garder.</p>
+  <p class="empty">{{ t('favorites.noProfile') }}
+  </p>
 } @else {
   <div class="head">
     <button
@@ -12,7 +13,7 @@
       (click)="addCurrent()"
     >
       <app-icon name="plus" [size]="13" />
-      Ajouter ce dossier
+      {{ t('favorites.addCurrent') }}
     </button>
   </div>
 
@@ -29,7 +30,8 @@
         </button>
       </li>
     } @empty {
-      <li class="empty">Aucun favori. « Ajouter ce dossier » garde l'endroit où tu es, le crayon permet ensuite de le renommer ou de changer son icône.</li>
+      <li class="empty">{{ t('favorites.empty') }}
+  </li>
     }
   </ul>
 }

@@ -12,6 +12,7 @@ import {
 import { Icon } from '@app/components/ui/icon/icon';
 import { LogTailService } from '@app/services/files/log-tail.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Contenu de l'onglet Logs : suivi de fichier en direct avec filtre. */
 @Component({
@@ -22,6 +23,7 @@ import { SessionRegistry } from '@app/services/connection/session-registry';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LogPane {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get tail(): LogTailService {

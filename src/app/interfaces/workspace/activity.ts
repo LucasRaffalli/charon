@@ -11,6 +11,7 @@ export type ActivityKind =
   | 'cancel'
   | 'edit'
   | 'anchor'
+  | 'favorite'
   | 'module'
   | 'error';
 

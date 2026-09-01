@@ -99,5 +99,40 @@ for (const p of tree.ALL_PANELS) dock.closePanel(p);
 check('il reste toujours au moins un panneau', tree.collectPanels(dock.tree()).length >= 1,
   JSON.stringify(groups()));
 
+// 6. Réordonner les onglets DANS un groupe (issue #6).
+//    L'arithmétique est piégeuse : le rang visé est calculé sur la liste AVEC
+//    l'onglet déplacé, donc le retirer décale d'un cran tout ce qui le suivait.
+{
+  dock.reset();
+  const cible = tree.collectGroups(dock.tree()).find((g) => g.panels.includes('server')).id;
+  dock.movePanel('journal', cible, 'center');
+  dock.movePanel('transfers', cible, 'center');
+  const onglets = () =>
+    (tree.collectGroups(dock.tree()).find((g) => g.id === cible)?.panels ?? []).join(',');
+  check('trois onglets dans le même groupe', onglets() === 'server,journal,transfers', onglets());
+
+  dock.movePanel('transfers', cible, 'center', 0);
+  check('déposé en tête', onglets() === 'transfers,server,journal', onglets());
+
+  dock.movePanel('transfers', cible, 'center', 3);
+  check('déposé en queue', onglets() === 'server,journal,transfers', onglets());
+
+  dock.movePanel('server', cible, 'center', 1);
+  check('déposé à sa propre place : rien ne bouge', onglets() === 'server,journal,transfers', onglets());
+
+  dock.movePanel('server', cible, 'center', 2);
+  check('déplacé d\'un cran vers la droite', onglets() === 'journal,server,transfers', onglets());
+
+  // Sans rang, un onglet DÉJÀ dans le groupe est seulement activé : redéposer
+  // une vignette sur sa propre barre ne doit pas la faire sauter en bout.
+  dock.movePanel('journal', cible, 'center');
+  check('sans rang : un onglet du groupe est juste activé', onglets() === 'journal,server,transfers', onglets());
+
+  // Sans rang, un onglet VENU D'AILLEURS s'empile en queue, comme avant.
+  dock.movePanel('logs', cible, 'center');
+  check('sans rang : un onglet venu d\'ailleurs s\'empile en queue',
+    onglets() === 'journal,server,transfers,logs', onglets());
+}
+
 console.log(`\n${pass} vérifications passées, ${fail} échec(s).`);
 process.exit(fail ? 1 : 0);

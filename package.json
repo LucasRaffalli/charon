@@ -1,6 +1,6 @@
 {
   "name": "charon",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -11,9 +11,10 @@
     "release": "bash scripts/release.sh",
     "deploy": "bash scripts/deploy.sh",
     "site:preview": "bash scripts/site-preview.sh",
-    "verify": "node scripts/verify/modules-purs.cjs && node scripts/verify/session-registry.cjs && node scripts/verify/sftp-tree.cjs && node scripts/verify/dock.cjs && node scripts/verify/monitor.cjs",
+    "verify": "node scripts/verify/modules-purs.cjs && node scripts/verify/session-registry.cjs && node scripts/verify/sftp-tree.cjs && node scripts/verify/dock.cjs && node scripts/verify/monitor.cjs && node scripts/verify/whats-new.cjs && node scripts/verify/backend-errors.cjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lang:todo": "node scripts/lang-todo.cjs"
   },
   "private": true,
   "dependencies": {

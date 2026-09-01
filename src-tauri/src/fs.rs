@@ -34,7 +34,7 @@ pub fn local_export_config(file_name: String, contents: String) -> Result<String
 pub fn local_list_dir(path: String) -> Result<Vec<FileEntry>, String> {
     ensure_no_parent_dir(&path)?;
     let entries = std::fs::read_dir(&path)
-        .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+        .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
 
     let mut files: Vec<FileEntry> = entries
         .filter_map(|entry| entry.ok())
@@ -106,7 +106,7 @@ pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
     while filled < buffer.len() {
         let read = file
             .read(&mut buffer[filled..])
-            .map_err(|e| format!("Lecture de {path} impossible : {e}"))?;
+            .map_err(|e| crate::errors::user_err("read_dir", format!("{path} : {e}")))?;
         if read == 0 {
             break;
         }
@@ -120,7 +120,7 @@ pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
 #[tauri::command]
 pub fn local_mkdir(path: String) -> Result<(), String> {
     ensure_no_parent_dir(&path)?;
-    std::fs::create_dir(&path).map_err(|e| format!("Création de {path} impossible : {e}"))
+    std::fs::create_dir(&path).map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
 }
 
 /// Crée un fichier vide localement. `create_new` échoue si l'entrée existe
@@ -133,7 +133,7 @@ pub fn local_create_file(path: String) -> Result<(), String> {
         .create_new(true)
         .open(&path)
         .map(|_| ())
-        .map_err(|e| format!("Création de {path} impossible : {e}"))
+        .map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
 }
 
 /// Supprime un fichier local, ou un dossier vide.
@@ -144,7 +144,7 @@ pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {
         std::fs::remove_dir(&path)
             .map_err(|e| format!("Suppression de {path} impossible (dossier non vide ?) : {e}"))
     } else {
-        std::fs::remove_file(&path).map_err(|e| format!("Suppression de {path} impossible : {e}"))
+        std::fs::remove_file(&path).map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
     }
 }
 
@@ -153,7 +153,66 @@ pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {
 #[tauri::command]
 pub fn local_remove_all(path: String) -> Result<(), String> {
     ensure_no_parent_dir(&path)?;
-    std::fs::remove_dir_all(&path).map_err(|e| format!("Suppression de {path} impossible : {e}"))
+    std::fs::remove_dir_all(&path).map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
+}
+
+/// Copie une entrée locale, récursivement pour un dossier.
+///
+/// Le pendant local de `sftp_copy`, pour que le presse-papiers fonctionne des
+/// deux côtés. Deux refus explicites plutôt qu'un comportement surprenant :
+/// une cible qui existe déjà (l'écrasement se décide au-dessus, dans le
+/// dialogue de conflit, jamais ici), et un dossier copié dans lui-même, qui
+/// tournerait jusqu'à remplir le disque.
+#[tauri::command]
+pub fn local_copy(from: String, to: String) -> Result<(), String> {
+    use std::path::Path;
+
+    ensure_no_parent_dir(&from)?;
+    ensure_no_parent_dir(&to)?;
+
+    let src = Path::new(&from);
+    let dst = Path::new(&to);
+    if dst.exists() {
+        return Err(format!("{to} existe déjà."));
+    }
+    // `starts_with` compare composant par composant : « /a/bc » ne commence
+    // donc pas par « /a/b », là où une comparaison de chaînes le croirait.
+    if dst.starts_with(src) {
+        return Err("Un dossier ne peut pas être copié dans lui-même.".into());
+    }
+
+    copy_entry(src, dst).map_err(|e| crate::errors::user_err("copy", format!("{from} : {e}")))
+}
+
+/// Copie récursive. Les liens symboliques sont recopiés TELS QUELS (on ne
+/// suit pas la cible) : suivre un lien dupliquerait son contenu et pourrait
+/// tourner en rond sur un lien circulaire.
+fn copy_entry(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    let meta = std::fs::symlink_metadata(src)?;
+    if meta.file_type().is_symlink() {
+        #[cfg(unix)]
+        {
+            let target = std::fs::read_link(src)?;
+            return std::os::unix::fs::symlink(target, dst);
+        }
+        #[cfg(not(unix))]
+        {
+            return std::fs::copy(src, dst).map(|_| ());
+        }
+    }
+    if meta.is_dir() {
+        std::fs::create_dir(dst)?;
+        for entry in std::fs::read_dir(src)? {
+            let entry = entry?;
+            copy_entry(&entry.path(), &dst.join(entry.file_name()))?;
+        }
+        // Les droits du dossier après son contenu : les poser d'abord peut
+        // interdire d'y écrire (un dossier en lecture seule).
+        std::fs::set_permissions(dst, meta.permissions())?;
+        return Ok(());
+    }
+    std::fs::copy(src, dst)?;
+    Ok(())
 }
 
 /// Renomme (ou déplace) une entrée locale.
@@ -161,5 +220,5 @@ pub fn local_remove_all(path: String) -> Result<(), String> {
 pub fn local_rename(from: String, to: String) -> Result<(), String> {
     ensure_no_parent_dir(&from)?;
     ensure_no_parent_dir(&to)?;
-    std::fs::rename(&from, &to).map_err(|e| format!("Renommage de {from} impossible : {e}"))
+    std::fs::rename(&from, &to).map_err(|e| crate::errors::user_err("rename", format!("{from} : {e}")))
 }

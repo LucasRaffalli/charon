@@ -15,7 +15,7 @@
 
   <div class="sheet" role="dialog" aria-label="Options avancées">
     <div class="sheet__head">
-      <span class="sheet__title">Options avancées</span>
+      <span class="sheet__title">{{ t('advanced.title') }}</span>
       <button type="button" class="sheet__close" aria-label="Fermer" (click)="open.set(false)">
         <app-icon name="close" [size]="14" />
       </button>
@@ -23,7 +23,7 @@
 
     @if (showKeyField()) {
       <app-text-field
-        label="Clé SSH"
+        [label]="t('advanced.sshKey')"
         name="key-path"
         placeholder="~/.ssh/id_ed25519"
         hint="Vide = détection automatique (~/.ssh)"
@@ -77,7 +77,7 @@
             }
           }
         </span>
-        <span class="sheet__update-sub">La signature est vérifiée avant l'installation</span>
+        <span class="sheet__update-sub">{{ t('advanced.signed') }}</span>
 
         @if (downloadPercent(); as percent) {
           <div class="sheet__bar" role="progressbar" [attr.aria-valuenow]="percent">
@@ -96,7 +96,7 @@
           [loading]="updater.status().kind === 'checking'"
           (click)="updater.checkForUpdates()"
         >
-          Vérifier
+          {{ t('advanced.check') }}
         </app-button>
       }
     </div>

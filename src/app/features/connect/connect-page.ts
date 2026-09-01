@@ -37,11 +37,11 @@ import { DialogService } from '@app/services/workspace/dialog.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
-import { UpdaterService } from '@app/services/system/updater.service';
 import { ToastService } from '@app/services/workspace/toast.service';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
 import { windowLabel } from '@app/services/system/window-scope';
+import { injectT } from '@app/lang/i18n.service';
 
 const DEFAULT_PORTS: Record<RemoteProtocol, number> = { sftp: 22, ftps: 21, ftp: 21 };
 
@@ -115,17 +115,8 @@ export class ConnectPage implements OnDestroy {
   protected readonly phase = signal<BootPhase>(introAlreadyOver() ? 'ready' : 'dark');
   protected readonly introDone = signal(introAlreadyOver());
 
-  /**
-   * Une mise à jour prête s'annonce dans la pile commune, en toast collant :
-   * elle décrit un état qui dure, pas un geste qui vient d'aboutir, donc pas de
-   * compte à rebours. Annoncée une seule fois par lancement, comme avant :
-   * refermer la carte ne doit pas la faire revenir, et la pastille de
-   * l'engrenage continue de dire qu'elle attend.
-   */
-  private announcedUpdate = false;
-
-  private readonly updater = inject(UpdaterService);
   private readonly toasts = inject(ToastService);
+  protected readonly t = injectT();
   protected readonly whatsNew = inject(WhatsNewService);
 
   /**
@@ -191,8 +182,8 @@ export class ConnectPage implements OnDestroy {
   /** Comment on s'authentifie en SFTP. Explicite : le champ dit ce qu'il attend. */
   protected readonly authMethod = signal<AuthMethod>('key');
   protected readonly authOptions: readonly SegmentedOption[] = [
-    { value: 'key', label: 'Clé SSH' },
-    { value: 'password', label: 'Mot de passe' },
+    { value: 'key', label: this.t('misc.connect.sshKey') },
+    { value: 'password', label: this.t('misc.connect.password') },
   ];
 
   /**
@@ -392,30 +383,6 @@ export class ConnectPage implements OnDestroy {
    * (clic, touche) où le glyphe peut être n'importe où sur sa trajectoire : le
    * montrer en double une frame serait pire que de le couper net.
    */
-  /**
-   * Une mise à jour prête s'annonce dans la pile commune, en toast collant :
-   * elle décrit un état qui dure, pas un geste qui vient d'aboutir, donc pas de
-   * compte à rebours. Une seule fois par lancement, comme avant : la refermer
-   * ne doit pas la faire revenir, et la pastille de l'engrenage continue de
-   * dire qu'elle attend. L'annonce suit la fin de l'ouverture, personne ne
-   * devant lire une carte pendant que le panneau se déplie.
-   */
-  private announceUpdate(): void {
-    if (this.announcedUpdate || !this.updater.updateAvailable()) {
-      return;
-    }
-    const status = this.updater.status();
-    const version = status.kind === 'available' ? status.version : null;
-    this.announcedUpdate = true;
-    this.toasts.info(version ? `Charon ${version} est prête` : 'Une mise à jour est prête', {
-      title: 'Mise à jour',
-      detail: 'Installation signée, redémarre en quelques secondes',
-      sticky: true,
-      key: 'update',
-      action: { label: 'Installer', run: () => void this.updater.install() },
-    });
-  }
-
   private finishIntro(smooth: boolean): void {
     this.clearTimers();
     this.phase.set('ready');
@@ -423,7 +390,6 @@ export class ConnectPage implements OnDestroy {
     if (smooth && view) {
       const done = () => {
         this.introDone.set(true);
-        this.announceUpdate();
       };
       view.requestAnimationFrame(() => view.requestAnimationFrame(done));
       // Filet : sans frames (fenêtre masquée), on n'attend pas indéfiniment.
@@ -435,7 +401,6 @@ export class ConnectPage implements OnDestroy {
       glyph.style.transform = '';
     }
     this.introDone.set(true);
-    this.announceUpdate();
   }
 
   /** Un geste pendant l'ouverture la saute : personne n'attend une intro. */
@@ -746,13 +711,13 @@ export class ConnectPage implements OnDestroy {
         action: () => void this.connectProfile(profile),
       },
       {
-        label: 'Ouvrir dans une nouvelle fenêtre',
+        label: this.t('misc.connect.openInWindow'),
         icon: 'monitor',
         action: () =>
           void invoke('window_open', { profileId: profile.id }).catch(() => undefined),
       },
       {
-        label: 'Ouvrir dans un onglet',
+        label: this.t('misc.connect.openInTab'),
         icon: 'plus',
         action: () => this.tabBar.openTab(profile.id),
       },

@@ -26,7 +26,7 @@ suppaftp = { version = "11", features = ["async-secure", "tokio", "tokio-async-n
 futures-util = { version = "0.3", features = ["io"] }
 tauri-plugin-store = "2"
 thiserror = "2"
-dirs = "5"
+dirs = "6"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 base64 = "0.22"

@@ -37,14 +37,27 @@ updates:
       day: monday
     open-pull-requests-limit: 5
     labels: ["dépendances", "front"]
+    ignore:
+      # La version de TypeScript est dictée par la fourchette peer d'Angular
+      # (20.3 accepte >=5.8 <6.0). Dependabot proposait TypeScript 7, qu'aucune
+      # version d'Angular ne réclame : une PR à refermer chaque semaine. Elle
+      # reviendra d'elle-même quand on montera Angular, par la PR de migration.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+
     groups:
       front-routine:
         patterns: ["*"]
         update-types: ["minor", "patch"]
       # Angular monte ses paquets ensemble : les séparer donne des PR qui ne
-      # compilent pas isolément.
+      # compilent pas isolément. MAIS le groupe se limite aux mineures : sans
+      # `update-types`, il a avalé un saut de DEUX majeures (20 vers 22) sous
+      # l'étiquette anodine « angular group with 7 updates ». Or Angular 22
+      # exige TypeScript >=6.0 <6.1 : ce n'est pas une montée, c'est une
+      # migration, et elle mérite sa propre PR et son propre chantier.
       angular:
         patterns: ["@angular*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: github-actions
     directory: /

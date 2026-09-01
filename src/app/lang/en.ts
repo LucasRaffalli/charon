@@ -531,6 +531,16 @@ export const en: Dictionary = {
     copy: 'Could not copy',
     connect: 'Could not connect',
     auth: 'Authentication refused',
+    cert_no_authority:
+      'This server presents a host certificate, but no authority is declared for it in ~/.ssh/known_hosts (an “@cert-authority” line).',
+    cert_invalid:
+      'The host certificate is not valid: signature, unknown authority, or expired validity dates.',
+    cert_not_host:
+      'This server presents a user certificate, not a host certificate: it proves nothing about its identity.',
+    cert_wrong_host:
+      'The host certificate was not issued for this machine name.',
+    cert_critical_options:
+      'The certificate carries critical options Charon cannot interpret: the connection is refused as a precaution.',
     key_missing: 'Key not found',
     no_key: 'No SSH key found in ~/.ssh',
     key_unreadable: 'Key unreadable (encrypted without a passphrase?)',

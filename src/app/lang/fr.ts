@@ -576,6 +576,16 @@ export const fr = {
     copy: 'Copie impossible',
     connect: 'Connexion impossible',
     auth: 'Authentification refusée',
+    cert_no_authority:
+      "Ce serveur présente un certificat d’hôte, mais aucune autorité n’est déclarée pour lui dans ~/.ssh/known_hosts (ligne « @cert-authority »).",
+    cert_invalid:
+      "Le certificat d’hôte n’est pas valide : signature, autorité inconnue, ou dates de validité dépassées.",
+    cert_not_host:
+      "Ce serveur présente un certificat d’utilisateur, pas un certificat d’hôte : il ne prouve rien sur son identité.",
+    cert_wrong_host:
+      "Le certificat d’hôte n’a pas été émis pour ce nom de machine.",
+    cert_critical_options:
+      'Le certificat porte des options critiques que Charon ne sait pas interpréter : par prudence, la connexion est refusée.',
     key_missing: 'Clé introuvable',
     no_key: 'Aucune clé SSH trouvée dans ~/.ssh',
     key_unreadable: 'Clé illisible (chiffrée sans passphrase ?)',

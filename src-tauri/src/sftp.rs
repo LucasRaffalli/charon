@@ -1,7 +1,10 @@
 use russh::client;
 use russh::ChannelMsg;
 use russh::keys::known_hosts::learn_known_hosts;
+use russh::keys::ssh_key::certificate::CertType;
+use russh::keys::ssh_key::{Certificate, Fingerprint};
 use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHashAlg};
+use russh::keys::PublicKeyOrCertificate;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -206,18 +209,34 @@ struct ClientHandler {
     /// Slot partagé où `check_server_key` dépose l'empreinte d'un hôte inconnu,
     /// pour que `sftp_connect` puisse la renvoyer au front.
     seen_fingerprint: Arc<StdMutex<Option<String>>>,
+    /// Pourquoi un certificat d'hôte a été refusé. Sans ce motif, tous les
+    /// refus ressortent en « clé inconnue » et l'utilisateur va chercher dans
+    /// known_hosts un problème qui n'y est pas.
+    cert_refusal: Arc<StdMutex<Option<&'static str>>>,
 }
 
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
 
+    /// Le serveur peut se présenter de DEUX façons depuis russh 0.63 : avec sa
+    /// clé, ou avec un certificat d'hôte signé par une autorité. Les deux ne se
+    /// vérifient pas du tout pareil, d'où l'aiguillage.
+    async fn check_server_key(
+        &mut self,
+        server_public_key: &PublicKeyOrCertificate,
+    ) -> Result<bool, Self::Error> {
+        match server_public_key {
+            PublicKeyOrCertificate::PublicKey { key, .. } => self.check_host_key(key),
+            PublicKeyOrCertificate::Certificate(cert) => self.check_host_certificate(cert),
+        }
+    }
+}
+
+impl ClientHandler {
     /// TOFU : hôte connu → la clé doit correspondre à ~/.ssh/known_hosts.
     /// Hôte inconnu → on n'apprend la clé que si l'utilisateur a confirmé
     /// son empreinte ; sinon on la dépose dans le slot et on refuse.
-    async fn check_server_key(
-        &mut self,
-        server_public_key: &russh::keys::PublicKey,
-    ) -> Result<bool, Self::Error> {
+    fn check_host_key(&mut self, server_public_key: &russh::keys::PublicKey) -> Result<bool, russh::Error> {
         match check_known_hosts(&self.host, self.port, server_public_key) {
             Ok(true) => Ok(true),
             Ok(false) => {
@@ -235,9 +254,164 @@ impl client::Handler for ClientHandler {
             Err(_) => Err(russh::Error::UnknownKey),
         }
     }
+
+    /// Vérifie un certificat d'hôte contre les autorités déclarées dans
+    /// `~/.ssh/known_hosts` par des lignes `@cert-authority`.
+    ///
+    /// Le modèle n'est pas celui du TOFU : on ne fait pas confiance à CETTE
+    /// machine, on fait confiance à l'autorité qui l'a signée. C'est ce qui
+    /// permet à un parc de renouveler ses machines sans redistribuer trois
+    /// cents empreintes. Il n'y a donc rien à « apprendre » ici, et rien à
+    /// faire confirmer à l'utilisateur : l'autorité a déjà été approuvée le
+    /// jour où la ligne a été ajoutée au fichier.
+    ///
+    /// `validate_at` couvre la signature, l'appartenance à une autorité de
+    /// confiance et la fenêtre de validité. Sa documentation prévient qu'elle
+    /// NE SUFFIT PAS : les trois contrôles qui suivent sont à notre charge, et
+    /// les omettre revient à accepter un certificat d'utilisateur ou un
+    /// certificat émis pour une autre machine.
+    fn check_host_certificate(&mut self, cert: &Certificate) -> Result<bool, russh::Error> {
+        let authorities = trusted_authorities(&self.host, self.port);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        match verify_host_certificate(cert, &self.host, &authorities, now) {
+            Ok(()) => Ok(true),
+            Err(code) => Err(self.refuse_cert(code)),
+        }
+    }
+
+    /// Note le motif du refus et rend l'erreur que russh attend.
+    fn refuse_cert(&self, code: &'static str) -> russh::Error {
+        *self.cert_refusal.lock().unwrap() = Some(code);
+        russh::Error::UnknownKey
+    }
 }
 
 // ---------- Helpers ----------
+
+/// Ce certificat d'hôte est-il acceptable pour cet hôte, à cet instant ?
+///
+/// Fonction PURE, séparée du handler exprès : la poignée de main SSH demande un
+/// serveur, cette décision-là n'en demande aucun. C'est elle qui porte toute la
+/// sécurité du chemin certificat, donc c'est elle qui doit être testable avec
+/// de vrais certificats plutôt que vérifiée à la lecture.
+///
+/// Rend le code du refus, que le front traduit.
+fn verify_host_certificate(
+    cert: &Certificate,
+    host: &str,
+    authorities: &[Fingerprint],
+    now: u64,
+) -> Result<(), &'static str> {
+    if authorities.is_empty() {
+        return Err("cert_no_authority");
+    }
+
+    // Signature, appartenance à une autorité de confiance, fenêtre de validité.
+    // Sa documentation prévient que ça NE SUFFIT PAS : la suite est à nous.
+    cert.validate_at(now, authorities.iter())
+        .map_err(|_| "cert_invalid")?;
+
+    // Un certificat d'UTILISATEUR ne prouve rien sur un hôte : sans ce contrôle,
+    // une clé signée pour se connecter quelque part servirait à se faire passer
+    // pour un serveur.
+    if cert.cert_type() != CertType::Host {
+        return Err("cert_not_host");
+    }
+
+    // Les principaux : les noms pour lesquels le certificat vaut. Vide = valable
+    // partout (convention OpenSSH). Sinon l'hôte demandé doit y figurer, sans
+    // quoi un certificat émis pour une machine servirait pour une autre.
+    let principals = cert.valid_principals();
+    if !principals.is_empty() && !principals.iter().any(|p| host_matches(p, host)) {
+        return Err("cert_wrong_host");
+    }
+
+    // Les options critiques sont, par définition, celles qu'on n'a pas le droit
+    // d'ignorer. Charon n'en interprète aucune : en présence d'une seule, le
+    // refus est la seule réponse honnête.
+    if !cert.critical_options().is_empty() {
+        return Err("cert_critical_options");
+    }
+
+    Ok(())
+}
+
+/// Les autorités de certification déclarées pour cet hôte dans
+/// `~/.ssh/known_hosts`, sous forme d'empreintes SHA256.
+///
+/// Format d'une ligne OpenSSH : `@cert-authority <motifs> <type> <base64>`.
+/// Les motifs sont séparés par des virgules et acceptent `*` et `?`.
+///
+/// Limite assumée : les entrées à nom d'hôte HACHÉ (`|1|…`) sont ignorées. On
+/// ne peut pas les comparer sans refaire le HMAC, et OpenSSH ne hache pas les
+/// lignes `@cert-authority` (elles s'ajoutent à la main, pas par découverte).
+/// Mieux vaut ignorer une ligne qu'on ne sait pas lire que d'en deviner le sens.
+fn trusted_authorities(host: &str, port: u16) -> Vec<Fingerprint> {
+    let Some(home) = dirs::home_dir() else {
+        return Vec::new();
+    };
+    let Ok(content) = std::fs::read_to_string(home.join(".ssh").join("known_hosts")) else {
+        return Vec::new();
+    };
+    authorities_from(&content, host, port)
+}
+
+/// Le tri des lignes, séparé de la lecture du fichier : c'est la partie qui
+/// peut se tromper, elle doit pouvoir se tester sans dépendre d'un `~/.ssh`.
+fn authorities_from(content: &str, host: &str, port: u16) -> Vec<Fingerprint> {
+    // OpenSSH écrit `[hôte]:port` dès que le port n'est pas 22.
+    let with_port = format!("[{host}]:{port}");
+    let mut out = Vec::new();
+
+    for line in content.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix("@cert-authority") else {
+            continue;
+        };
+        let mut parts = rest.split_whitespace();
+        let (Some(patterns), Some(kind), Some(b64)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if patterns.starts_with('|') {
+            continue; // nom haché : illisible sans le HMAC, voir plus haut
+        }
+        let matches = patterns.split(',').any(|pattern| {
+            let pattern = pattern.trim();
+            host_matches(pattern, host) || host_matches(pattern, &with_port)
+        });
+        if !matches {
+            continue;
+        }
+        // `<type> <base64>` est exactement ce que sait lire le parseur OpenSSH.
+        if let Ok(key) = russh::keys::PublicKey::from_openssh(&format!("{kind} {b64}")) {
+            out.push(key.fingerprint(HashAlg::Sha256));
+        }
+    }
+    out
+}
+
+/// Un motif OpenSSH correspond-il à cet hôte ? `*` couvre n'importe quelle
+/// suite, `?` un caractère. La comparaison est insensible à la casse, comme
+/// les noms de domaine.
+fn host_matches(pattern: &str, host: &str) -> bool {
+    fn walk(p: &[u8], h: &[u8]) -> bool {
+        match p.first() {
+            None => h.is_empty(),
+            Some(b'*') => walk(&p[1..], h) || (!h.is_empty() && walk(p, &h[1..])),
+            Some(b'?') => !h.is_empty() && walk(&p[1..], &h[1..]),
+            Some(c) => !h.is_empty() && h[0] == *c && walk(&p[1..], &h[1..]),
+        }
+    }
+    walk(
+        pattern.to_ascii_lowercase().as_bytes(),
+        host.to_ascii_lowercase().as_bytes(),
+    )
+}
+
 
 /// Refuse les noms d'entrée dangereux annoncés par un serveur (traversée de chemin) :
 /// vide, `.`, `..`, ou contenant un séparateur.
@@ -582,11 +756,13 @@ async fn open_sftp_session(
         ..Default::default()
     });
     let seen_fingerprint = Arc::new(StdMutex::new(None));
+    let cert_refusal = Arc::new(StdMutex::new(None));
     let handler = ClientHandler {
         host: host.clone(),
         port,
         accepted_fingerprint: accept_new_key,
         seen_fingerprint: Arc::clone(&seen_fingerprint),
+        cert_refusal: Arc::clone(&cert_refusal),
     };
     let mut session = client::connect(config, (host.as_str(), port), handler)
         .await
@@ -595,12 +771,20 @@ async fn open_sftp_session(
                 "La clé du serveur a changé (ligne {line} de ~/.ssh/known_hosts). \
                  Risque d'usurpation : vérifie le serveur avant de supprimer cette ligne."
             ),
-            russh::Error::UnknownKey => match seen_fingerprint.lock().unwrap().take() {
-                Some(fp) => format!("{UNKNOWN_KEY_TAG}{fp}"),
-                None => "Vérification de la clé du serveur impossible \
-                         (~/.ssh/known_hosts illisible ?)"
-                    .into(),
-            },
+            russh::Error::UnknownKey => {
+                // Un certificat refusé a son propre motif : le confondre avec
+                // « clé inconnue » enverrait chercher dans known_hosts.
+                if let Some(code) = cert_refusal.lock().unwrap().take() {
+                    crate::errors::user_code(code)
+                } else {
+                    match seen_fingerprint.lock().unwrap().take() {
+                        Some(fp) => format!("{UNKNOWN_KEY_TAG}{fp}"),
+                        None => "Vérification de la clé du serveur impossible \
+                                 (~/.ssh/known_hosts illisible ?)"
+                            .into(),
+                    }
+                }
+            }
             e => crate::errors::user_err("connect", format!("{e}")),
         })?;
 
@@ -1683,4 +1867,165 @@ pub fn sftp_transfer_cancel(
         flag.store(true, Ordering::Relaxed);
     }
     Ok(())
+}
+#[cfg(test)]
+mod cert_tests {
+    use super::{authorities_from, host_matches};
+
+    /// Une vraie clé ed25519, pour que le parseur ait quelque chose à lire.
+    const CA: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ0hLJ1EQPGCbXFVJxSJTNz1xSlQ0kBaS/AEIzOVmS4E";
+
+    #[test]
+    fn motifs_openssh() {
+        assert!(host_matches("vps.example.com", "vps.example.com"));
+        assert!(host_matches("*.example.com", "vps.example.com"));
+        assert!(host_matches("vps?.example.com", "vps1.example.com"));
+        assert!(host_matches("*", "n-importe-quoi"));
+        // Insensible à la casse, comme les noms de domaine.
+        assert!(host_matches("VPS.Example.COM", "vps.example.com"));
+        // `*` ne doit pas déborder sur ce qui suit le motif.
+        assert!(!host_matches("*.example.com", "example.com"));
+        assert!(!host_matches("vps.example.com", "vps.example.org"));
+        assert!(!host_matches("vps?.example.com", "vps12.example.com"));
+    }
+
+    #[test]
+    fn retient_la_ligne_qui_vise_l_hote() {
+        let file = format!("@cert-authority *.example.com {CA}\n");
+        assert_eq!(authorities_from(&file, "vps.example.com", 22).len(), 1);
+        assert_eq!(authorities_from(&file, "vps.autre.com", 22).len(), 0);
+    }
+
+    #[test]
+    fn ignore_les_lignes_ordinaires() {
+        // Une clé d'hôte apprise en TOFU n'est PAS une autorité : la confondre
+        // reviendrait à faire signer n'importe quel serveur par lui-même.
+        let file = format!("vps.example.com {CA}\n");
+        assert!(authorities_from(&file, "vps.example.com", 22).is_empty());
+    }
+
+    #[test]
+    fn ignore_les_noms_haches() {
+        let file = format!("@cert-authority |1|abc=|def= {CA}\n");
+        assert!(authorities_from(&file, "vps.example.com", 22).is_empty());
+    }
+
+    #[test]
+    fn accepte_la_forme_avec_port() {
+        let file = format!("@cert-authority [vps.example.com]:2222 {CA}\n");
+        assert_eq!(authorities_from(&file, "vps.example.com", 2222).len(), 1);
+        // Le même hôte sur un autre port n'est pas couvert par cette ligne.
+        assert!(authorities_from(&file, "vps.example.com", 22).is_empty());
+    }
+
+    #[test]
+    fn accepte_une_liste_de_motifs() {
+        let file = format!("@cert-authority a.example.com,*.prod.net {CA}\n");
+        assert_eq!(authorities_from(&file, "web.prod.net", 22).len(), 1);
+        assert_eq!(authorities_from(&file, "a.example.com", 22).len(), 1);
+        assert!(authorities_from(&file, "b.example.com", 22).is_empty());
+    }
+
+    #[test]
+    fn survit_aux_lignes_malformees() {
+        let file = "@cert-authority\n@cert-authority *.x\n@cert-authority *.x pas-une-cle zzz\n";
+        assert!(authorities_from(file, "a.x", 22).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod cert_validation_tests {
+    use super::{host_matches, verify_host_certificate};
+    use russh::keys::ssh_key::{Certificate, Fingerprint, HashAlg, PublicKey};
+
+    /// Certificats fabriqués par ssh-keygen (tests/certs), avec une fenêtre de
+    /// validité FIXE : le test passe un instant choisi plutôt que l'heure
+    /// courante, sinon il se mettrait à échouer tout seul en 2027.
+    const HOTE: &str = "vps.example.com";
+
+    fn cert(nom: &str) -> Certificate {
+        let brut = std::fs::read_to_string(format!("tests/certs/{nom}")).unwrap();
+        Certificate::from_openssh(&brut).unwrap()
+    }
+
+    fn autorite(nom: &str) -> Vec<Fingerprint> {
+        let brut = std::fs::read_to_string(format!("tests/certs/{nom}")).unwrap();
+        vec![PublicKey::from_openssh(&brut)
+            .unwrap()
+            .fingerprint(HashAlg::Sha256)]
+    }
+
+    /// Un instant à l'intérieur de la fenêtre des certificats de test
+    /// (2026-01-01 → 2027-01-01).
+    fn maintenant() -> u64 {
+        1_767_225_600 // 2026-01-01T00:00:00Z + un jour
+    }
+
+    #[test]
+    fn certificat_valide_accepte() {
+        assert!(verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()).is_ok());
+    }
+
+    #[test]
+    fn sans_autorite_declaree_refuse() {
+        assert_eq!(
+            verify_host_certificate(&cert("valide-cert.pub"), HOTE, &[], maintenant()),
+            Err("cert_no_authority")
+        );
+    }
+
+    #[test]
+    fn autorite_inconnue_refuse() {
+        // Le certificat est parfaitement valide, mais signé par quelqu'un
+        // qu'on n'a jamais approuvé : c'est exactement l'attaque que le
+        // mécanisme doit arrêter.
+        assert_eq!(
+            verify_host_certificate(&cert("autre-ca-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            Err("cert_invalid")
+        );
+    }
+
+    #[test]
+    fn hors_fenetre_de_validite_refuse() {
+        // Avant l'ouverture, puis après l'expiration.
+        assert_eq!(
+            verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), 1_600_000_000),
+            Err("cert_invalid")
+        );
+        assert_eq!(
+            verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), 2_000_000_000),
+            Err("cert_invalid")
+        );
+    }
+
+    #[test]
+    fn certificat_d_utilisateur_refuse() {
+        assert_eq!(
+            verify_host_certificate(&cert("utilisateur-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            Err("cert_not_host")
+        );
+    }
+
+    #[test]
+    fn certificat_d_une_autre_machine_refuse() {
+        assert_eq!(
+            verify_host_certificate(&cert("mauvais-hote-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            Err("cert_wrong_host")
+        );
+    }
+
+    #[test]
+    fn le_motif_des_principaux_est_bien_celui_d_openssh() {
+        // Le certificat « mauvais hôte » vise autre.example.com : il doit être
+        // accepté pour CETTE machine-là, refusé pour l'autre. Sans quoi le test
+        // précédent passerait pour une mauvaise raison.
+        assert!(verify_host_certificate(
+            &cert("mauvais-hote-cert.pub"),
+            "autre.example.com",
+            &autorite("ca.pub"),
+            maintenant()
+        )
+        .is_ok());
+        assert!(host_matches("autre.example.com", "autre.example.com"));
+    }
 }

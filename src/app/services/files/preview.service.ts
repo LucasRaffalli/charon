@@ -49,7 +49,26 @@ export interface PreviewDoc {
   size: number;
   mtime: number;
   mode?: number;
+  /**
+   * Fin de ligne du fichier tel qu'il est sur le serveur.
+   *
+   * Un `textarea` normalise sa valeur en `\n`, c'est le standard HTML : le
+   * contenu arrive avec ses `\r\n`, mais dès la première frappe la valeur
+   * relue n'en a plus. Sans mémoire de la convention d'origine, corriger une
+   * ligne d'un fichier Windows le réécrit ENTIER en LF, et il ressort comme
+   * intégralement modifié dans un diff.
+   */
+  eol: '\n' | '\r\n';
+  /**
+   * Le fichier n'est pas en UTF-8 : certains octets sont conservés sous forme
+   * échappée (voir `text.rs` côté Rust). Ils s'affichent en caractère
+   * inconnu, mais repartent intacts tant qu'on n'y touche pas.
+   */
+  foreignBytes: boolean;
 }
+
+/** Plage d'échappement des octets non-UTF-8, miroir de `ESCAPE_BASE` en Rust. */
+const ESCAPED_BYTE = /[\u{E000}-\u{E0FF}]/u;
 
 /**
  * Plafond d'occurrences : au-delà, chercher une lettre dans un gros fichier
@@ -417,6 +436,21 @@ export class PreviewService {
   /** Ouvre un fichier serveur dans le panneau d'aperçu (nouvel onglet, ou
    *  remise au premier plan s'il y est déjà, rechargé s'il n'a pas de
    *  modifications en cours). */
+  /**
+   * Demande au panneau de comparer le document actif à HEAD.
+   *
+   * Un compteur et non un booléen : deux demandes successives sur le même
+   * fichier sont deux demandes, et un drapeau déjà levé n'en signalerait
+   * qu'une. Le service ne sait pas comparer, c'est le panneau qui tient le
+   * comparateur ; il ne fait que porter l'intention entre les deux.
+   */
+  private readonly _headDiffAsked = signal(0);
+  readonly headDiffAsked = this._headDiffAsked.asReadonly();
+
+  askHeadDiff(): void {
+    this._headDiffAsked.update((n) => n + 1);
+  }
+
   async openFile(remotePath: string, name: string): Promise<void> {
     this._openedAt.set(Date.now());
     if (this.sftp.protocol() !== 'sftp') {
@@ -460,6 +494,8 @@ export class PreviewService {
       size: 0,
       mtime: 0,
       mode: entry?.mode,
+      eol: '\n',
+      foreignBytes: false,
     };
     this._docs.update((docs) => [...docs, doc]);
     this._activeId.set(doc.id);
@@ -505,6 +541,14 @@ export class PreviewService {
       this.patchDoc(id, { kind: 'binary', size: stat?.size ?? 0, mtime: stat?.mtime ?? 0 });
       return;
     }
+    // La convention de fin de ligne du fichier, retenue AVANT de normaliser :
+    // le champ de saisie va effacer les `\r`, il faut savoir les rendre.
+    // Un fichier aux fins de ligne mêlées est ramené à sa convention
+    // dominante, comme le ferait n'importe quel éditeur : on ne sait pas
+    // reconstituer un désordre, et le garder ferait pire.
+    const eol: '\n' | '\r\n' = text.includes('\r\n') ? '\r\n' : '\n';
+    const normalized = eol === '\r\n' ? text.replace(/\r\n/g, '\n') : text;
+    const foreignBytes = ESCAPED_BYTE.test(normalized);
     const truncated = (stat?.size ?? 0) > PREVIEW_MAX;
     if (doc.language) {
       // Prism vit dans un chunk paresseux : chargé ici, à la première
@@ -515,14 +559,16 @@ export class PreviewService {
         await ensureMarkdown();
       }
     }
-    const painted = this.computeHighlight(text, doc.language, true);
+    const painted = this.computeHighlight(normalized, doc.language, true);
     this.patchDoc(id, {
       kind: 'text',
-      content: text,
-      original: text,
+      content: normalized,
+      original: normalized,
+      eol,
+      foreignBytes,
       truncated,
       readonly: truncated || this.sftp.protection() === 'readonly',
-      size: stat?.size ?? text.length,
+      size: stat?.size ?? normalized.length,
       mtime: stat?.mtime ?? 0,
       highlighted: painted.html,
       language: painted.language,
@@ -594,7 +640,10 @@ export class PreviewService {
     // « Paf Prettier » : le formatage à l'enregistrement, pour les types
     // couverts, si le réglage le veut. Une erreur de syntaxe n'empêche JAMAIS
     // d'enregistrer : on écrit tel quel et on le dit.
-    if (this.settings.formatOnSave()) {
+    // Jamais sur un fichier qu'on ne sait pas relire entièrement : reformater
+    // suppose de comprendre le contenu, et Prettier déplacerait des octets
+    // dont il ignore le sens.
+    if (this.settings.formatOnSave() && !doc.foreignBytes) {
       try {
         const formatted = await formatCode(doc.name, this.content());
         if (formatted !== null && formatted !== this.content()) {
@@ -609,10 +658,13 @@ export class PreviewService {
 
     try {
       const content = this.content();
+      // Le fichier retrouve SA convention de fin de ligne. Sans ça, corriger
+      // une ligne d'un fichier Windows le réécrirait entier en LF.
+      const onDisk = doc.eol === '\r\n' ? content.replace(/\n/g, '\r\n') : content;
       await invoke('sftp_write_text', {
         connectionId: this.sftp.connectionId(),
         path: doc.path,
-        content,
+        content: onDisk,
       });
       this.patchDoc(doc.id, {
         original: content,

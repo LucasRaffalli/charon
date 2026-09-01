@@ -113,14 +113,17 @@ pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
         filled += read;
     }
     buffer.truncate(filled);
-    Ok(String::from_utf8_lossy(&buffer).into_owned())
+    // Même convention que la lecture distante : les deux textes se comparent
+    // dans le diff, ils doivent parler la même langue.
+    Ok(crate::text::decode(&buffer).0)
 }
 
 /// Crée un dossier local.
 #[tauri::command]
 pub fn local_mkdir(path: String) -> Result<(), String> {
     ensure_no_parent_dir(&path)?;
-    std::fs::create_dir(&path).map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
+    std::fs::create_dir(&path)
+        .map_err(|e| crate::errors::user_err("mkdir", format!("{path} : {e}")))
 }
 
 /// Crée un fichier vide localement. `create_new` échoue si l'entrée existe
@@ -144,7 +147,8 @@ pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {
         std::fs::remove_dir(&path)
             .map_err(|e| format!("Suppression de {path} impossible (dossier non vide ?) : {e}"))
     } else {
-        std::fs::remove_file(&path).map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
+        std::fs::remove_file(&path)
+            .map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
     }
 }
 
@@ -153,7 +157,8 @@ pub fn local_remove(path: String, is_dir: bool) -> Result<(), String> {
 #[tauri::command]
 pub fn local_remove_all(path: String) -> Result<(), String> {
     ensure_no_parent_dir(&path)?;
-    std::fs::remove_dir_all(&path).map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
+    std::fs::remove_dir_all(&path)
+        .map_err(|e| crate::errors::user_err("remove", format!("{path} : {e}")))
 }
 
 /// Copie une entrée locale, récursivement pour un dossier.
@@ -220,5 +225,6 @@ fn copy_entry(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<(
 pub fn local_rename(from: String, to: String) -> Result<(), String> {
     ensure_no_parent_dir(&from)?;
     ensure_no_parent_dir(&to)?;
-    std::fs::rename(&from, &to).map_err(|e| crate::errors::user_err("rename", format!("{from} : {e}")))
+    std::fs::rename(&from, &to)
+        .map_err(|e| crate::errors::user_err("rename", format!("{from} : {e}")))
 }

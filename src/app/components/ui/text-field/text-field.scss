@@ -25,23 +25,12 @@
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
 
-  &::placeholder {
-    color: var(--text-faint);
-  }
-
-  &:focus {
+  // Le focus est sur le champ que porte `app-input`, pas sur l'hôte.
+  // `::placeholder` et les spinners des champs numériques sont réglés par ce
+  // composant, pour tous les champs de l'application.
+  &:focus-within {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-  }
-
-  // Pas de spinners sur les champs numériques.
-  &[type='number'] {
-    appearance: textfield;
-  }
-
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
   }
 }
 

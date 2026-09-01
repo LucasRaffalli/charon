@@ -205,14 +205,14 @@ export class App {
           keys: 'mod+alt+arrowright',
           label: this.t('app.nextTab'),
           group: this.t('shortcuts.groups.app'),
-          when: () => this.tabBar.visible(),
+          when: () => this.tabBar.multiple(),
           run: () => this.tabBar.next(),
         },
         {
           keys: 'mod+alt+arrowleft',
           label: this.t('app.prevTab'),
           group: this.t('shortcuts.groups.app'),
-          when: () => this.tabBar.visible(),
+          when: () => this.tabBar.multiple(),
           run: () => this.tabBar.previous(),
         },
         {

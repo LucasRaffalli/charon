@@ -496,7 +496,7 @@ export class ExplorerPage {
 
   /** Le nom et la couleur d'une session, pour les vignettes des terminaux. */
   protected sessionTitle(session: Session): string {
-    return this.tabBar.titleOf(session);
+    return this.tabBar.displayTitleOf(session);
   }
 
   /** La couleur brute d'une session, pour teinter la barre de son panneau. */

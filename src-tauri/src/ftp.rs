@@ -11,9 +11,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Mutex;
 
 use crate::sftp::{
-    emit_progress, ensure_no_parent_dir, is_safe_entry_name, register_transfer,
-    shellexpand_tilde, unregister_transfer, FileEntry, IdleConfig, TransferRegistry,
-    CANCELLED_TAG, CHUNK_SIZE, MAX_RECURSIVE_ENTRIES, PART_SUFFIX, PROGRESS_EVERY,
+    emit_progress, ensure_no_parent_dir, is_safe_entry_name, register_transfer, shellexpand_tilde,
+    unregister_transfer, FileEntry, IdleConfig, TransferRegistry, CANCELLED_TAG, CHUNK_SIZE,
+    MAX_RECURSIVE_ENTRIES, PART_SUFFIX, PROGRESS_EVERY,
 };
 
 // ---------- État ----------
@@ -36,7 +36,32 @@ impl FtpConnection {
     fn idle_for(&self) -> std::time::Duration {
         self.last_used.lock().unwrap().elapsed()
     }
+
+    /// Envoie QUIT et referme le canal de contrôle.
+    ///
+    /// L'ancienne version prenait le verrou par `try_lock` et abandonnait le
+    /// QUIT si le stream était occupé, c'est-à-dire exactement quand un
+    /// transfert tournait, c'est-à-dire le cas où le serveur a le plus de
+    /// choses à ranger. Or un serveur FTP qui n'a pas vu son client partir
+    /// garde la session ouverte jusqu'à SON propre délai d'inactivité, et
+    /// cette session occupe une place dans les quotas par IP : quelques
+    /// fermetures brutales suffisent à se voir refuser la connexion suivante.
+    ///
+    /// On attend donc le verrou, mais BORNÉ : si un transfert le tient encore
+    /// au bout du délai, on renonce au QUIT et la socket tombera avec le
+    /// processus. Mieux vaut une session mal fermée qu'une application qui
+    /// refuse de quitter.
+    async fn close(&self) {
+        let locked = tokio::time::timeout(CLOSE_WAIT, self.stream.lock()).await;
+        if let Ok(mut stream) = locked {
+            let _ = tokio::time::timeout(CLOSE_WAIT, stream.quit()).await;
+        }
+    }
 }
+
+/// Temps laissé au QUIT : attendre le verrou du stream, puis la réponse du
+/// serveur. Payé à la fermeture de l'application, donc court.
+const CLOSE_WAIT: std::time::Duration = std::time::Duration::from_millis(400);
 
 /// Pool des connexions FTP ouvertes, par identifiant `ftp(s)://user@host:port`.
 #[derive(Default)]
@@ -217,16 +242,21 @@ pub async fn ftp_list_dir(
 
 /// Ferme et retire une connexion du pool (QUIT gracieux si possible).
 #[tauri::command]
-pub async fn ftp_disconnect(
-    pool: State<'_, FtpPool>,
-    connection_id: String,
-) -> Result<(), String> {
-    if let Some(conn) = pool.inner().0.lock().await.remove(&connection_id) {
-        if let Ok(mut stream) = conn.stream.try_lock() {
-            let _ = stream.quit().await;
-        }
+pub async fn ftp_disconnect(pool: State<'_, FtpPool>, connection_id: String) -> Result<(), String> {
+    let conn = pool.inner().0.lock().await.remove(&connection_id);
+    // Retirée du pool d'abord : le QUIT attend le réseau, et le verrou du
+    // pool ne doit pas être tenu pendant ce temps.
+    if let Some(conn) = conn {
+        conn.close().await;
     }
     Ok(())
+}
+
+/// Ferme toutes les connexions FTP, à la sortie de l'application. En
+/// parallèle, comme le SSH : les délais ne doivent pas s'additionner.
+pub async fn shutdown(pool: &FtpPool) {
+    let connections: Vec<_> = pool.0.lock().await.drain().map(|(_, conn)| conn).collect();
+    futures_util::future::join_all(connections.iter().map(|conn| conn.close())).await;
 }
 
 /// Crée un dossier distant.
@@ -407,7 +437,10 @@ async fn stream_download(
 ) -> Result<u64, String> {
     let part = format!("{local}{PART_SUFFIX}");
     let offset: u64 = if resume {
-        tokio::fs::metadata(&part).await.map(|m| m.len()).unwrap_or(0)
+        tokio::fs::metadata(&part)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0)
     } else {
         0
     };
@@ -510,7 +543,11 @@ pub async fn ftp_upload(
         &app,
         window.label(),
         &conn,
-        &local, &remote_path, &transfer_id, &cancel, resume,
+        &local,
+        &remote_path,
+        &transfer_id,
+        &cancel,
+        resume,
     )
     .await;
     unregister_transfer(&registry, &transfer_id);
@@ -552,7 +589,12 @@ async fn stream_upload(
 
     let mut stream = conn.stream.lock().await;
     let offset: u64 = if resume {
-        stream.size(&part).await.map(|s| s as u64).unwrap_or(0).min(total)
+        stream
+            .size(&part)
+            .await
+            .map(|s| s as u64)
+            .unwrap_or(0)
+            .min(total)
     } else {
         0
     };
@@ -654,13 +696,22 @@ fn ftp_mode(file: &suppaftp::list::File) -> u32 {
     let bit = |on: bool, weight: u32| if on { weight } else { 0 };
     bit(file.can_read(suppaftp::list::PosixPexQuery::Owner), 0o400)
         | bit(file.can_write(suppaftp::list::PosixPexQuery::Owner), 0o200)
-        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Owner), 0o100)
+        | bit(
+            file.can_execute(suppaftp::list::PosixPexQuery::Owner),
+            0o100,
+        )
         | bit(file.can_read(suppaftp::list::PosixPexQuery::Group), 0o040)
         | bit(file.can_write(suppaftp::list::PosixPexQuery::Group), 0o020)
-        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Group), 0o010)
+        | bit(
+            file.can_execute(suppaftp::list::PosixPexQuery::Group),
+            0o010,
+        )
         | bit(file.can_read(suppaftp::list::PosixPexQuery::Others), 0o004)
         | bit(file.can_write(suppaftp::list::PosixPexQuery::Others), 0o002)
-        | bit(file.can_execute(suppaftp::list::PosixPexQuery::Others), 0o001)
+        | bit(
+            file.can_execute(suppaftp::list::PosixPexQuery::Others),
+            0o001,
+        )
 }
 
 // ---------- Recherche récursive (voir search.rs) ----------
@@ -677,7 +728,9 @@ pub(crate) async fn search_walk(
     case_sensitive: bool,
     cancel: Arc<std::sync::atomic::AtomicBool>,
 ) {
-    use crate::search::{emit_done, emit_hits, SearchHit, EXCLUDED_DIRS, MAX_HITS, MAX_WALK_DEPTH, TIMEOUT};
+    use crate::search::{
+        emit_done, emit_hits, SearchHit, EXCLUDED_DIRS, MAX_HITS, MAX_WALK_DEPTH, TIMEOUT,
+    };
     use std::sync::atomic::Ordering;
 
     let needle_folded = if case_sensitive {

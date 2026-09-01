@@ -31,16 +31,12 @@
 }
 
 @if (filterable()) {
-  <input
+  <app-input
     #filterField
     class="pane__filter"
-    type="text"
     [placeholder]="t('panes.filter.placeholder')"
-    spellcheck="false"
-    autocorrect="off"
-    [attr.aria-label]="t('panes.filter.ariaOf', { title: title() })"
-    [value]="filter()"
-    (input)="filter.set(filterField.value)"
+    [ariaLabel]="t('panes.filter.ariaOf', { title: title() })"
+    [(value)]="filter"
     (keydown.escape)="filter.set('')"
   />
 }

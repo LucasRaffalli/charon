@@ -200,7 +200,10 @@ fn window_under(
         if !inside {
             continue;
         }
-        let rank = order.iter().position(|item| item == &label).unwrap_or(usize::MAX);
+        let rank = order
+            .iter()
+            .position(|item| item == &label)
+            .unwrap_or(usize::MAX);
         let tx = (px - pos.x as f64) / scale;
         let ty = (py - pos.y as f64) / scale;
         if best.as_ref().map(|(r, ..)| rank < *r).unwrap_or(true) {

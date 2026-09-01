@@ -5,6 +5,7 @@
  */
 
 export * from './connection/connection';
+export * from './connection/git';
 export * from './connection/profile';
 export * from './files/file-entry';
 export * from './files/path-segment';

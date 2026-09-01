@@ -44,9 +44,19 @@ interface DocRow {
 
 /** Le diff entre le document actif et un fichier d'une autre session. */
 interface SessionDiff {
-  other: Session;
-  /** Le chemin comparé côté `other` (souvent le même, pas toujours). */
+  /**
+   * L'autre côté de la comparaison : une session, ou `null` quand on compare
+   * le fichier à une RÉVISION du dépôt Git qui le contient. Le comparateur ne
+   * connaissait que le premier cas ; le second n'a pas d'autre serveur, mais
+   * a exactement les mêmes deux colonnes à montrer.
+   */
+  other: Session | null;
+  /** Le chemin comparé en face (souvent le même, pas toujours). */
   otherPath: string;
+  /** Ce qui nomme la colonne de droite : un serveur, ou « HEAD ». */
+  label: string;
+  /** La couleur de sa pastille. */
+  tone: string;
   rows: SplitRow[];
   added: number;
   removed: number;
@@ -123,7 +133,7 @@ export class PreviewPanel {
   }
 
   protected tabTitle(row: DocRow): string {
-    return `${row.doc.path} · ${this.tabBar.titleOf(row.session)}`;
+    return `${row.doc.path} · ${this.tabBar.displayTitleOf(row.session)}`;
   }
 
   // ---------- En-tête riche ----------
@@ -191,7 +201,7 @@ export class PreviewPanel {
   protected readonly diff = signal<SessionDiff | null>(null);
 
   protected sessionTitle(session: Session): string {
-    return this.tabBar.titleOf(session);
+    return this.tabBar.displayTitleOf(session);
   }
 
   protected sessionTone(session: Session): string {
@@ -211,12 +221,77 @@ export class PreviewPanel {
   }
 
   private async compareWith(other: Session, otherPath = this.preview.path()): Promise<void> {
-    const mine = this.preview.content();
     const theirs = await other.sftp.readText(otherPath, DIFF_MAX_BYTES);
+    this.showDiff(theirs, {
+      other,
+      otherPath,
+      label: this.sessionTitle(other),
+      tone: this.sessionTone(other),
+    });
+  }
+
+  /**
+   * Compare le fichier ouvert à ce qu'il est dans HEAD.
+   *
+   * Le comparateur côte à côte existait déjà pour deux serveurs ; l'appliquer
+   * à deux révisions du même fichier ne demandait qu'une source de texte de
+   * plus. C'est un `git diff` rendu dans l'outil de Charon plutôt que dans le
+   * terminal, avec ses numéros de ligne et ses colonnes.
+   */
+  /**
+   * Une demande de diff Git venue d'ailleurs (la pastille du dépôt) : le
+   * fichier vient d'être ouvert, on enchaîne sur sa comparaison. Le premier
+   * passage ne fait que mémoriser le compteur, sinon un diff partirait au
+   * montage du panneau.
+   */
+  private headDiffSeen = -1;
+
+  protected async compareWithHead(): Promise<void> {
+    const session = this.sessionRegistry.previewOwner();
+    const git = session.git.status();
+    const relative = this.gitRelativePath();
+    if (!git || !relative) {
+      return;
+    }
+    const head = await session.git.headContent(relative);
+    this.showDiff(head ?? undefined, {
+      other: null,
+      otherPath: relative,
+      // Le libellé nomme la révision, pas « git » : on compare à un état
+      // précis, et le hash abrégé est ce qui permet de le retrouver.
+      label: git.lastCommit ? `HEAD · ${git.lastCommit.split(' ')[0]}` : 'HEAD',
+      tone: 'var(--text-faint)',
+    });
+  }
+
+  /**
+   * Le chemin du fichier ouvert, relatif à la racine du dépôt, ou `null` s'il
+   * n'est pas dedans. C'est ce que Git attend, et c'est aussi le test qui dit
+   * si la comparaison a un sens.
+   */
+  protected readonly gitRelativePath = computed(() => {
+    const git = this.sessionRegistry.previewOwner().git.status();
+    const path = this.preview.path();
+    if (!git || !path) {
+      return null;
+    }
+    const root = git.root.endsWith('/') ? git.root.slice(0, -1) : git.root;
+    return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : null;
+  });
+
+  /** Le fichier ouvert est dans un dépôt : la comparaison à HEAD a un sens. */
+  protected readonly canCompareHead = computed(
+    () => this.preview.kind() === 'text' && this.gitRelativePath() !== null,
+  );
+
+  private showDiff(
+    theirs: string | undefined,
+    side: Pick<SessionDiff, 'other' | 'otherPath' | 'label' | 'tone'>,
+  ): void {
+    const mine = this.preview.content();
     if (theirs === undefined) {
       this.diff.set({
-        other,
-        otherPath,
+        ...side,
         rows: [],
         added: 0,
         removed: 0,
@@ -228,8 +303,7 @@ export class PreviewPanel {
     const lines = lineDiff(mine, theirs);
     if (!lines) {
       this.diff.set({
-        other,
-        otherPath,
+        ...side,
         rows: [],
         added: 0,
         removed: 0,
@@ -240,8 +314,7 @@ export class PreviewPanel {
     }
     const stats = diffStats(lines);
     this.diff.set({
-      other,
-      otherPath,
+      ...side,
       rows: toSplitRows(lines),
       added: stats.added,
       removed: stats.removed,
@@ -250,13 +323,13 @@ export class PreviewPanel {
     });
   }
 
-  /** Le nom du fichier comparé en face, s'il diffère du nôtre. */
+  /** Le nom de la colonne de droite, et le fichier s'il diffère du nôtre. */
   protected otherLabel(diff: SessionDiff): string {
-    if (diff.otherPath === this.preview.path()) {
-      return this.sessionTitle(diff.other);
+    if (!diff.other || diff.otherPath === this.preview.path()) {
+      return diff.label;
     }
     const cut = diff.otherPath.lastIndexOf('/');
-    return `${this.sessionTitle(diff.other)} · ${diff.otherPath.slice(cut + 1)}`;
+    return `${diff.label} · ${diff.otherPath.slice(cut + 1)}`;
   }
 
   protected exitDiff(): void {
@@ -338,6 +411,20 @@ export class PreviewPanel {
   });
 
   constructor() {
+    // Une demande de diff Git venue de la pastille du dépôt : le fichier est
+    // ouvert, on enchaîne. Le premier passage mémorise seulement le compteur.
+    effect(() => {
+      const asked = this.preview.headDiffAsked();
+      if (this.headDiffSeen < 0) {
+        this.headDiffSeen = asked;
+        return;
+      }
+      if (asked !== this.headDiffSeen) {
+        this.headDiffSeen = asked;
+        void this.compareWithHead();
+      }
+    });
+
     // L'occurrence courante se montre : le défilement attend le rendu de la
     // couche, c'est la marque dans le DOM qui donne les coordonnées exactes.
     effect(() => {
@@ -393,6 +480,28 @@ export class PreviewPanel {
       this.preview.closeFind();
       this.inputEl()?.nativeElement.focus();
     }
+  }
+
+  /**
+   * La garde de composition, ici en double de `InputField` parce que l'éditeur
+   * est un `<textarea>` et non un `<input>` : voir l'en-tête de ce composant
+   * pour le pourquoi. Effet de bord accepté : la coloration accuse le même
+   * retard que la valeur, ce qui est le bon compromis, un texte à demi composé
+   * ne voulant de toute façon rien dire pour une grammaire.
+   */
+  protected readonly composing = signal(false);
+
+  protected onEditorInput(event: Event): void {
+    if (this.composing()) {
+      return;
+    }
+    this.preview.setContent((event.target as HTMLTextAreaElement).value);
+  }
+
+  /** La valeur est relue ici : cet événement peut arriver après la saisie. */
+  protected onCompositionEnd(event: Event): void {
+    this.composing.set(false);
+    this.preview.setContent((event.target as HTMLTextAreaElement).value);
   }
 
   /** Aligne les couches (occurrences, coloration, gouttière) sur le textarea. */

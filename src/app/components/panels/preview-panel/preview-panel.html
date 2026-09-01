@@ -16,13 +16,7 @@
       @if (row.session.preview.isDirty(row.doc)) {
         <span class="ftab__mod" [title]="t('preview.unsaved')"></span>
       }
-      <span
-        class="ftab__close"
-        role="button"
-        tabindex="-1"
-        [attr.aria-label]="'Fermer ' + row.doc.name"
-        (click)="closeTab($event, row)"
-      >
+      <span class="ftab__close" role="button" tabindex="-1" [attr.aria-label]="'Fermer ' + row.doc.name" (click)="closeTab($event, row)">
         <app-icon name="close" [size]="11" />
       </span>
     </button>
@@ -63,6 +57,11 @@
 
   @if (preview.kind() === 'text' && !diff()) {
     <app-tool-button icon="columns" [label]="t('preview.compare')" (pressed)="onCompare()" />
+    <!-- N'apparaît que si le fichier est dans un dépôt : un bouton qui ne
+         ferait rien là où il n'y a pas de Git vaudrait moins que rien. -->
+    @if (canCompareHead()) {
+      <app-tool-button icon="columns" [label]="t('preview.compareHead')" (pressed)="compareWithHead()" />
+    }
   }
   @if (preview.kind() === 'text' && !preview.readonly()) {
     <app-tool-button icon="edit" [label]="t('preview.systemEditor')" (pressed)="openSystemEditor()" />
@@ -101,22 +100,10 @@
       (keydown)="onFindKeydown($event)"
     />
     <span class="find__count" role="status">{{ findCount() }}</span>
-    <button
-      type="button"
-      class="find__nav"
-      [attr.aria-label]="t('preview.prevMatch')"
-      [disabled]="!preview.findMatches().length"
-      (click)="preview.findPrev()"
-    >
+    <button type="button" class="find__nav" [attr.aria-label]="t('preview.prevMatch')" [disabled]="!preview.findMatches().length" (click)="preview.findPrev()">
       <app-icon name="chevron-up" [size]="13" />
     </button>
-    <button
-      type="button"
-      class="find__nav"
-      [attr.aria-label]="t('preview.nextMatch')"
-      [disabled]="!preview.findMatches().length"
-      (click)="preview.findNext()"
-    >
+    <button type="button" class="find__nav" [attr.aria-label]="t('preview.nextMatch')" [disabled]="!preview.findMatches().length" (click)="preview.findNext()">
       <app-icon name="chevron-down" [size]="13" />
     </button>
     <button
@@ -160,7 +147,7 @@
     <div class="cmp__bar">
       <span class="cmp__stats data">
         @if (d.missing) {
-          absent sur « {{ sessionTitle(d.other) }} »
+          absent sur « {{ d.label }} »
         } @else if (d.identical) {
           identiques
         } @else {
@@ -168,17 +155,12 @@
           <span class="cmp__del">−{{ d.removed }}</span>
         }
       </span>
-      <app-tool-button
-        class="cmp__exit"
-        icon="folder"
-        [label]="t('preview.otherFile')"
-        (pressed)="onCompare()"
-      />
+      <app-tool-button class="cmp__exit" icon="folder" [label]="t('preview.otherFile')" (pressed)="onCompare()" />
       <app-tool-button icon="close" [label]="t('preview.exitDiff')" (pressed)="exitDiff()" />
     </div>
     @if (d.missing) {
       <div class="cmp__missing">
-        <p>« {{ d.otherPath }} » n'a pas pu être lu sur « {{ sessionTitle(d.other) }} ».</p>
+        <p>« {{ d.otherPath }} » n'a pas pu être lu sur « {{ d.label }} ».</p>
         <app-button variant="primary" (click)="onCompare()">
           {{ t('preview.pickAnother') }}
         </app-button>
@@ -201,7 +183,7 @@
         </div>
         <div class="cmp__col">
           <div class="cmp__head" [title]="d.otherPath">
-            <span class="cmp__dot" [style.background]="sessionTone(d.other)"></span>
+            <span class="cmp__dot" [style.background]="d.tone"></span>
             {{ otherLabel(d) }}
           </div>
           @for (row of d.rows; track $index) {
@@ -221,10 +203,7 @@
     }
     @case ('text') {
       @if (preview.truncated()) {
-        <p class="notice notice--warn">
-          Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas
-          écraser le reste.
-        </p>
+        <p class="notice notice--warn">Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas écraser le reste.</p>
       } @else if (preview.readonly() && !preview.markdownView()) {
         <p class="notice">{{ t('preview.readonly') }}</p>
       }
@@ -250,7 +229,9 @@
               wrap="off"
               [readonly]="preview.readonly()"
               [value]="preview.content()"
-              (input)="preview.setContent($any($event.target).value)"
+              (input)="onEditorInput($event)"
+              (compositionstart)="composing.set(true)"
+              (compositionend)="onCompositionEnd($event)"
               (scroll)="syncScroll($event)"
             ></textarea>
           </div>
@@ -259,13 +240,7 @@
     }
     @case ('image') {
       <div class="image" [class.image--zoomed]="imageWidth() !== null">
-        <img
-          #img
-          [src]="preview.imageSrc()"
-          [alt]="preview.name()"
-          [style.width.px]="imageWidth()"
-          (load)="onImageLoad(img)"
-        />
+        <img #img [src]="preview.imageSrc()" [alt]="preview.name()" [style.width.px]="imageWidth()" (load)="onImageLoad(img)" />
       </div>
       <div class="media-bar">
         <button type="button" class="media-bar__btn" [attr.aria-label]="t('preview.zoomOut')" (click)="zoomOut()">−</button>

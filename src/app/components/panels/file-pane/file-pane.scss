@@ -182,11 +182,7 @@
   font-family: inherit;
   font-size: calc(11px * var(--text-scale));
 
-  &::placeholder {
-    color: var(--text-faint);
-  }
-
-  &:focus-visible {
+  &:focus-within {
     outline: none;
     border-color: var(--accent);
   }

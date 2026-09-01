@@ -378,6 +378,7 @@ export const en: Dictionary = {
     zoomOut: 'Zoom out',
     zoomIn: 'Zoom in',
     compare: 'Compare',
+    compareHead: 'Compare to HEAD',
   },
 
   overwrite: {
@@ -590,6 +591,7 @@ export const en: Dictionary = {
     followDir: 'Follow the folder',
     followHint:
       'The terminal moves to the displayed folder as you navigate. Nothing is sent while a command is running.',
+    gitClean: 'Nothing to commit',
   },
 
   themes: {

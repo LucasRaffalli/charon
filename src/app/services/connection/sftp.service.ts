@@ -183,7 +183,9 @@ export class SftpService extends FileBrowserState {
     this.tauriListen<{ server: string; dir: string; origin: string }>(
       'flotte:dir-changed',
       ({ payload }) => {
-        if (payload.origin === windowLabel()) {
+        // L'origine désigne la SESSION, pas la fenêtre : en vue double sur
+        // le même serveur, la moitié voisine doit voir le geste de l'autre.
+        if (payload.origin === `${windowLabel()}:${this.sessionId}`) {
           return;
         }
         const id = this._connectionId();

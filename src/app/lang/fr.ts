@@ -409,6 +409,7 @@ export const fr = {
     zoomOut: 'Zoom arrière',
     zoomIn: 'Zoom avant',
     compare: 'Comparer',
+    compareHead: 'Comparer à HEAD',
   },
 
   // ------------------------------------------------------------ écrasement --
@@ -638,6 +639,7 @@ export const fr = {
     followDir: 'Suivre le dossier',
     followHint:
       "Le terminal se place dans le dossier affiché à chaque navigation. Rien n'est envoyé pendant qu'une commande tourne.",
+    gitClean: 'Rien à valider',
   },
 
   // ------------------------------------------------------- thèmes du design --

@@ -1,10 +1,10 @@
 use russh::client;
-use russh::ChannelMsg;
 use russh::keys::known_hosts::learn_known_hosts;
 use russh::keys::ssh_key::certificate::CertType;
 use russh::keys::ssh_key::{Certificate, Fingerprint};
-use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHashAlg};
 use russh::keys::PublicKeyOrCertificate;
+use russh::keys::{check_known_hosts, load_secret_key, HashAlg, PrivateKeyWithHashAlg};
+use russh::ChannelMsg;
 use russh_sftp::client::SftpSession;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -24,13 +24,17 @@ pub(crate) const CHUNK_SIZE: usize = 1024 * 1024;
 /// le temps borne le débit d'events IPC quel que soit le débit du transfert
 /// (le pas en octets envoyait des centaines d'events par seconde en local).
 pub(crate) const PROGRESS_EVERY: std::time::Duration = std::time::Duration::from_millis(100);
+/// Temps laissé au SSH_MSG_DISCONNECT pour partir sur le réseau avant qu'on
+/// abandonne la connexion. Court exprès : c'est un au revoir poli, pas une
+/// négociation, et il est payé à la fermeture de l'application.
+const CLOSE_FLUSH: std::time::Duration = std::time::Duration::from_millis(250);
 
 // ---------- État partagé ----------
 
 /// Une connexion active : on garde le handle SSH (sinon la connexion
 /// se ferme quand il est drop) + la session SFTP par-dessus.
 pub struct ActiveConnection {
-    _handle: client::Handle<ClientHandler>,
+    handle: client::Handle<ClientHandler>,
     pub(crate) sftp: SftpSession,
     /// Dernier usage : sert à la fermeture d'inactivité.
     last_used: StdMutex<std::time::Instant>,
@@ -57,12 +61,37 @@ impl ActiveConnection {
         self.holds.load(Ordering::Relaxed)
     }
 
+    /// Coupe la session SSH proprement : un SSH_MSG_DISCONNECT part avant que
+    /// la socket tombe.
+    ///
+    /// Sans lui, dropper le handle ferme bien la connexion (le TCP se coupe
+    /// avec le processus, de toute façon), mais le serveur ne voit pas une
+    /// fin de session : il voit un client qui a disparu. Dans le journal de
+    /// sshd la différence est celle entre une ligne « Received disconnect
+    /// from … : disconnected by user » et un « Connection reset by peer »,
+    /// et c'est cette seconde ligne qui fait perdre du temps à l'exploitant
+    /// qui cherche une panne réseau là où il n'y a eu qu'une fermeture.
+    ///
+    /// `disconnect` ne fait qu'empiler le message : c'est la tâche de session
+    /// qui l'écrit sur la socket, puis se termine, ce qui ferme l'émetteur.
+    /// On attend donc `is_closed()`, seul signal fiable que le paquet est
+    /// bien parti, mais BORNÉ : un serveur pendu ne doit jamais retarder la
+    /// fermeture de Charon de plus que ce plafond.
+    pub(crate) async fn close(&self) {
+        let _ = self
+            .handle
+            .disconnect(russh::Disconnect::ByApplication, "", "")
+            .await;
+        let deadline = std::time::Instant::now() + CLOSE_FLUSH;
+        while !self.handle.is_closed() && std::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }
+
     /// Ouvre un canal supplémentaire sur la session SSH (terminal intégré).
-    pub(crate) async fn open_channel(
-        &self,
-    ) -> Result<russh::Channel<client::Msg>, russh::Error> {
+    pub(crate) async fn open_channel(&self) -> Result<russh::Channel<client::Msg>, russh::Error> {
         self.touch();
-        self._handle.channel_open_session().await
+        self.handle.channel_open_session().await
     }
 
     /// Exécute une commande via un canal exec, injecte `stdin` puis EOF, et
@@ -76,7 +105,7 @@ impl ActiveConnection {
     ) -> Result<(u32, String), String> {
         self.touch();
         let channel = self
-            ._handle
+            .handle
             .channel_open_session()
             .await
             .map_err(|e| format!("Ouverture du canal impossible : {e}"))?;
@@ -236,7 +265,10 @@ impl ClientHandler {
     /// TOFU : hôte connu → la clé doit correspondre à ~/.ssh/known_hosts.
     /// Hôte inconnu → on n'apprend la clé que si l'utilisateur a confirmé
     /// son empreinte ; sinon on la dépose dans le slot et on refuse.
-    fn check_host_key(&mut self, server_public_key: &russh::keys::PublicKey) -> Result<bool, russh::Error> {
+    fn check_host_key(
+        &mut self,
+        server_public_key: &russh::keys::PublicKey,
+    ) -> Result<bool, russh::Error> {
         match check_known_hosts(&self.host, self.port, server_public_key) {
             Ok(true) => Ok(true),
             Ok(false) => {
@@ -412,7 +444,6 @@ fn host_matches(pattern: &str, host: &str) -> bool {
     )
 }
 
-
 /// Refuse les noms d'entrée dangereux annoncés par un serveur (traversée de chemin) :
 /// vide, `.`, `..`, ou contenant un séparateur.
 pub fn is_safe_entry_name(name: &str) -> bool {
@@ -498,7 +529,6 @@ pub(crate) async fn get_connection_idle(
         .ok_or_else(|| format!("Connexion inconnue : {connection_id}. Reconnecte-toi."))
 }
 
-
 /// Délai d'inactivité (en secondes) avant fermeture d'une connexion,
 /// réglable depuis les paramètres de l'app. 0 = jamais.
 pub struct IdleConfig(pub AtomicU64);
@@ -539,7 +569,7 @@ pub async fn sftp_probe(
         return Ok(false);
     };
 
-    let alive = !conn._handle.is_closed()
+    let alive = !conn.handle.is_closed()
         && tokio::time::timeout(std::time::Duration::from_secs(5), conn.sftp.metadata("/"))
             .await
             .map(|r| r.is_ok())
@@ -564,7 +594,7 @@ pub async fn watch_lost_connections(app: &AppHandle) {
     let mut map = pool.inner().0.lock().await;
     let dead: Vec<String> = map
         .iter()
-        .filter(|(_, conn)| conn._handle.is_closed())
+        .filter(|(_, conn)| conn.handle.is_closed())
         .map(|(id, _)| id.clone())
         .collect();
     for id in dead {
@@ -596,7 +626,10 @@ pub async fn reap_idle_connections(app: &AppHandle) {
     }
 }
 
-pub(crate) fn register_transfer(registry: &State<'_, TransferRegistry>, transfer_id: &str) -> Arc<AtomicBool> {
+pub(crate) fn register_transfer(
+    registry: &State<'_, TransferRegistry>,
+    transfer_id: &str,
+) -> Arc<AtomicBool> {
     let flag = Arc::new(AtomicBool::new(false));
     registry
         .inner()
@@ -846,8 +879,10 @@ async fn open_sftp_session(
                 // trouvée dans ~/.ssh empêcherait toute connexion par mot de
                 // passe sur un serveur qui l'accepte.
                 Err(e) => {
-                    key_error =
-                        Some(crate::errors::user_err("key_unreadable", format!("{} : {e}", key_file.display())));
+                    key_error = Some(crate::errors::user_err(
+                        "key_unreadable",
+                        format!("{} : {e}", key_file.display()),
+                    ));
                 }
             }
         }
@@ -900,7 +935,7 @@ async fn open_sftp_session(
     pool.0.lock().await.insert(
         connection_id.clone(),
         Arc::new(ActiveConnection {
-            _handle: session,
+            handle: session,
             sftp,
             last_used: StdMutex::new(std::time::Instant::now()),
             holds: AtomicUsize::new(0),
@@ -997,7 +1032,10 @@ pub async fn sftp_read_text(
         filled += read;
     }
     buffer.truncate(filled);
-    Ok(String::from_utf8_lossy(&buffer).into_owned())
+    // Réversible, pas destructive : voir `text::decode`. Un fichier qui n'est
+    // pas en UTF-8 doit pouvoir être rouvert, modifié et réenregistré sans
+    // perdre les octets auxquels on n'a pas touché.
+    Ok(crate::text::decode(&buffer).0)
 }
 
 /// Lit le début d'un fichier distant encodé en base64 (aperçu d'image).
@@ -1040,7 +1078,9 @@ pub async fn sftp_write_text(
     content: String,
 ) -> Result<(), String> {
     let conn = get_connection(&pool, &connection_id).await?;
-    conn.write_file(&path, content.as_bytes()).await
+    // L'inverse exact de la lecture : les octets qu'UTF-8 n'expliquait pas
+    // repartent tels qu'ils étaient.
+    conn.write_file(&path, &crate::text::encode(&content)).await
 }
 
 /// Ferme et retire une connexion du pool.
@@ -1049,9 +1089,24 @@ pub async fn sftp_disconnect(
     pool: State<'_, ConnectionPool>,
     connection_id: String,
 ) -> Result<(), String> {
-    pool.inner().0.lock().await.remove(&connection_id);
-    // Le drop du handle ferme proprement la connexion SSH
+    let conn = pool.inner().0.lock().await.remove(&connection_id);
+    // Retirée du pool D'ABORD, fermée ensuite, et le verrou est relâché entre
+    // les deux : la fermeture attend le réseau, la garder sous le verrou du
+    // pool bloquerait toutes les autres connexions pendant ce temps.
+    if let Some(conn) = conn {
+        conn.close().await;
+    }
     Ok(())
+}
+
+/// Ferme toutes les connexions SSH, à la sortie de l'application.
+///
+/// Elles sont coupées EN PARALLÈLE : trois serveurs qui mettent chacun 200 ms
+/// à répondre feraient 600 ms de fermeture à la queue leu leu, et personne
+/// n'attend son gestionnaire de fichiers pour quitter.
+pub async fn shutdown(pool: &ConnectionPool) {
+    let connections: Vec<_> = pool.0.lock().await.drain().map(|(_, conn)| conn).collect();
+    futures_util::future::join_all(connections.iter().map(|conn| conn.close())).await;
 }
 
 /// Liste les connexions actuellement ouvertes.
@@ -1130,7 +1185,9 @@ pub async fn sftp_remove_all(
     path: String,
 ) -> Result<u64, String> {
     if !path.starts_with('/') || path == "/" || path.split('/').any(|c| c == "..") {
-        return Err(format!("Chemin refusé pour une suppression récursive : {path}"));
+        return Err(format!(
+            "Chemin refusé pour une suppression récursive : {path}"
+        ));
     }
     let conn = get_connection(&pool, &connection_id).await?;
 
@@ -1244,15 +1301,14 @@ pub async fn sftp_chmod(
     // ni espace. La valeur est ensuite sûre à interpoler telle quelle.
     let valid = (3..=4).contains(&mode.len()) && mode.chars().all(|c| ('0'..='7').contains(&c));
     if !valid {
-        return Err(format!("Mode invalide : {mode} (trois ou quatre chiffres octaux attendus)."));
+        return Err(format!(
+            "Mode invalide : {mode} (trois ou quatre chiffres octaux attendus)."
+        ));
     }
 
     let conn = get_connection(&pool, &connection_id).await?;
     let flag = if recursive { "-R " } else { "" };
-    let command = format!(
-        "chmod {flag}{mode} -- {}",
-        crate::shell::shell_quote(&path)
-    );
+    let command = format!("chmod {flag}{mode} -- {}", crate::shell::shell_quote(&path));
     let (code, output) = conn.exec_capture(command, &[]).await?;
     if code == 0 {
         return Ok(());
@@ -1458,7 +1514,10 @@ async fn stream_download(
 ) -> Result<u64, String> {
     let part = format!("{local}{PART_SUFFIX}");
     let offset: u64 = if resume {
-        tokio::fs::metadata(&part).await.map(|m| m.len()).unwrap_or(0)
+        tokio::fs::metadata(&part)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0)
     } else {
         0
     };
@@ -1729,7 +1788,9 @@ async fn pipelined_download(
     // pollés de concert — l'I/O multiplexe sur la même session SSH, un seul
     // task suffit largement.
     let results = join_all(workers).await;
-    let error = results.into_iter().find_map(|r: Result<(), String>| r.err());
+    let error = results
+        .into_iter()
+        .find_map(|r: Result<(), String>| r.err());
 
     if cancel.load(Ordering::Relaxed) {
         return Err(CANCELLED_TAG.into());
@@ -1873,7 +1934,8 @@ mod cert_tests {
     use super::{authorities_from, host_matches};
 
     /// Une vraie clé ed25519, pour que le parseur ait quelque chose à lire.
-    const CA: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ0hLJ1EQPGCbXFVJxSJTNz1xSlQ0kBaS/AEIzOVmS4E";
+    const CA: &str =
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ0hLJ1EQPGCbXFVJxSJTNz1xSlQ0kBaS/AEIzOVmS4E";
 
     #[test]
     fn motifs_openssh() {
@@ -1963,7 +2025,13 @@ mod cert_validation_tests {
 
     #[test]
     fn certificat_valide_accepte() {
-        assert!(verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()).is_ok());
+        assert!(verify_host_certificate(
+            &cert("valide-cert.pub"),
+            HOTE,
+            &autorite("ca.pub"),
+            maintenant()
+        )
+        .is_ok());
     }
 
     #[test]
@@ -1980,7 +2048,12 @@ mod cert_validation_tests {
         // qu'on n'a jamais approuvé : c'est exactement l'attaque que le
         // mécanisme doit arrêter.
         assert_eq!(
-            verify_host_certificate(&cert("autre-ca-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            verify_host_certificate(
+                &cert("autre-ca-cert.pub"),
+                HOTE,
+                &autorite("ca.pub"),
+                maintenant()
+            ),
             Err("cert_invalid")
         );
     }
@@ -1989,11 +2062,21 @@ mod cert_validation_tests {
     fn hors_fenetre_de_validite_refuse() {
         // Avant l'ouverture, puis après l'expiration.
         assert_eq!(
-            verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), 1_600_000_000),
+            verify_host_certificate(
+                &cert("valide-cert.pub"),
+                HOTE,
+                &autorite("ca.pub"),
+                1_600_000_000
+            ),
             Err("cert_invalid")
         );
         assert_eq!(
-            verify_host_certificate(&cert("valide-cert.pub"), HOTE, &autorite("ca.pub"), 2_000_000_000),
+            verify_host_certificate(
+                &cert("valide-cert.pub"),
+                HOTE,
+                &autorite("ca.pub"),
+                2_000_000_000
+            ),
             Err("cert_invalid")
         );
     }
@@ -2001,7 +2084,12 @@ mod cert_validation_tests {
     #[test]
     fn certificat_d_utilisateur_refuse() {
         assert_eq!(
-            verify_host_certificate(&cert("utilisateur-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            verify_host_certificate(
+                &cert("utilisateur-cert.pub"),
+                HOTE,
+                &autorite("ca.pub"),
+                maintenant()
+            ),
             Err("cert_not_host")
         );
     }
@@ -2009,7 +2097,12 @@ mod cert_validation_tests {
     #[test]
     fn certificat_d_une_autre_machine_refuse() {
         assert_eq!(
-            verify_host_certificate(&cert("mauvais-hote-cert.pub"), HOTE, &autorite("ca.pub"), maintenant()),
+            verify_host_certificate(
+                &cert("mauvais-hote-cert.pub"),
+                HOTE,
+                &autorite("ca.pub"),
+                maintenant()
+            ),
             Err("cert_wrong_host")
         );
     }

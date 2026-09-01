@@ -48,7 +48,8 @@
   font-size: calc(12px * var(--text-scale));
   outline: none;
 
-  &:focus {
+  // Le focus est sur le champ que porte `app-input`, pas sur l'hôte.
+  &:focus-within {
     border-color: var(--accent);
   }
 }

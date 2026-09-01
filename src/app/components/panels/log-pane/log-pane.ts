@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 
 import { Icon } from '@app/components/ui/icon/icon';
+import { InputField } from '@app/components/ui/input/input';
 import { LogTailService } from '@app/services/files/log-tail.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
 import { injectT } from '@app/lang/i18n.service';
@@ -17,7 +18,7 @@ import { injectT } from '@app/lang/i18n.service';
 /** Contenu de l'onglet Logs : suivi de fichier en direct avec filtre. */
 @Component({
   selector: 'app-log-pane',
-  imports: [Icon],
+  imports: [Icon, InputField],
   templateUrl: './log-pane.html',
   styleUrl: './log-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

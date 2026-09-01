@@ -2,16 +2,7 @@
   <div class="bar">
     <span class="bar__dot" [class.bar__dot--live]="tail.running()"></span>
     <span class="bar__path" [title]="path">{{ path }}</span>
-    <input
-      class="bar__filter"
-      type="text"
-      [placeholder]="t('logs.filter')"
-      spellcheck="false"
-      autocorrect="off"
-      #filterInput
-      [value]="filter()"
-      (input)="filter.set(filterInput.value)"
-    />
+    <app-input class="bar__filter" [placeholder]="t('logs.filter')" [(value)]="filter" />
     @if (tail.running()) {
       <button type="button" class="bar__action" [title]="t('logs.stop')" (click)="tail.close()">
         <app-icon name="close" [size]="13" />

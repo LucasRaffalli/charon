@@ -2,19 +2,15 @@
   @if (label()) {
     <span class="field__label">{{ label() }}</span>
   }
-  <input
+  <app-input
     class="field__input"
     [type]="type()"
     [name]="name()"
     [placeholder]="placeholder()"
     [autocomplete]="autocomplete()"
-    spellcheck="false"
-    autocorrect="off"
-    autocapitalize="off"
-    [attr.aria-label]="ariaLabel() || null"
-    [attr.autofocus]="autofocus() ? '' : null"
-    [value]="value()"
-    (input)="onInput($event)"
+    [ariaLabel]="ariaLabel()"
+    [autofocus]="autofocus()"
+    [(value)]="value"
   />
   @if (hint()) {
     <span class="field__hint">{{ hint() }}</span>

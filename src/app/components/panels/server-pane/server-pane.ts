@@ -15,6 +15,8 @@ import { invoke } from '@tauri-apps/api/core';
 import { SelectionBar } from '@app/components/panels/selection-bar/selection-bar';
 import { Alert } from '@app/components/ui/alert/alert';
 import { Button } from '@app/components/ui/button/button';
+import { GitChip } from '@app/components/ui/git-chip/git-chip';
+import { InputField } from '@app/components/ui/input/input';
 import { Icon } from '@app/components/ui/icon/icon';
 import {
   SegmentedControl,
@@ -57,7 +59,7 @@ const DRAG_FEED_MS = 40;
  */
 @Component({
   selector: 'app-server-pane',
-  imports: [Alert, Button, Icon, SegmentedControl, SelectionBar, FileSizePipe],
+  imports: [Alert, Button, Icon, SegmentedControl, SelectionBar, FileSizePipe, InputField, GitChip],
   templateUrl: './server-pane.html',
   styleUrl: './server-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -175,7 +177,7 @@ export class ServerPane {
    * filtre : une liste réduite par un filtre invisible serait un piège.
    */
   protected readonly serverFilterOpen = signal(false);
-  private readonly serverFilterField = viewChild<ElementRef<HTMLInputElement>>('serverFilter');
+  private readonly serverFilterField = viewChild<InputField>('serverFilter');
 
   /** Ce que le filtre laisse passer, sur ce que le dossier compte vraiment. */
   protected readonly serverFilterCount = computed(() => {
@@ -189,7 +191,7 @@ export class ServerPane {
       return;
     }
     this.serverFilterOpen.set(true);
-    setTimeout(() => this.serverFilterField()?.nativeElement.focus());
+    setTimeout(() => this.serverFilterField()?.focus());
   }
 
   protected closeServerFilter(): void {
@@ -722,6 +724,43 @@ export class ServerPane {
   /** La destination d'un dépôt étranger à ce point, dans CE panneau. */
   dropPathAt(x: number, y: number): string {
     return this.dropPathIn(this.session(), x, y);
+  }
+
+  /**
+   * Le détail du dépôt, au clic sur la pastille : les fichiers qui ont changé,
+   * et de quoi les ouvrir. Des fichiers et pas des commandes : Charon ne
+   * committe ni ne pousse rien à votre place, mais relire un fichier avant de
+   * le valider est exactement ce qu'on veut faire depuis là.
+   */
+  protected openGitMenu(event: MouseEvent): void {
+    const git = this.session().git.status();
+    if (!git) {
+      return;
+    }
+    const root = git.root.endsWith('/') ? git.root.slice(0, -1) : git.root;
+    // Plafonné : un dépôt fraîchement cloné avec mille fichiers non suivis
+    // ferait une liste qu'on ne parcourt pas, et un menu hors de l'écran.
+    const shown = git.files.slice(0, 30);
+    const items: ContextMenuItem[] = shown.map((file) => ({
+      label: file.path,
+      icon: 'file',
+      danger: file.kind === 'conflicted',
+      action: () => void this.openGitFile(`${root}/${file.path}`, file.path),
+    }));
+    if (git.files.length > shown.length) {
+      items.push({ label: `et ${git.files.length - shown.length} autres…` });
+    }
+    this.contextMenu.open(event, [
+      { label: git.lastCommit || git.branch },
+      { divider: true, label: '' },
+      ...(items.length ? items : [{ label: this.t('terminal.gitClean') }]),
+    ]);
+  }
+
+  /** Ouvre un fichier du dépôt, puis montre ce qui y a changé. */
+  private async openGitFile(full: string, relative: string): Promise<void> {
+    await this.session().preview.openFile(full, relative.split('/').pop() ?? relative);
+    this.session().preview.askHeadDiff();
   }
 
   // --- Menus contextuels ---

@@ -1,15 +1,11 @@
 <div class="bar">
-  <input
+  <app-input
     #field
     class="bar__field"
-    type="text"
-    spellcheck="false"
-    autocorrect="off"
-    [value]="search.query()"
-    (input)="search.query.set(field.value)"
+    [(value)]="search.query"
     (keydown)="onKeydown($event)"
     [placeholder]="search.mode() === 'content' ? 'Chercher dans le contenu…' : 'Chercher un nom de fichier…'"
-    aria-label="Motif de recherche"
+    ariaLabel="Motif de recherche"
   />
   @if (search.running()) {
     <button type="button" class="bar__stop" (click)="search.stop()">Arrêter</button>

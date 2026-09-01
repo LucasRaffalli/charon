@@ -56,6 +56,35 @@
   --code-tag: #e06c75;
   --code-attr: #e5c07b;
 
+  // --- Terminal ------------------------------------------------------------
+  //
+  // Les seize couleurs ANSI. Elles ne sont pas décoratives : ce sont elles qui
+  // colorent `ls`, la sortie de `git`, les avertissements d'un build et
+  // l'invite du serveur. Sans elles, xterm applique ses valeurs par défaut, et
+  // le terminal reste le seul endroit de Charon qui parle une autre langue que
+  // le reste.
+  //
+  // Elles reprennent la palette de l'éditeur (`--code-*`) partout où le sens
+  // coïncide : le rouge d'une erreur au terminal est le rouge d'une balise
+  // dans le code. Un même rouge pour un même thème, un seul vocabulaire à
+  // apprendre.
+  --term-black: #3f4451;
+  --term-red: #e06c75;
+  --term-green: #98c379;
+  --term-yellow: #e5c07b;
+  --term-blue: #61afef;
+  --term-magenta: #c678dd;
+  --term-cyan: #56b6c2;
+  --term-white: #abb2bf;
+  --term-bright-black: #5c6370;
+  --term-bright-red: #ef8a92;
+  --term-bright-green: #b3d68f;
+  --term-bright-yellow: #f0cf93;
+  --term-bright-blue: #83c3f5;
+  --term-bright-magenta: #d79ae6;
+  --term-bright-cyan: #74ccd6;
+  --term-bright-white: #e6e9ef;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.45);
 }

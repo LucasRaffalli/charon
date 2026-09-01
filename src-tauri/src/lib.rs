@@ -1,24 +1,31 @@
-mod errors;
+mod bridge;
 mod edit;
+mod errors;
 mod fs;
 mod ftp;
+mod git;
 mod integrity;
 mod modules;
 mod profiles;
 mod search;
 mod sftp;
 mod shell;
+mod text;
 mod trash;
-mod bridge;
 mod window;
 
-use ftp::FtpPool;
-use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
 use edit::EditRegistry;
+use ftp::FtpPool;
 use search::SearchRegistry;
+use sftp::{ConnectionPool, IdleConfig, TransferRegistry};
 use shell::{ShellRegistry, TailRegistry};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+/// Temps total accordé à la fermeture des connexions quand l'application
+/// quitte. Au-delà, on part sans finir : une application qui refuse de
+/// quitter est un défaut plus grave qu'une session mal raccrochée.
+const SHUTDOWN_BUDGET: std::time::Duration = std::time::Duration::from_millis(1500);
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -35,6 +42,12 @@ pub fn run() {
             // module et se mettent à jour indépendamment ensuite.
             modules::install_bundled_modules(app.handle());
 
+            // Les copies de travail des éditions distantes que la session
+            // précédente n'a pas pu ranger (plantage, forçage à quitter) :
+            // c'est ici qu'on les ramasse, aucun gestionnaire de sortie ne
+            // s'étant exécuté dans ce cas-là.
+            edit::purge_temp_dir(app.handle());
+
             // Fermeture des connexions inactives (vérification toutes les 30 s
             // — les sessions interactives (terminal, tail, édition) posent un
             // « hold » qui suspend la fermeture).
@@ -50,10 +63,13 @@ pub fn run() {
                     // 30 s après la première connexion — le keepalive et les
                     // sondes à la demande couvrent largement cette fenêtre.
                     let idle = {
-                        let sftp_empty =
-                            handle.state::<sftp::ConnectionPool>().0.lock().await.is_empty();
-                        let ftp_empty =
-                            handle.state::<ftp::FtpPool>().0.lock().await.is_empty();
+                        let sftp_empty = handle
+                            .state::<sftp::ConnectionPool>()
+                            .0
+                            .lock()
+                            .await
+                            .is_empty();
+                        let ftp_empty = handle.state::<ftp::FtpPool>().0.lock().await.is_empty();
                         sftp_empty && ftp_empty
                     };
                     if idle {
@@ -119,6 +135,8 @@ pub fn run() {
             sftp::sftp_remove_all,
             sftp::sftp_rename,
             sftp::sftp_system_stats,
+            git::sftp_git_status,
+            git::sftp_git_show_head,
             sftp::sftp_disk_usage,
             ftp::ftp_connect,
             ftp::ftp_list_dir,
@@ -176,6 +194,43 @@ pub fn run() {
             modules::module_delete,
             modules::module_read_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running charon");
+        .build(tauri::generate_context!())
+        .expect("error while running charon")
+        .run(|app, event| {
+            // Quitter ferme les connexions, toujours.
+            //
+            // Le feu rouge et ⌘W passent par le front (bilan de session, puis
+            // `sftp_disconnect`), mais ⌘Q ne passe par rien : macOS termine
+            // l'application, le processus meurt, et les serveurs se retrouvent
+            // avec des sessions dont le client s'est évaporé. SSH le constate
+            // au bout de son keepalive, FTP au bout de son délai d'inactivité,
+            // et pendant tout ce temps la session occupe une place dans les
+            // quotas (`MaxStartups` chez sshd, connexions par IP chez la
+            // plupart des serveurs FTP).
+            //
+            // `RunEvent::Exit` est le seul point commun à TOUS les départs :
+            // sur macOS ⌘Q y arrive par `applicationWillTerminate`, la
+            // fermeture de la dernière fenêtre par le chemin ordinaire. C'est
+            // donc ici, et pas dans un gestionnaire de fenêtre, que le ménage
+            // se fait.
+            if matches!(event, tauri::RunEvent::Exit) {
+                use tauri::Manager;
+                let pool = app.state::<ConnectionPool>();
+                let ftp_pool = app.state::<FtpPool>();
+                // Bloquant, et c'est voulu : après cette fonction le processus
+                // s'en va, une tâche de fond n'aurait pas le temps de vivre.
+                // Le plafond global garantit que le pire des serveurs ne
+                // retient pas la fermeture (chaque connexion a déjà le sien,
+                // celui-ci couvre le cas où elles sont nombreuses).
+                tauri::async_runtime::block_on(async {
+                    let _ = tokio::time::timeout(SHUTDOWN_BUDGET, async {
+                        tokio::join!(sftp::shutdown(&pool), ftp::shutdown(&ftp_pool))
+                    })
+                    .await;
+                });
+                // Et rien ne reste sur le disque : les copies de travail des
+                // éditions distantes portent du contenu de fichiers serveur.
+                edit::purge_temp_dir(app);
+            }
+        });
 }

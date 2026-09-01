@@ -6,15 +6,32 @@
         class="tab"
         role="tab"
         [attr.data-tab-first]="tab.segment.id"
+        [class.tab--merge]="mergeOnto() === tab.segment.id"
         [class.tab--insert]="insertBefore(tab)"
         [class.tab--active]="tab.segment.active"
         (pointerdown)="onTabPointerDown($event, tab.segment.id)"
+        (pointermove)="onTabPointerMove($event)"
+        (pointerup)="onTabPointerUp()"
+        (pointercancel)="onTabPointerCancel()"
+        [class.tab--lifted]="draggingId() === tab.segment.id"
         [attr.aria-selected]="tab.segment.active"
         [title]="tab.segment.title"
         (click)="tabBar.activate(tab.segment.id)"
         (auxclick)="onAuxClick($event, tab.segment.id)"
         (contextmenu)="onTabMenu($event, tab.segment)"
       >
+        <!-- La couleur d'identité de la session, la même que le halo de son
+             panneau et que sa vignette de transfert. C'est ce qui relie un
+             onglet à ce qu'il gouverne, et c'est le seul repère qui tienne
+             quand deux sessions portent le même nom de serveur. Inutile à
+             une session seule : elle n'a personne avec qui être confondue. -->
+        @if (tabBar.multiple()) {
+          <span
+            class="tdot"
+            aria-hidden="true"
+            [style.background]="'var(--session-' + tab.segment.tone + ')'"
+          ></span>
+        }
         <span class="tab__title">{{ tab.segment.title }}</span>
         @if (tab.segment.env === 'prod') {
           <span class="tab__env">PROD</span>
@@ -24,6 +41,7 @@
           role="button"
           tabindex="-1"
           [attr.aria-label]="'Fermer ' + tab.segment.title"
+          (pointerdown)="$event.stopPropagation()"
           (click)="close($event, tab.segment.id)"
         >
           <app-icon name="close" [size]="12" />
@@ -38,12 +56,21 @@
         [class.tab--active]="tab.active"
         [attr.aria-selected]="tab.active"
         (pointerdown)="onTabPointerDown($event, tab.segments[0].id)"
+        (pointermove)="onTabPointerMove($event)"
+        (pointerup)="onTabPointerUp()"
+        (pointercancel)="onTabPointerCancel()"
+        [class.tab--lifted]="draggingId() === tab.segments[0].id"
       >
         @for (segment of tab.segments; track segment.id) {
           <button
             type="button"
             class="seg"
             [title]="segment.title"
+            (pointerdown)="onSegmentPointerDown($event, segment.id)"
+            (pointermove)="onTabPointerMove($event)"
+            (pointerup)="onTabPointerUp()"
+            (pointercancel)="onTabPointerCancel()"
+            [class.seg--lifted]="draggingId() === segment.id"
             (click)="tabBar.activate(segment.id)"
             (auxclick)="onAuxClick($event, segment.id)"
             (contextmenu)="onSegmentMenu($event, segment)"
@@ -58,6 +85,7 @@
               role="button"
               tabindex="-1"
               [attr.aria-label]="'Fermer ' + segment.title"
+              (pointerdown)="$event.stopPropagation()"
               (click)="close($event, segment.id)"
             >
               <app-icon name="close" [size]="12" />
@@ -70,7 +98,21 @@
   @if (insertAtEnd()) {
     <i class="bar__insert" aria-hidden="true"></i>
   }
-  <button type="button" class="bar__new" aria-label="Nouvelle session" (click)="tabBar.openTab()">
+  <!-- Seul onglet : le bouton se nomme. Une infobulle ne se lit qu'au survol,
+       et on ne survole pas ce qu'on ne cherche pas. Le libellé disparaît dès
+       qu'un deuxième onglet existe : la fonction est alors découverte, et la
+       place revient aux titres de session. -->
+  <button
+    type="button"
+    class="bar__new"
+    [class.bar__new--named]="tabBar.lonely()"
+    [title]="newTabTitle()"
+    aria-label="Nouvelle session"
+    (click)="tabBar.openTab()"
+  >
     <app-icon name="plus" [size]="14" />
+    @if (tabBar.lonely()) {
+      <span class="bar__new-label">{{ newTabLabel() }}</span>
+    }
   </button>
 </div>

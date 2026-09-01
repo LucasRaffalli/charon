@@ -59,10 +59,6 @@
   color: var(--text);
   font-size: calc(14px * var(--text-scale));
   outline: none;
-
-  &::placeholder {
-    color: var(--text-faint);
-  }
 }
 
 // Filtres posés : une case par filtre, fond légèrement décalé pour les détacher

@@ -116,7 +116,10 @@ fn version_is_newer(candidate: &str, installed: &str) -> bool {
     };
     let (a, b) = (parse(candidate), parse(installed));
     for i in 0..a.len().max(b.len()) {
-        let (x, y) = (a.get(i).copied().unwrap_or(0), b.get(i).copied().unwrap_or(0));
+        let (x, y) = (
+            a.get(i).copied().unwrap_or(0),
+            b.get(i).copied().unwrap_or(0),
+        );
         if x != y {
             return x > y;
         }
@@ -226,10 +229,18 @@ pub fn modules_list(app: AppHandle) -> Result<Vec<ModuleSummary>, String> {
             Ok(m) => ModuleSummary {
                 slug: slug.clone(),
                 id: if m.id.is_empty() { slug.clone() } else { m.id },
-                name: if m.name.is_empty() { slug.clone() } else { m.name },
+                name: if m.name.is_empty() {
+                    slug.clone()
+                } else {
+                    m.name
+                },
                 version: m.version,
                 engine: m.engine,
-                main: if m.main.is_empty() { "main.js".into() } else { m.main },
+                main: if m.main.is_empty() {
+                    "main.js".into()
+                } else {
+                    m.main
+                },
                 description: m.description,
                 author: m.author,
                 permissions: m.permissions,
@@ -287,8 +298,7 @@ pub fn module_delete(app: AppHandle, slug: String) -> Result<(), String> {
     if !dir.starts_with(modules_dir(&app)?) {
         return Err("Chemin de module refusé.".into());
     }
-    std::fs::remove_dir_all(&dir)
-        .map_err(|e| format!("Suppression du module impossible : {e}"))?;
+    std::fs::remove_dir_all(&dir).map_err(|e| format!("Suppression du module impossible : {e}"))?;
     let mut map = read_enabled(&app);
     map.remove(&slug);
     write_enabled(&app, &map)
@@ -305,7 +315,8 @@ pub fn module_read_file(app: AppHandle, slug: String, file: String) -> Result<St
     let base = modules_dir(&app)?.join(&slug);
     let path = base.join(&file);
     // Le chemin résolu doit rester dans le dossier du module.
-    let canon_base = std::fs::canonicalize(&base).map_err(|e| format!("Module introuvable : {e}"))?;
+    let canon_base =
+        std::fs::canonicalize(&base).map_err(|e| format!("Module introuvable : {e}"))?;
     let canon_path =
         std::fs::canonicalize(&path).map_err(|e| format!("Fichier introuvable : {e}"))?;
     if !canon_path.starts_with(&canon_base) {

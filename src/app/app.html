@@ -1,9 +1,14 @@
-<!-- `inert` pendant le mode design : la vue est là pour être regardée, pas
+<!-- La barre de sessions est là DÈS le premier écran, connecté ou non.
+     Elle n'apparaissait qu'à partir de deux sessions, or le bouton « + » vit
+     dedans : la seule façon d'ouvrir un deuxième onglet était donc d'en avoir
+     déjà deux. Le multi-session est ce que Charon sait faire de plus
+     particulier, il ne peut pas être la seule chose qu'on ne voit pas.
+
+     `inert` pendant le mode design : la vue est là pour être regardée, pas
      manipulée. Un clic malheureux sur un fichier ne doit rien déclencher, et
-     le clavier ne doit pas non plus s'y perdre. -->
-@if (tabBar.visible()) {
-  <app-tab-bar />
-}
+     le clavier ne doit pas non plus s'y perdre. La barre le suit : changer de
+     session pendant qu'on règle l'apparence n'a aucun sens. -->
+<app-tab-bar [attr.inert]="design.open() ? '' : null" />
 <div class="app__stage" [attr.inert]="design.open() ? '' : null">
   @if (anySettled()) {
     <!-- L'explorateur reste monté tant qu'une session vit : basculer vers un

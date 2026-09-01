@@ -55,7 +55,7 @@ export class ActivityLog {
   }
 
   protected sessionTitle(session: Session): string {
-    return this.tabBar.titleOf(session);
+    return this.tabBar.displayTitleOf(session);
   }
 
   protected sessionToneBg(session: Session): string {

@@ -53,18 +53,18 @@
     }
   </nav>
 
+  <!-- Le dépôt du dossier affiché. Même service que la pastille du terminal :
+       l'information suit le dossier, pas le composant qui l'a demandée. -->
+  <app-git-chip [status]="session().git.status()" (opened)="openGitMenu($event)" />
+
   @if (serverFilterOpen()) {
     <div class="explorer__filter">
-      <input
+      <app-input
         #serverFilter
         class="explorer__filter-field"
-        type="text"
         [placeholder]="t('panes.filter.placeholder')"
-        spellcheck="false"
-        autocorrect="off"
-        [attr.aria-label]="t('server.filterServer')"
-        [value]="sftp.filter()"
-        (input)="sftp.filter.set(serverFilter.value)"
+        [ariaLabel]="t('server.filterServer')"
+        [(value)]="sftp.filter"
         (keydown.escape)="onServerFilterEscape()"
       />
       @if (serverFilterActive()) {

@@ -17,6 +17,11 @@ import { Terminal } from '@xterm/xterm';
 
 import { SftpService } from '@app/services/connection/sftp.service';
 import { Session } from '@app/services/connection/session-registry';
+import { GitChip } from '@app/components/ui/git-chip/git-chip';
+import {
+  ContextMenuItem,
+  ContextMenuService,
+} from '@app/services/workspace/context-menu.service';
 import { TerminalService } from '@app/services/workspace/terminal.service';
 import { DockService } from '@app/services/workspace/dock.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
@@ -63,7 +68,7 @@ const decode = (data: string): Uint8Array =>
  */
 @Component({
   selector: 'app-terminal-pane',
-  imports: [],
+  imports: [GitChip],
   templateUrl: './terminal-pane.html',
   styleUrl: './terminal-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,6 +79,7 @@ export class TerminalPane {
   readonly session = input.required<Session>();
 
   protected readonly t = injectT();
+  private readonly contextMenu = inject(ContextMenuService);
   private readonly theme = inject(ThemeService);
   private readonly dock = inject(DockService);
   private readonly destroyRef = inject(DestroyRef);
@@ -325,7 +331,56 @@ export class TerminalPane {
         return;
       }
       void this.session().sftp.refreshQuietly();
+      // Et l'état du dépôt : c'est le seul moment où il peut changer sans que
+      // Charon en soit l'auteur, et c'est tout l'intérêt de la chose. On tape
+      // `git commit` dans le terminal, la pastille suit.
+      this.session().git.poke();
     }, REFRESH_SETTLE_MS);
+  }
+
+  /**
+   * Le détail du dépôt : ce qui a changé, et de quoi l'ouvrir. Les entrées
+   * sont des fichiers, pas des commandes : Charon ne committe ni ne pousse
+   * rien à votre place. Ouvrir un fichier modifié pour le RELIRE avant de le
+   * valider est en revanche exactement ce qu'on veut faire depuis là.
+   */
+  protected openGitMenu(event: MouseEvent): void {
+    const git = this.session().git.status();
+    if (!git) {
+      return;
+    }
+    // Plafonné : un dépôt fraîchement cloné avec mille fichiers non suivis
+    // ferait une liste qu'on ne parcourt pas, et un menu qui sort de l'écran.
+    const shown = git.files.slice(0, 30);
+    const items: ContextMenuItem[] = shown.map((file) => ({
+      label: file.path,
+      icon: 'file',
+      danger: file.kind === 'conflicted',
+      action: () => void this.openGitFile(file.path),
+    }));
+    if (git.files.length > shown.length) {
+      items.push({ label: `et ${git.files.length - shown.length} autres…` });
+    }
+    this.contextMenu.open(event, [
+      // Une ligne d'en-tête sans action : elle situe, elle ne se clique pas.
+      { label: git.lastCommit || git.branch },
+      { divider: true, label: '' },
+      ...(items.length ? items : [{ label: this.t('terminal.gitClean') }]),
+    ]);
+  }
+
+  /** Ouvre un fichier du dépôt dans l'aperçu, par son chemin relatif. */
+  private async openGitFile(relative: string): Promise<void> {
+    const git = this.session().git.status();
+    if (!git) {
+      return;
+    }
+    const root = git.root.endsWith('/') ? git.root.slice(0, -1) : git.root;
+    const full = `${root}/${relative}`;
+    await this.session().preview.openFile(full, relative.split('/').pop() ?? relative);
+    // Ouvrir suffit rarement : ce qu'on veut voir d'un fichier listé par git,
+    // c'est ce qui y a changé.
+    this.session().preview.askHeadDiff();
   }
 
   /** Réarmé à chaque sortie reçue : le silence qui suit vaut « prêt ». */
@@ -384,11 +439,39 @@ export class TerminalPane {
     }
     const styles = getComputedStyle(document.documentElement);
     const read = (name: string): string | undefined => styles.getPropertyValue(name).trim() || undefined;
+    // Les SEIZE couleurs ANSI, et pas seulement le fond et le texte.
+    //
+    // Elles ne sont pas décoratives : ce sont elles qui colorent `ls`, la
+    // sortie de `git`, les avertissements d'un build et l'invite du serveur.
+    // Tant qu'on ne les posait pas, xterm appliquait ses propres valeurs, et
+    // le terminal restait le seul endroit de Charon qui parlait une autre
+    // langue que le reste. Elles sont définies par thème, alignées sur la
+    // palette de l'éditeur : le rouge d'une erreur au terminal est le rouge
+    // d'une balise dans le code.
     terminal.options.theme = {
       background: read('--surface') ?? '#1e1e1e',
       foreground: read('--text') ?? '#d4d4d4',
       cursor: read('--accent'),
-      selectionBackground: read('--surface-active'),
+      // Le curseur d'un panneau qui n'a pas le focus se creuse au lieu de
+      // clignoter : deux terminaux côte à côte, on voit lequel écoute.
+      cursorAccent: read('--surface'),
+      selectionBackground: read('--state-selected') ?? read('--surface-active'),
+      black: read('--term-black'),
+      red: read('--term-red'),
+      green: read('--term-green'),
+      yellow: read('--term-yellow'),
+      blue: read('--term-blue'),
+      magenta: read('--term-magenta'),
+      cyan: read('--term-cyan'),
+      white: read('--term-white'),
+      brightBlack: read('--term-bright-black'),
+      brightRed: read('--term-bright-red'),
+      brightGreen: read('--term-bright-green'),
+      brightYellow: read('--term-bright-yellow'),
+      brightBlue: read('--term-bright-blue'),
+      brightMagenta: read('--term-bright-magenta'),
+      brightCyan: read('--term-bright-cyan'),
+      brightWhite: read('--term-bright-white'),
     };
   }
 
@@ -413,10 +496,26 @@ export class TerminalPane {
     }
 
     const styles = getComputedStyle(document.documentElement);
+    // La taille suit le réglage de texte de l'application : un terminal qui
+    // resterait à 12 px pendant que tout le reste grossit trahirait qu'il
+    // vient d'ailleurs. Bornée, parce que la grille se mesure en cellules et
+    // qu'un écart trop grand rendrait le panneau inutilisable.
+    const scale = Number.parseFloat(styles.getPropertyValue('--text-scale')) || 1;
     const terminal = new Terminal({
-      fontSize: 12,
+      fontSize: Math.round(Math.min(16, Math.max(10, 12 * scale))),
       fontFamily: styles.getPropertyValue('--font-mono') || 'monospace',
+      // Une ligne un peu aérée : la même respiration que les listes de
+      // fichiers, plutôt que le serrage par défaut d'un émulateur.
+      lineHeight: 1.15,
       cursorBlink: true,
+      cursorStyle: 'bar',
+      cursorInactiveStyle: 'outline',
+      // Le défilement remonte loin : on relit la sortie d'un build sans
+      // avoir à la relancer.
+      scrollback: 5000,
+      // Un mot de passe collé ou une commande multiligne arrive d'un bloc :
+      // le shell sait que c'est un collage et ne l'exécute pas ligne à ligne.
+      macOptionIsMeta: true,
     });
     terminal.loadAddon(this.fit);
     terminal.open(element);

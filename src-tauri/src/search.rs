@@ -17,8 +17,8 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Mutex as StdMutex;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 
 use russh::client;
@@ -136,7 +136,9 @@ fn ensure_search_root(path: &str) -> Result<(), String> {
 fn is_safe_result_path(path: &str) -> bool {
     path.starts_with('/')
         && !path.contains('\u{0}')
-        && path.split('/').all(|c| c.is_empty() || c != ".." && c != ".")
+        && path
+            .split('/')
+            .all(|c| c.is_empty() || c != ".." && c != ".")
 }
 
 // ---------- Commandes ----------
@@ -175,7 +177,9 @@ pub async fn search_start(
             return Err("La recherche de contenu demande une session SSH (SFTP).".into());
         }
         let Some(needle) = plain else {
-            return Err("La recherche par expression régulière demande une session SSH (SFTP).".into());
+            return Err(
+                "La recherche par expression régulière demande une session SSH (SFTP).".into(),
+            );
         };
         let conn = ftp::get_ftp_connection(&ftp_pool, &connection_id).await?;
         let cancel = Arc::new(AtomicBool::new(false));
@@ -263,7 +267,8 @@ pub async fn search_start(
                     // elle reste dans le tampon jusqu'au prochain paquet.
                     while let Some(nl) = pending.find('\n') {
                         let line: String = pending.drain(..=nl).collect();
-                        if let Some(hit) = parse_line(line.trim_end_matches(['\n', '\r']), content) {
+                        if let Some(hit) = parse_line(line.trim_end_matches(['\n', '\r']), content)
+                        {
                             hits.push(hit);
                             total += 1;
                         }
@@ -322,7 +327,11 @@ pub async fn search_start(
                 );
                 return;
             }
-            emit_error(&app, &id, "grep est absent du serveur : recherche de contenu impossible.");
+            emit_error(
+                &app,
+                &id,
+                "grep est absent du serveur : recherche de contenu impossible.",
+            );
             return;
         }
         // grep sort en 1 quand rien ne correspond : ce n'est pas une erreur.
@@ -342,7 +351,10 @@ pub async fn search_start(
 
 /// Arrête une recherche en cours.
 #[tauri::command]
-pub async fn search_stop(registry: State<'_, SearchRegistry>, search_id: String) -> Result<(), String> {
+pub async fn search_stop(
+    registry: State<'_, SearchRegistry>,
+    search_id: String,
+) -> Result<(), String> {
     let task = registry.0.lock().unwrap().remove(&search_id);
     match task {
         Some(SearchTask::Exec(write)) => {

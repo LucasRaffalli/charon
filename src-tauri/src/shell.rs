@@ -122,11 +122,10 @@ async fn prompt_admin_password(_detail: &str) -> Result<String, String> {
 /// est invocable directement depuis la WebView, on ne se repose pas sur l'UI
 /// pour empêcher un `rm -rf /` en root.
 fn ensure_sudo_path(path: &str) -> Result<(), String> {
-    if !path.starts_with('/')
-        || path == "/"
-        || path.split('/').any(|component| component == "..")
-    {
-        return Err(format!("Chemin refusé pour une opération privilégiée : {path}"));
+    if !path.starts_with('/') || path == "/" || path.split('/').any(|component| component == "..") {
+        return Err(format!(
+            "Chemin refusé pour une opération privilégiée : {path}"
+        ));
     }
     Ok(())
 }
@@ -181,7 +180,11 @@ pub async fn sftp_sudo(
                 format!("chmod {flag}{mode} -- {}", shell_quote(&path)),
                 format!(
                     "Changer les permissions en {mode}{} :\n{path}",
-                    if recursive { " (et tout le contenu)" } else { "" }
+                    if recursive {
+                        " (et tout le contenu)"
+                    } else {
+                        ""
+                    }
                 ),
             )
         }
@@ -232,7 +235,6 @@ fn get_shell(registry: &State<'_, ShellRegistry>, id: &str) -> Result<Arc<ShellH
         .cloned()
         .ok_or_else(|| format!("Terminal inconnu : {id}"))
 }
-
 
 /// Vide le tampon d'une pompe vers la fenêtre cible, en un seul event.
 fn flush_term(handle: &AppHandle, label: &str, event: &str, id: &str, pending: &mut Vec<u8>) {
@@ -289,7 +291,15 @@ pub async fn shell_open(
         )
     })?;
     channel
-        .request_pty(true, "xterm-256color", u32::from(cols), u32::from(rows), 0, 0, &[])
+        .request_pty(
+            true,
+            "xterm-256color",
+            u32::from(cols),
+            u32::from(rows),
+            0,
+            0,
+            &[],
+        )
         .await
         .map_err(|e| format!("Allocation du terminal impossible : {e}"))?;
     channel

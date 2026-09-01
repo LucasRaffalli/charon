@@ -10,6 +10,14 @@
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
 
+  // Le projet Cargo est dans `src-tauri/`, pas à la racine de l'espace de
+  // travail. Sans cette ligne, rust-analyzer peut ne pas le trouver et traiter
+  // chaque fichier comme DÉTACHÉ : il signale alors des imports introuvables
+  // (`unresolved import russh`, `crate::sftp`…) dans des fichiers que `cargo
+  // check` compile sans un mot. Des erreurs qui n'existent que dans l'éditeur
+  // font perdre plus de temps que pas d'éditeur du tout.
+  "rust-analyzer.linkedProjects": ["src-tauri/Cargo.toml"],
+
   // Un fichier déjà conforme ne bouge pas ; un fichier qui diverge est
   // reformaté ENTIER au premier enregistrement, d'où un diff large la
   // première fois qu'on touche un vieux fichier. C'est voulu : le repo se

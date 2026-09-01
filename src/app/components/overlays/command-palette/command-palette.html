@@ -62,18 +62,14 @@
           <span class="filter filter--full" role="status">{{ maxFilters }} au maximum</span>
         }
 
-        <input
+        <app-input
           #input
           class="palette__text"
-          type="text"
           [placeholder]="
             palette.scope() ? 'Chercher dans ' + palette.scope() + '…' : 'Tape une commande, un serveur, ou un chemin /…'
           "
-          autocomplete="off"
-          spellcheck="false"
-          autocorrect="off"
           [value]="query()"
-          (input)="palette.setQuery(input.value)"
+          (valueChange)="palette.setQuery($event)"
           (keydown)="onKeydown($event)"
         />
       </div>

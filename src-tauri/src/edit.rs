@@ -43,7 +43,10 @@ pub struct EditSession {
 }
 
 fn basename(path: &str) -> &str {
-    path.rsplit('/').next().filter(|s| !s.is_empty()).unwrap_or("fichier")
+    path.rsplit('/')
+        .next()
+        .filter(|s| !s.is_empty())
+        .unwrap_or("fichier")
 }
 
 /// Ré-envoie le contenu du fichier temporaire vers le serveur.
@@ -83,10 +86,7 @@ pub async fn edit_open(
     let hold = ConnectionHold::new(conn.clone());
     let bytes = conn.read_file(&remote_path).await?;
 
-    let id = format!(
-        "edit-{}",
-        EDIT_COUNTER.fetch_add(1, Ordering::Relaxed)
-    );
+    let id = format!("edit-{}", EDIT_COUNTER.fetch_add(1, Ordering::Relaxed));
     let temp_dir = app
         .path()
         .app_cache_dir()
@@ -156,7 +156,9 @@ pub async fn edit_open(
     });
 
     // Ouvrir avec l'app choisie (ou l'éditeur système par défaut).
-    let with = opener.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let with = opener
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
     app.opener()
         .open_path(temp_file.to_string_lossy().to_string(), with)
         .map_err(|e| format!("Ouverture dans l'éditeur impossible : {e}"))?;
@@ -173,6 +175,26 @@ pub async fn edit_open(
         id,
         local_path: temp_file.to_string_lossy().into_owned(),
     })
+}
+
+/// Efface les copies de travail des éditions distantes.
+///
+/// Chaque édition externe télécharge le fichier dans `app_cache_dir/edits/`,
+/// et `edit_stop` fait le ménage quand l'utilisateur referme sa session
+/// d'édition. Mais quitter l'application n'appelle jamais `edit_stop` : les
+/// dossiers restaient, avec le contenu de fichiers serveur en clair sur le
+/// disque, sans que rien ne vienne jamais les reprendre.
+///
+/// Appelée aux DEUX bouts, et c'est le point : à la fermeture pour le cas
+/// normal, et au démarrage pour tout ce qu'une fermeture brutale (plantage,
+/// forçage à quitter, coupure de courant) a pu laisser derrière, cas où
+/// aucun gestionnaire de sortie ne s'est exécuté. On efface le dossier
+/// entier : au démarrage il n'y a par construction aucune édition en cours,
+/// et à la fermeture elles se terminent toutes.
+pub fn purge_temp_dir(app: &AppHandle) {
+    if let Ok(cache) = app.path().app_cache_dir() {
+        let _ = std::fs::remove_dir_all(cache.join("edits"));
+    }
 }
 
 /// Arrête une session d'édition (fin de la surveillance + nettoyage temporaire).

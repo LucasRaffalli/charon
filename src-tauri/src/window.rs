@@ -60,7 +60,10 @@ pub async fn window_open(
     let label = win.label().to_string();
 
     if let Some(profile) = &profile_id {
-        boot.0.lock().unwrap().insert(label.clone(), profile.clone());
+        boot.0
+            .lock()
+            .unwrap()
+            .insert(label.clone(), profile.clone());
     }
     Ok(label)
 }
@@ -69,9 +72,6 @@ pub async fn window_open(
 /// Consommé : un reload de la fenêtre ne relancera pas la connexion, le
 /// rattachement par sessionStorage prend le relais.
 #[tauri::command]
-pub fn window_boot_profile(
-    boot: tauri::State<'_, WindowBoot>,
-    label: String,
-) -> Option<String> {
+pub fn window_boot_profile(boot: tauri::State<'_, WindowBoot>, label: String) -> Option<String> {
     boot.0.lock().unwrap().remove(&label)
 }

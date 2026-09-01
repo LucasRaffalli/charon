@@ -16,6 +16,7 @@ import { SESSION_ID } from '@app/services/connection/session-token';
 import { SearchService } from '@app/services/connection/search.service';
 import { SftpService } from '@app/services/connection/sftp.service';
 import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
+import { GitService } from '@app/services/connection/git.service';
 import { LogTailService } from '@app/services/files/log-tail.service';
 import { PermissionsService } from '@app/services/files/permissions.service';
 import { PreviewService } from '@app/services/files/preview.service';
@@ -38,6 +39,7 @@ const SESSION_SERVICES: Type<unknown>[] = [
   SearchService,
   TrashService,
   LogTailService,
+  GitService,
   RemoteEditService,
   TerminalService,
   PermissionsService,
@@ -68,6 +70,7 @@ export class Session {
   readonly terminal: TerminalService;
   readonly clipboard: FileClipboardService;
   readonly logTail: LogTailService;
+  readonly git: GitService;
   readonly remoteEdit: RemoteEditService;
   readonly permissions: PermissionsService;
 
@@ -86,6 +89,7 @@ export class Session {
     this.terminal = this.injector.get(TerminalService);
     this.clipboard = this.injector.get(FileClipboardService);
     this.logTail = this.injector.get(LogTailService);
+    this.git = this.injector.get(GitService);
     this.remoteEdit = this.injector.get(RemoteEditService);
     this.permissions = this.injector.get(PermissionsService);
   }
@@ -192,18 +196,32 @@ export class SessionRegistry {
   });
 
   /**
-   * Pose la vue double : `left` à gauche, `right` à droite. La paire est
-   * explicite et ne dépend PAS du focus : le geste vient d'un clic droit sur
-   * un onglet, qui peut tomber n'importe quand, focus n'importe où.
+   * Ces deux sessions peuvent-elles se mettre côte à côte ?
+   *
+   * Le glissé d'un onglet sur un autre a besoin de le savoir PENDANT le
+   * mouvement, pour n'annoncer une fusion que là où elle aboutira : proposer
+   * un dépôt qui ne fera rien est pire que ne rien proposer.
    */
-  split(leftId: string, rightId: string): void {
+  canSplit(leftId: string, rightId: string): boolean {
     const left = this._sessions().find((session) => session.id === leftId);
     const right = this._sessions().find((session) => session.id === rightId);
-    // Revérifié ICI et pas seulement dans le menu : entre l'ouverture du menu
-    // et le clic, une session a pu débarquer.
-    if (!left || !right || left === right || !left.sftp.settled() || !right.sftp.settled()) {
+    return !!left && !!right && left !== right && left.sftp.settled() && right.sftp.settled();
+  }
+
+  /**
+   * Pose la vue double : `left` à gauche, `right` à droite. La paire est
+   * explicite et ne dépend PAS du focus : le geste vient d'un clic droit sur
+   * un onglet ou d'un onglet glissé sur un autre, qui peuvent tomber
+   * n'importe quand, focus n'importe où.
+   */
+  split(leftId: string, rightId: string): void {
+    // Revérifié ICI et pas seulement à l'appel : entre l'ouverture du menu (ou
+    // le début du glissé) et le lâcher, une session a pu débarquer.
+    if (!this.canSplit(leftId, rightId)) {
       return;
     }
+    const left = this._sessions().find((session) => session.id === leftId)!;
+    const right = this._sessions().find((session) => session.id === rightId)!;
     this._pair.set([left.id, right.id]);
     this._showingPair.set(true);
     // Le focus rejoint la paire : sans ça, le clavier viserait une session

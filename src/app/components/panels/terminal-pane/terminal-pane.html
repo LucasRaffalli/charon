@@ -30,6 +30,11 @@
       </span>
     }
     <span class="term-bar__path">{{ sftp.currentPath() }}</span>
+    <!-- La barre du terminal accueille les indicateurs qui parlent du dossier
+         où l'on travaille. Git est le premier ; l'état vit dans un service de
+         session, pas ici, pour que l'en-tête du panneau serveur montre le
+         même sans le redemander. -->
+    <app-git-chip [status]="session().git.status()" (opened)="openGitMenu($event)" />
   </div>
 
   <div class="term-frame">

@@ -45,9 +45,11 @@ export class TabBarService {
     const pair = this.registry.pair();
     const showing = this.registry.showingPair();
     const sessions = this.registry.sessions();
+    const titles = this.displayTitles();
+
     const segmentOf = (session: Session, active: boolean): TabSegment => ({
       id: session.id,
-      title: this.titleOf(session),
+      title: titles.get(session.id) ?? this.titleOf(session),
       env: session.sftp.environment(),
       active,
       tone: this.registry.toneOf(session),
@@ -74,9 +76,19 @@ export class TabBarService {
     return items;
   });
 
-  /** La barre n'existe qu'à deux sessions : une session seule n'a pas d'onglet. */
-  readonly visible = computed(() => this.registry.sessions().length >= 2);
+  /**
+   * Plus d'une session : les raccourcis qui passent d'un onglet à l'autre
+   * n'ont de sens qu'à partir de là.
+   *
+   * La barre, elle, est TOUJOURS affichée (voir `app.html`). Elle ne se
+   * montrait qu'à deux sessions, or le bouton « + » vit dedans : la seule
+   * façon d'ouvrir un deuxième onglet était donc d'en avoir déjà deux.
+   */
+  readonly multiple = computed(() => this.registry.sessions().length >= 2);
 
+  /** Une seule session : le bouton d'ajout porte son libellé, il y a la place
+   *  et personne n'a encore vu qu'on pouvait en ouvrir une deuxième. */
+  readonly lonely = computed(() => this.registry.sessions().length < 2);
   /** Nouvelle session : un onglet sur l'écran de connexion, ou directement
    *  connecté quand un profil est donné (clic droit d'un profil). */
   openTab(profileId?: string): void {
@@ -118,6 +130,50 @@ export class TabBarService {
   }
 
   /** Le nom d'une session, tel que la barre et les vignettes l'affichent. */
+  /**
+   * Les titres tels qu'on les AFFICHE, homonymes numérotés.
+   *
+   * Deux sessions ouvertes sur le même serveur portent le même nom de profil,
+   * donc deux onglets rigoureusement identiques : impossible de dire lequel
+   * est lequel, ni de relier un onglet au panneau qu'il gouverne. Les
+   * homonymes sont donc numérotés dans l'ordre d'ouverture.
+   *
+   * Un numéro et pas le dossier courant : le dossier change à chaque
+   * navigation, et un onglet dont le nom bouge sous les yeux ne se repère pas
+   * davantage. Le numéro, lui, tient toute la vie de la session.
+   *
+   * Une seule table pour toute l'application : la barre d'onglets, le nom
+   * porté par les panneaux du dock et les vignettes de session doivent dire
+   * la même chose, sans quoi la désambiguïsation ne servirait à rien.
+   */
+  private readonly displayTitles = computed(() => {
+    const sessions = this.registry.sessions();
+    const counts = new Map<string, number>();
+    for (const session of sessions) {
+      const base = this.titleOf(session);
+      counts.set(base, (counts.get(base) ?? 0) + 1);
+    }
+    const titles = new Map<string, string>();
+    const seen = new Map<string, number>();
+    for (const session of sessions) {
+      const base = this.titleOf(session);
+      if ((counts.get(base) ?? 0) < 2) {
+        titles.set(session.id, base);
+        continue;
+      }
+      const rank = (seen.get(base) ?? 0) + 1;
+      seen.set(base, rank);
+      titles.set(session.id, `${base} (${rank})`);
+    }
+    return titles;
+  });
+
+  /** Le titre affichable d'une session : `titleOf` plus le numéro d'homonyme. */
+  displayTitleOf(session: Session): string {
+    return this.displayTitles().get(session.id) ?? this.titleOf(session);
+  }
+
+  /** Le nom BRUT de la session : profil, hôte, ou « Connexion ». */
   titleOf(session: Session): string {
     const profile = this.profiles
       .profiles()

@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   booleanAttribute,
   computed,
   input,
@@ -12,6 +11,7 @@ import {
 
 import { SelectionBar } from '@app/components/panels/selection-bar/selection-bar';
 import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { InputField } from '@app/components/ui/input/input';
 import { injectT } from '@app/lang/i18n.service';
 import { FileEntry } from '@app/interfaces';
 
@@ -21,7 +21,7 @@ import { FileEntry } from '@app/interfaces';
  */
 @Component({
   selector: 'app-file-pane',
-  imports: [Icon, SelectionBar],
+  imports: [Icon, InputField, SelectionBar],
   templateUrl: './file-pane.html',
   styleUrl: './file-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,7 +92,7 @@ export class FilePane {
   readonly selectionRemove = output<void>();
   readonly selectionClear = output<void>();
 
-  private readonly filterField = viewChild<ElementRef<HTMLInputElement>>('filterField');
+  private readonly filterField = viewChild<InputField>('filterField');
 
   private readonly visibleEntries = computed(() =>
     this.dirsOnly() ? this.entries().filter((entry) => entry.isDir) : this.entries(),
@@ -119,7 +119,7 @@ export class FilePane {
 
   /** ⌘F sur ce panneau : la frappe part dans le champ de filtre. */
   focusFilter(): void {
-    const field = this.filterField()?.nativeElement;
+    const field = this.filterField();
     field?.focus();
     field?.select();
   }

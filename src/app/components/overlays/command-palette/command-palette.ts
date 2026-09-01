@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
   computed,
   effect,
   inject,
@@ -9,6 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 
+import { InputField } from '@app/components/ui/input/input';
 import { Icon } from '@app/components/ui/icon/icon';
 import type { RegexExplanation } from '@app/services/workspace/regex-explain';
 import { analysePattern } from '@app/services/workspace/regex-portability';
@@ -58,7 +58,7 @@ const score = (command: PaletteCommand, query: string): number => {
 
 @Component({
   selector: 'app-command-palette',
-  imports: [Icon],
+  imports: [Icon, InputField],
   templateUrl: './command-palette.html',
   styleUrl: './command-palette.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,7 +81,7 @@ export class CommandPalette {
    */
   private readonly expanded = signal<ReadonlySet<PaletteCategory>>(new Set());
 
-  private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
+  private readonly input = viewChild<InputField>('input');
 
   /**
    * Le motif compilé, ou l'erreur à afficher. En mode texte la saisie n'est
@@ -257,7 +257,7 @@ export class CommandPalette {
         // La recherche précédente est gardée, mais sélectionnée : elle se voit,
         // et la première frappe l'écrase comme si le champ était vide.
         requestAnimationFrame(() => {
-          const field = this.input()?.nativeElement;
+          const field = this.input();
           field?.focus();
           field?.select();
         });
@@ -326,12 +326,12 @@ export class CommandPalette {
   /** Dérouler un groupe : rien d'autre ne bouge, surtout pas la portée. */
   protected expand(category: PaletteCategory): void {
     this.expanded.update((set) => new Set(set).add(category));
-    this.input()?.nativeElement.focus();
+    this.input()?.focus();
   }
 
   protected restrict(category: PaletteCategory): void {
     this.palette.restrictTo(category);
-    this.input()?.nativeElement.focus();
+    this.input()?.focus();
   }
 
   protected indexOf(command: PaletteCommand): number {
@@ -354,7 +354,7 @@ export class CommandPalette {
     if (command.keepOpen) {
       void command.run();
       this.palette.setQuery('');
-      this.input()?.nativeElement.focus();
+      this.input()?.focus();
       return;
     }
     this.palette.close();

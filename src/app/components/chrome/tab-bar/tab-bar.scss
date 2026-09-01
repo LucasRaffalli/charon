@@ -179,6 +179,7 @@
   justify-content: center;
   align-self: center;
   flex-shrink: 0;
+  gap: 5px;
   width: 24px;
   height: 24px;
   border: none;
@@ -242,4 +243,69 @@
   width: 6px;
   height: 6px;
   border-radius: 2px;
+}
+
+// Seul onglet : le bouton se nomme au lieu de se deviner. Il reprend alors la
+// largeur de son contenu, et le gabarit carré ne vaut plus.
+.bar__new--named {
+  width: auto;
+  padding: 0 9px 0 7px;
+}
+
+.bar__new-label {
+  font-size: calc(11.5px * var(--text-scale));
+  white-space: nowrap;
+}
+
+// --- Retour visuel du glissé ------------------------------------------------
+//
+// Trois états, et il en faut trois : ce qu'on tient, où ça se rangerait, et
+// avec quoi ça fusionnerait. Sans eux le geste se fait à l'aveugle, on ne sait
+// même pas qu'on a attrapé quelque chose.
+
+// Ce qu'on tient : allégé et légèrement enfoncé, il a quitté sa place.
+.tab--lifted,
+.seg--lifted {
+  opacity: 0.45;
+  transform: scale(0.97);
+}
+
+// Cible de fusion : lâcher ici met les deux sessions côte à côte. Le repère
+// est un CADRE plein et non un trait, pour se distinguer sans ambiguïté du
+// trait d'insertion qui, lui, dit « ça se rangera là ». Deux gestes voisins
+// dans la même barre doivent se lire d'un coup d'oeil.
+//
+// Il PULSE, doucement : c'est le seul moment de l'application où une chose
+// attend une décision de la main, et une cible immobile se confond avec un
+// simple survol. Respecte `prefers-reduced-motion`, où le cadre suffit.
+.tab--merge {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--text);
+  animation: tab-merge-pulse 1s ease-in-out infinite;
+}
+
+@keyframes tab-merge-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 2px var(--accent),
+      0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab--merge {
+    animation: none;
+  }
+}
+
+// Le trait d'insertion se voit mieux : deux pixels d'accent se perdaient
+// entre deux onglets, alors que c'est lui qui dit où la chose atterrira.
+.tab--insert::before,
+.bar__insert {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
 }

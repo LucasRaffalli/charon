@@ -14,6 +14,7 @@ import { injectSessionActivity } from '@app/services/workspace/activity-log.serv
 import { ToastService } from '@app/services/workspace/toast.service';
 import { LocalFsService } from '@app/services/connection/local-fs.service';
 import { windowLabel } from '@app/services/system/window-scope';
+import { SESSION_ID } from '@app/services/connection/session-token';
 
 /** Au-delà, on ne compare pas : lire deux fichiers entiers pour un diff que
  *  personne ne lira coûterait deux transferts. */
@@ -80,6 +81,7 @@ export class FileClipboardService {
   private readonly toasts = inject(ToastService);
   private readonly localFs = inject(LocalFsService);
   private readonly t = injectT();
+  private readonly sessionId = inject(SESSION_ID, { optional: true }) ?? 's1';
   private readonly activity = injectSessionActivity();
   private readonly overwrite = inject(OverwriteService);
   private readonly dialog = inject(DialogService);
@@ -279,7 +281,19 @@ export class FileClipboardService {
     return done;
   }
 
-  /** Prévient les autres fenêtres qu'un dossier de ce serveur a changé. */
+  /**
+   * Prévient les autres SESSIONS qu'un dossier de ce serveur a changé, où
+   * qu'elles soient : autre fenêtre, ou autre moitié de la vue double.
+   *
+   * L'origine désigne la session et non la fenêtre. Elle ne servait qu'à
+   * éviter qu'une session se rafraîchisse sur son propre geste, mais à
+   * l'échelle de la fenêtre elle écartait aussi la session VOISINE : deux
+   * panneaux côte à côte sur le même serveur, on déplaçait un fichier de l'un
+   * vers l'autre et rien ne bougeait. Le label de fenêtre reste dans la clé
+   * parce que les identifiants de session (`s1`, `s2`) recommencent à chaque
+   * fenêtre : sans lui, le `s1` d'une fenêtre ignorerait le geste du `s1`
+   * d'une autre.
+   */
   private announceDirChanged(connectionId: string | null, dir: string): void {
     if (!connectionId) {
       return;
@@ -287,7 +301,7 @@ export class FileClipboardService {
     void emit('flotte:dir-changed', {
       server: connectionId.split('#')[0],
       dir,
-      origin: windowLabel(),
+      origin: `${windowLabel()}:${this.sessionId}`,
     }).catch(() => undefined);
   }
 

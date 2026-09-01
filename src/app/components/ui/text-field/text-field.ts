@@ -1,7 +1,14 @@
 import { ChangeDetectionStrategy, Component, input, model } from '@angular/core';
 
+import { InputField } from '@app/components/ui/input/input';
+
+/**
+ * Un champ avec son libellé et son habillage. La saisie elle-même est déléguée
+ * à `InputField`, qui porte la garde de composition : voir son en-tête.
+ */
 @Component({
   selector: 'app-text-field',
+  imports: [InputField],
   templateUrl: './text-field.html',
   styleUrl: './text-field.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,8 +27,4 @@ export class TextField {
   readonly autocomplete = input('off');
 
   readonly value = model('');
-
-  protected onInput(event: Event): void {
-    this.value.set((event.target as HTMLInputElement).value);
-  }
 }

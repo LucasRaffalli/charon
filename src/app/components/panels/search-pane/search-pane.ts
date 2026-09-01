@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
 import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { InputField } from '@app/components/ui/input/input';
 import {
   SegmentedControl,
   SegmentedOption,
@@ -25,7 +26,7 @@ interface HitGroup {
  */
 @Component({
   selector: 'app-search-pane',
-  imports: [Icon, SegmentedControl],
+  imports: [Icon, SegmentedControl, InputField],
   templateUrl: './search-pane.html',
   styleUrl: './search-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

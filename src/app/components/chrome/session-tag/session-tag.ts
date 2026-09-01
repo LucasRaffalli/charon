@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 
-import { ProfilesService } from '@app/services/connection/profiles.service';
 import { Session, SessionRegistry } from '@app/services/connection/session-registry';
+import { TabBarService } from '@app/services/workspace/tab-bar.service';
 
 /**
  * L'identité d'une session dans le coin haut droit d'un panneau : le voile de
@@ -72,15 +72,14 @@ export class SessionTag {
   readonly session = input.required<Session>();
 
   private readonly registry = inject(SessionRegistry);
-  private readonly profiles = inject(ProfilesService);
+  private readonly tabBar = inject(TabBarService);
 
-  protected readonly title = computed(() => {
-    const sftp = this.session().sftp;
-    const profile = this.profiles
-      .profiles()
-      .find((candidate) => candidate.id === sftp.profileId());
-    return profile?.name ?? (sftp.host() || 'Connexion');
-  });
+  /**
+   * Le même titre que la barre d'onglets, numéro d'homonyme compris. C'était
+   * une troisième copie de la règle : deux sessions sur le même serveur s'y
+   * appelaient pareil, alors que leurs onglets, eux, se distinguaient.
+   */
+  protected readonly title = computed(() => this.tabBar.displayTitleOf(this.session()));
 
   protected toneColor(): string {
     return `var(--session-${this.registry.toneOf(this.session())})`;

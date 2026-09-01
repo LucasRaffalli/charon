@@ -1,0 +1,19 @@
+# Avis RustSec acceptés, avec leur raison.
+#
+# Un audit qui reste rouge en permanence ne se lit plus : chaque ligne ici doit
+# porter pourquoi l'avis est accepté et ce qui le lèverait. À rouvrir dès qu'un
+# correctif amont existe.
+
+[advisories]
+ignore = [
+  # rsa : attaque Marvin (canal auxiliaire temporel sur le déchiffrement).
+  # Aucun correctif amont à ce jour, la crate arrive par russh. Charon
+  # privilégie ed25519 pour l'authentification par clé ; RSA n'est employé que
+  # si le serveur l'impose. À relire à chaque montée de russh.
+  "RUSTSEC-2023-0071",
+
+  # generic-array : le macro arr! efface les durées de vie (unsoundness).
+  # Sans correctif, la crate arrive transitivement par les primitives de
+  # hachage. Charon n'emploie pas arr! directement.
+  "RUSTSEC-2020-0146",
+]

@@ -35,7 +35,12 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PWD_FROM_KEYCHAIN"
 for volume in /Volumes/[Cc]haron*; do
   [ -e "$volume" ] && hdiutil detach "$volume" >/dev/null 2>&1 && echo "Volume éjecté : $volume"
 done
-rm -f "$(dirname "$0")/../src-tauri/target/release/bundle/macos"/rw.*.dmg
+# Le nettoyage balaie TOUT le dossier bundle, pas seulement macos/ : une image
+# temporaire peut être laissée ailleurs selon l'endroit où bundle_dmg.sh
+# s'interrompt, et il suffit qu'il en reste une pour que chaque tentative
+# suivante échoue à son tour. C'est ce qui transforme un échec isolé en boucle.
+BUNDLE_DIR="$(dirname "$0")/../src-tauri/target/release/bundle"
+find "$BUNDLE_DIR" -name "rw.*.dmg" -delete 2>/dev/null || true
 
 npx tauri build --config src-tauri/tauri.release.conf.json
 

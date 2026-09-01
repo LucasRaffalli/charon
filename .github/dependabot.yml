@@ -1,0 +1,56 @@
+# Montées de version de routine, séparées de l'audit de sécurité :
+# l'audit (.github/workflows/audit.yml) dit ce qui est dangereux, Dependabot
+# surveille crates.io et npm et propose ce qui est vieux.
+#
+# À activer aussi dans Settings → Code security : « Dependabot alerts » et
+# « Dependabot security updates ». Ces deux réglages ne se déclarent pas dans
+# un fichier, ils se cochent dans le dépôt, et ce sont eux qui préviennent
+# d'une faille sans attendre le lundi.
+#
+# Tout est GROUPÉ, et c'est le point important : sans groupe, un projet Tauri
+# ouvre une dizaine de pull requests par semaine pour des montées de patch de
+# crates transitives. Au bout de trois semaines on n'ouvre plus les mails, et
+# c'est là que la vraie alerte passe à la trappe.
+#
+# Les MAJEURES restent hors des groupes, une PR chacune : ce ne sont pas des
+# montées de routine. suppaftp 6 vers 11 a changé de moteur asynchrone, et une
+# majeure d'un client réseau se relit et se teste seule, pas noyée dans un lot.
+
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dépendances", "rust"]
+    groups:
+      rust-routine:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dépendances", "front"]
+    groups:
+      front-routine:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      # Angular monte ses paquets ensemble : les séparer donne des PR qui ne
+      # compilent pas isolément.
+      angular:
+        patterns: ["@angular*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: ["dépendances", "ci"]
+    groups:
+      actions:
+        patterns: ["*"]

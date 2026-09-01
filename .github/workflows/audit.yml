@@ -1,0 +1,53 @@
+# Veille de sécurité sur les dépendances Rust.
+#
+# Pourquoi une CI dédiée alors que GitHub a déjà Dependabot : les deux ne
+# regardent pas la même base. Dependabot lit la GitHub Advisory Database,
+# RustSec en est la source amont pour Rust et publie AUSSI les avis
+# « unmaintained » et « unsound », qui ne sont pas des failles mais annoncent
+# celles de demain. C'est un avis de ce genre qui a fait remonter async-std,
+# et c'est RustSec qui portait l'injection CRLF de suppaftp.
+#
+# La liste des avis acceptés vit dans src-tauri/.cargo/audit.toml (l'endroit
+# où cargo-audit la cherche), avec la raison de
+# chacun : sans elle, l'audit resterait rouge en permanence pour des choses
+# qu'on ne peut pas corriger, et un vrai signal passerait inaperçu.
+
+name: audit
+
+on:
+  # Hebdomadaire : une faille publiée le mardi ne doit pas attendre le prochain
+  # commit pour être vue.
+  schedule:
+    - cron: "0 6 * * 1"
+  push:
+    paths:
+      - "src-tauri/Cargo.lock"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/audit.toml"
+      - ".github/workflows/audit.yml"
+  pull_request:
+    paths:
+      - "src-tauri/Cargo.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer cargo-audit
+        run: cargo install cargo-audit --locked
+
+      # Sans `--deny warnings` : les avis « unmaintained » de gtk/gdk sont la
+      # couche Linux de Tauri, jamais compilée dans les binaires macOS et
+      # Windows. Les refuser rendrait l'audit rouge en permanence pour quelque
+      # chose sur quoi on ne peut rien, et un vrai signal s'y noierait. Les
+      # avertissements restent lisibles dans le journal du run.
+      - name: Auditer les dépendances
+        working-directory: src-tauri
+        run: cargo audit

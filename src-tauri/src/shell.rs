@@ -9,7 +9,7 @@ use russh::{ChannelMsg, ChannelWriteHalf};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::sftp::{get_connection, ConnectionHold, ConnectionPool};
+use crate::sftp::{get_connection, get_connection_idle, ConnectionHold, ConnectionPool};
 
 /// Coalescence de la sortie shell/tail : chaque paquet SSH faisait UN event
 /// IPC (des milliers par seconde sur un `cat`), chacun sérialisé puis évalué
@@ -247,6 +247,29 @@ fn flush_term(handle: &AppHandle, label: &str, event: &str, id: &str, pending: &
 }
 
 // ---------- Commands ----------
+
+/// Le shell de connexion de l'utilisateur (`$SHELL`), pour savoir quel
+/// dialecte parler lors de l'intégration shell.
+///
+/// Charon injecte ses crochets d'invite APRÈS avoir su à qui il parle : une
+/// syntaxe bash envoyée à fish s'afficherait en erreur dans le terminal de
+/// l'utilisateur. Un shell inconnu → pas d'injection, le terminal reste
+/// exactement celui d'avant. `get_connection_idle` : cette lecture est un
+/// préparatif automatique, pas un geste de l'utilisateur.
+#[tauri::command]
+pub async fn shell_login_shell(
+    pool: State<'_, ConnectionPool>,
+    connection_id: String,
+) -> Result<String, String> {
+    let conn = get_connection_idle(&pool, &connection_id).await?;
+    let (_code, output) = tokio::time::timeout(
+        std::time::Duration::from_secs(8),
+        conn.exec_capture("printf %s \"$SHELL\"".to_string(), &[]),
+    )
+    .await
+    .map_err(|_| "Délai dépassé.".to_string())??;
+    Ok(output.trim().to_string())
+}
 
 /// Ouvre un shell interactif (PTY xterm-256color) sur la session SSH déjà
 /// authentifiée. SFTP uniquement — aucun canal shell n'existe en FTP.

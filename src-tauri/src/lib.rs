@@ -148,6 +148,7 @@ pub fn run() {
             ftp::ftp_download,
             ftp::ftp_upload,
             shell::sftp_sudo,
+            shell::shell_login_shell,
             shell::shell_open,
             shell::shell_write,
             shell::shell_resize,

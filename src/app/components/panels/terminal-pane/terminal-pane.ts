@@ -35,6 +35,12 @@ interface TermEvent {
 /** Silence après lequel on considère que le shell a fini de démarrer. */
 const OPENING_SETTLE_MS = 350;
 
+/** Plafond d'effacement du cd caché : court, la commande l'est aussi. */
+const CD_ERASE_ROWS = 5;
+/** Plafond pour la ligne d'intégration shell : elle est longue (~400
+ *  caractères), son écho se replie sur bien plus de lignes qu'un cd. */
+const HOOKS_ERASE_ROWS = 14;
+
 /** Un shell resté muet ne recevra rien : mieux vaut ne pas écrire à l'aveugle. */
 const OPENING_GIVE_UP_MS = 5000;
 
@@ -271,20 +277,35 @@ export class TerminalPane {
    */
   private cdCommand(path: string, terminal: Terminal): string {
     const quoted = `'${path.split("'").join(`'\\''`)}'`;
+    return this.hiddenLine(`cd ${quoted} &&`, terminal, CD_ERASE_ROWS);
+  }
+
+  /**
+   * Une ligne envoyée au shell qui EFFACE sa propre trace : le tty échoe la
+   * frappe et rien côté client ne peut couper cet écho, donc la commande se
+   * termine par un printf qui remonte au-dessus de la ligne échoée et nettoie
+   * jusqu'au bas de l'écran ; le shell réimprime son invite à la place.
+   *
+   * `body` se termine par `&&` pour garder un échec lisible (un cd refusé ne
+   * nettoie pas, l'erreur reste avec la commande qui l'a causée), ou sans
+   * `&&` pour une ligne qui ne peut pas échouer (les crochets d'intégration).
+   */
+  private hiddenLine(body: string, terminal: Terminal, capRows: number): string {
     // La colonne du curseur avant l'envoi est la largeur du prompt affiché :
     // c'est elle qui décide si la ligne échoée va se replier ou non.
     const prompt = terminal.buffer.active.cursorX;
     const cols = Math.max(terminal.cols, 1);
+    const glue = body.endsWith('&&') ? '' : ';';
 
     // Deux passes : le nombre de lignes à remonter s'écrit dans la commande,
-    // donc il dépend de la longueur de celle-ci. Le nombre tenant sur un
-    // chiffre, une seconde passe suffit à converger.
-    const build = (rows: number): string => ` cd ${quoted} && printf '\\033[${rows}A\\033[J'`;
+    // donc il dépend de la longueur de celle-ci. Le nombre tenant sur deux
+    // chiffres au plus, une seconde passe suffit à converger.
+    const build = (rows: number): string => ` ${body}${glue} printf '\\033[${rows}A\\033[J'`;
     let command = build(1);
     for (let pass = 0; pass < 2; pass++) {
       // Plafond de sûreté : mieux vaut laisser un résidu que remonter dans du
       // texte qui n'est pas à nous (une bannière de connexion, une sortie).
-      const rows = Math.min(5, Math.floor((prompt + command.length) / cols) + 1);
+      const rows = Math.min(capRows, Math.floor((prompt + command.length) / cols) + 1);
       command = build(rows);
     }
     // L'espace initial garde la commande hors de l'historique quand le shell
@@ -385,7 +406,7 @@ export class TerminalPane {
 
   /** Réarmé à chaque sortie reçue : le silence qui suit vaut « prêt ». */
   private armOpeningCd(): void {
-    if (!this.openingCd) {
+    if (!this.openingCd && !this.hooksToSend) {
       return;
     }
     if (this.openingSettle) {
@@ -394,10 +415,74 @@ export class TerminalPane {
     this.openingSettle = setTimeout(() => {
       const path = this.openingCd;
       this.openingCd = null;
+      this.sendHooks();
       if (path) {
         this.sendCd(path);
       }
     }, OPENING_SETTLE_MS);
+  }
+
+  /**
+   * Le crochet d'invite de l'intégration shell, prêt à partir : posé par
+   * `startShell` quand le shell de connexion est connu, envoyé à la première
+   * fenêtre de silence, comme le cd d'ouverture et pour la même raison : un
+   * shell qui démarre ne lit pas encore son entrée.
+   */
+  private hooksToSend: string | null = null;
+
+  private sendHooks(): void {
+    const hooks = this.hooksToSend;
+    const terminal = this.terminal;
+    const id = this.terminalId;
+    if (!hooks || !terminal || !id) {
+      return;
+    }
+    this.hooksToSend = null;
+    void invoke('shell_write', {
+      terminalId: id,
+      data: this.hiddenLine(hooks, terminal, HOOKS_ERASE_ROWS),
+    }).catch(() => undefined);
+  }
+
+  /**
+   * Le dialecte de crochets pour ce shell, ou `null` pour un shell qu'on ne
+   * connaît pas : rien n'est alors injecté, et une syntaxe étrangère ne
+   * s'affichera jamais en erreur dans le terminal de quelqu'un.
+   *
+   * Une seule ligne, idempotente (`_CHARON_SI`), qui n'écrit dans AUCUN
+   * fichier : elle vit et meurt avec la session. Elle installe les marqueurs
+   * standard (les mêmes que VS Code et iTerm2) : OSC 7 = répertoire courant,
+   * OSC 133 A = début d'invite, C = départ de commande, D;n = code de sortie.
+   * Le PROMPT_COMMAND de bash est PRÉFIXÉ en préservant l'existant, et le
+   * PS1/precmd de l'utilisateur n'est jamais réécrit : starship et
+   * oh-my-zsh continuent leur vie.
+   */
+  private hooksFor(loginShell: string): string | null {
+    const kind = loginShell.split('/').pop() ?? '';
+    const emit = `printf '\\033]133;D;%s\\007\\033]7;file://%s%s\\007\\033]133;A\\007'`;
+    if (kind === 'zsh') {
+      return (
+        `[ -n "$_CHARON_SI" ] || { _CHARON_SI=1; ` +
+        `_charon_pre(){ ${emit} "$?" "\${HOST:-}" "$PWD"; }; ` +
+        `_charon_exec(){ printf '\\033]133;C\\007'; }; ` +
+        `autoload -Uz add-zsh-hook 2>/dev/null; ` +
+        `add-zsh-hook precmd _charon_pre 2>/dev/null; ` +
+        `add-zsh-hook preexec _charon_exec 2>/dev/null; }`
+      );
+    }
+    if (kind === 'bash' || kind === 'sh') {
+      // `sh` est souvent bash déguisé ; si c'est un vrai POSIX sh, les
+      // fonctions passent mais PS0 reste une variable inerte : les marqueurs
+      // d'invite arrivent, le départ de commande manquera, et le service le
+      // tolère (un D sans C ne fabrique pas de verdict).
+      return (
+        `[ -n "$_CHARON_SI" ] || { _CHARON_SI=1; ` +
+        `_charon_pre(){ local e=$?; ${emit} "$e" "\${HOSTNAME:-}" "$PWD"; }; ` +
+        `PROMPT_COMMAND="_charon_pre\${PROMPT_COMMAND:+;$PROMPT_COMMAND}"; ` +
+        `PS0="$(printf '\\033]133;C\\007')"; }`
+      );
+    }
+    return null;
   }
 
   /** Le shell a repris la main : le chemin en attente peut partir. */
@@ -660,6 +745,17 @@ export class TerminalPane {
       return;
     }
 
+    // L'intégration shell : savoir à quel shell on parle AVANT d'injecter
+    // quoi que ce soit (une syntaxe bash envoyée à fish s'afficherait en
+    // erreur). La réponse arrive pendant que le shell démarre ; les crochets
+    // partiront à la première fenêtre de silence, avec le cd d'ouverture.
+    this.terminals.resetIntegration();
+    void invoke<string>('shell_login_shell', { connectionId })
+      .then((loginShell) => {
+        this.hooksToSend = this.hooksFor(loginShell);
+      })
+      .catch(() => undefined);
+
     if (this.wired) {
       // Relance : le canal est neuf, les abonnements sont ceux d'origine et
       // suivent `terminalId`, qui vient de changer.
@@ -669,6 +765,42 @@ export class TerminalPane {
       return;
     }
     this.wired = true;
+
+    // Les marqueurs de l'intégration shell, reçus d'xterm. `true` = consommé :
+    // ces séquences sont pour nous, pas pour l'écran.
+    terminal.parser.registerOscHandler(7, (data) => {
+      // `file://hote/chemin`, chemin éventuellement encodé en pourcents.
+      const at = data.indexOf('/', 'file://'.length);
+      if (at > 0) {
+        let path = data.slice(at);
+        try {
+          path = decodeURI(path);
+        } catch {
+          // Un encodage bancal ne vaut pas de perdre le chemin brut.
+        }
+        this.terminals.noteCwd(path);
+      }
+      return true;
+    });
+    terminal.parser.registerOscHandler(133, (data) => {
+      const kind = data[0];
+      if (kind === 'A') {
+        this.terminals.notePrompt();
+        // L'invite est là : le shell est libre, le chemin en attente du
+        // suivi peut partir. Plus fiable que deviner au silence.
+        this.flushPending();
+      } else if (kind === 'C') {
+        this.terminals.noteCommandStart();
+      } else if (kind === 'D') {
+        const code = Number.parseInt(data.slice(2), 10);
+        this.terminals.noteCommandEnd(Number.isFinite(code) ? code : 0);
+        // La commande vient de finir, c'est un FAIT et plus une heuristique :
+        // le dossier affiché a pu changer, on le relit sans cérémonie. Le
+        // silence de 400 ms reste en place pour les shells sans marqueurs.
+        void this.session().sftp.refreshQuietly();
+      }
+      return true;
+    });
 
     terminal.onData((data) => {
       this.trackInput(data);

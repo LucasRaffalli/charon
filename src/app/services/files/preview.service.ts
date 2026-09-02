@@ -1,6 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
+import { TextEncoding } from '@app/interfaces';
 import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { ensureHighlighter, highlightCode, languageFor } from '@app/services/files/code-highlight';
 import { DialogService } from '@app/services/workspace/dialog.service';
@@ -60,15 +61,17 @@ export interface PreviewDoc {
    */
   eol: '\n' | '\r\n';
   /**
-   * Le fichier n'est pas en UTF-8 : certains octets sont conservés sous forme
-   * échappée (voir `text.rs` côté Rust). Ils s'affichent en caractère
-   * inconnu, mais repartent intacts tant qu'on n'y touche pas.
+   * Le régime d'encodage du fichier, décidé par `text.rs` à la lecture et
+   * rendu tel quel à l'écriture : `utf8` (rien à faire), `windows1252` (le
+   * fichier est CONVERTI à l'affichage, « é » se lit « é », et reconverti à
+   * l'écriture, exact à l'octet près), `escaped` (fichier mêlant UTF-8 et
+   * octets inexplicables : les octets sont préservés sous forme échappée,
+   * affichés en caractère inconnu, rendus intacts).
    */
+  encoding: TextEncoding;
+  /** Régime `escaped` : on ne sait pas relire tout le contenu (Prettier s'abstient). */
   foreignBytes: boolean;
 }
-
-/** Plage d'échappement des octets non-UTF-8, miroir de `ESCAPE_BASE` en Rust. */
-const ESCAPED_BYTE = /[\u{E000}-\u{E0FF}]/u;
 
 /**
  * Plafond d'occurrences : au-delà, chercher une lettre dans un gros fichier
@@ -185,6 +188,8 @@ export class PreviewService {
 
   /** Métadonnées de l'en-tête riche. */
   readonly fileSize = computed(() => this.active()?.size ?? 0);
+  /** Le régime d'encodage du document actif, `utf8` étant le silence. */
+  readonly encoding = computed<TextEncoding>(() => this.active()?.encoding ?? 'utf8');
   readonly fileMtime = computed(() => this.active()?.mtime ?? 0);
   readonly fileMode = computed(() => this.active()?.mode);
 
@@ -495,6 +500,7 @@ export class PreviewService {
       mtime: 0,
       mode: entry?.mode,
       eol: '\n',
+      encoding: 'utf8',
       foreignBytes: false,
     };
     this._docs.update((docs) => [...docs, doc]);
@@ -532,8 +538,9 @@ export class PreviewService {
     }
 
     const stat = await this.sftp.stat(doc.path);
-    const text = await this.sftp.readText(doc.path, PREVIEW_MAX);
-    if (text === undefined) {
+    const read = await this.sftp.readTextInfo(doc.path, PREVIEW_MAX);
+    const text = read?.text;
+    if (read === undefined || text === undefined) {
       this.patchDoc(id, { kind: 'error', error: 'Lecture impossible.' });
       return;
     }
@@ -548,7 +555,8 @@ export class PreviewService {
     // reconstituer un désordre, et le garder ferait pire.
     const eol: '\n' | '\r\n' = text.includes('\r\n') ? '\r\n' : '\n';
     const normalized = eol === '\r\n' ? text.replace(/\r\n/g, '\n') : text;
-    const foreignBytes = ESCAPED_BYTE.test(normalized);
+    const encoding = read.encoding;
+    const foreignBytes = encoding === 'escaped';
     const truncated = (stat?.size ?? 0) > PREVIEW_MAX;
     if (doc.language) {
       // Prism vit dans un chunk paresseux : chargé ici, à la première
@@ -565,6 +573,7 @@ export class PreviewService {
       content: normalized,
       original: normalized,
       eol,
+      encoding,
       foreignBytes,
       truncated,
       readonly: truncated || this.sftp.protection() === 'readonly',
@@ -661,11 +670,22 @@ export class PreviewService {
       // Le fichier retrouve SA convention de fin de ligne. Sans ça, corriger
       // une ligne d'un fichier Windows le réécrirait entier en LF.
       const onDisk = doc.eol === '\r\n' ? content.replace(/\n/g, '\r\n') : content;
-      await invoke('sftp_write_text', {
+      const used = await invoke<TextEncoding>('sftp_write_text', {
         connectionId: this.sftp.connectionId(),
         path: doc.path,
         content: onDisk,
+        encoding: doc.encoding,
       });
+      // Un document Windows-1252 où l'édition a introduit un caractère hors
+      // table (un emoji) vient d'être écrit en UTF-8 entier : c'est la seule
+      // écriture honnête, mais elle change l'encodage du fichier, et ça se
+      // dit, sinon ça se découvre au prochain diff sur le serveur.
+      if (used !== doc.encoding) {
+        this.patchDoc(doc.id, { encoding: used });
+        this.toasts.info(this.t('misc.preview.convertedUtf8'), {
+          detail: this.t('misc.preview.convertedUtf8Detail'),
+        });
+      }
       this.patchDoc(doc.id, {
         original: content,
         size: content.length,

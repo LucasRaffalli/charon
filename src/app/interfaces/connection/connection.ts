@@ -25,3 +25,12 @@ export interface ConnectionParams {
   /** Dossier d'arrivée du profil, s'il en a un (voir ServerProfile.anchor). */
   anchor?: string | null;
 }
+
+/** Le régime d'encodage d'un texte lu, à rendre tel quel à l'écriture. */
+export type TextEncoding = 'utf8' | 'windows1252' | 'escaped';
+
+/** Un texte lu du disque ou du serveur, avec son régime. */
+export interface TextRead {
+  text: string;
+  encoding: TextEncoding;
+}

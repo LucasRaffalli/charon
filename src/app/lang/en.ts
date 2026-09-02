@@ -379,6 +379,9 @@ export const en: Dictionary = {
     zoomIn: 'Zoom in',
     compare: 'Compare',
     compareHead: 'Compare to HEAD',
+    encodingHint:
+      "The file's original encoding. It is kept on save, byte-exact for whatever you did not touch.",
+    encodingRaw: 'raw bytes kept',
   },
 
   overwrite: {
@@ -437,6 +440,8 @@ export const en: Dictionary = {
       cannotPreview: 'Preview unavailable.',
       guardedSave: 'Protected server: save “{name}”?',
       savedUnformatted: 'Saved without formatting',
+      convertedUtf8: 'Saved as UTF-8',
+      convertedUtf8Detail: "Some characters did not exist in the file's original encoding",
       prettierFailed: 'Prettier could not read this file (syntax error?)',
       saved: 'Saved to the server',
     },

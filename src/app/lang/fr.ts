@@ -410,6 +410,9 @@ export const fr = {
     zoomIn: 'Zoom avant',
     compare: 'Comparer',
     compareHead: 'Comparer à HEAD',
+    encodingHint:
+      "L'encodage d'origine du fichier. Il est conservé à l'enregistrement, à l'octet près sur ce qui n'est pas modifié.",
+    encodingRaw: 'octets préservés',
   },
 
   // ------------------------------------------------------------ écrasement --
@@ -474,6 +477,8 @@ export const fr = {
       cannotPreview: 'Aperçu impossible.',
       guardedSave: 'Serveur protégé : enregistrer « {name} » ?',
       savedUnformatted: 'Enregistré sans formatage',
+      convertedUtf8: 'Enregistré en UTF-8',
+      convertedUtf8Detail: "Des caractères n'existaient pas dans l'encodage d'origine du fichier",
       prettierFailed: 'Prettier n’a pas réussi à lire ce fichier (erreur de syntaxe ?)',
       saved: 'Enregistré sur le serveur',
     },

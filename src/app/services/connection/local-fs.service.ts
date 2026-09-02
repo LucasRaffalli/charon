@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
-import { FileEntryDto, StatInfo } from '@app/interfaces';
+import { FileEntryDto, StatInfo, TextRead } from '@app/interfaces';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { FileBrowserState } from '@app/services/connection/file-browser-state';
 import { ToastService } from '@app/services/workspace/toast.service';
@@ -82,7 +82,9 @@ export class LocalFsService extends FileBrowserState {
 
   /** Début d'un fichier local en texte, borné. */
   readText(path: string, maxBytes: number): Promise<string | undefined> {
-    return invoke<string>('local_read_text', { path, maxBytes }).catch(() => undefined);
+    return invoke<TextRead>('local_read_text', { path, maxBytes })
+      .then((read) => read.text)
+      .catch(() => undefined);
   }
 
   /**

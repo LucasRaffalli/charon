@@ -96,7 +96,7 @@ pub fn local_stat(path: String) -> Result<StatInfo, String> {
 
 /// Lit le début d'un fichier local en texte (borné), pour l'aperçu de diff.
 #[tauri::command]
-pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
+pub fn local_read_text(path: String, max_bytes: u64) -> Result<crate::text::TextRead, String> {
     ensure_no_parent_dir(&path)?;
     use std::io::Read;
     let mut file =
@@ -115,7 +115,11 @@ pub fn local_read_text(path: String, max_bytes: u64) -> Result<String, String> {
     buffer.truncate(filled);
     // Même convention que la lecture distante : les deux textes se comparent
     // dans le diff, ils doivent parler la même langue.
-    Ok(crate::text::decode(&buffer).0)
+    let (text, encoding) = crate::text::decode_smart(&buffer);
+    Ok(crate::text::TextRead {
+        text,
+        encoding: encoding.as_str(),
+    })
 }
 
 /// Crée un dossier local.

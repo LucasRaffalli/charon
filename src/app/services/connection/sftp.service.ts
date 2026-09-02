@@ -11,6 +11,7 @@ import {
   ServerEnvironment,
   ServerProtection,
   StatInfo,
+  TextRead,
 } from '@app/interfaces';
 import { injectSessionActivity } from '@app/services/workspace/activity-log.service';
 import { FileBrowserState } from '@app/services/connection/file-browser-state';
@@ -491,8 +492,16 @@ export class SftpService extends FileBrowserState {
 
   /** Début d'un fichier distant en texte, borné (SFTP uniquement). */
   readText(path: string, maxBytes: number): Promise<string | undefined> {
+    return this.readTextInfo(path, maxBytes).then((read) => read?.text);
+  }
+
+  /**
+   * La même lecture, avec le régime d'encodage. L'aperçu en a besoin pour
+   * réécrire le fichier tel qu'il était ; les diffs se contentent du texte.
+   */
+  readTextInfo(path: string, maxBytes: number): Promise<TextRead | undefined> {
     return this.withConnection((id) =>
-      invoke<string>('sftp_read_text', { connectionId: id, path, maxBytes }),
+      invoke<TextRead>('sftp_read_text', { connectionId: id, path, maxBytes }),
     ).catch(() => undefined);
   }
 

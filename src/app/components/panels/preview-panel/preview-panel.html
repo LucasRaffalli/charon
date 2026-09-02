@@ -43,6 +43,14 @@
     @if (modeOctal()) {
       <span>{{ modeOctal() }}</span>
     }
+    <!-- L'encodage ne se dit que quand il n'est pas UTF-8 : un fichier
+         converti à l'affichage (Windows-1252) ou aux octets préservés doit
+         se savoir, le cas normal n'a pas à occuper la ligne. -->
+    @if (preview.encoding() !== 'utf8') {
+      <span [title]="t('preview.encodingHint')">{{
+        preview.encoding() === 'windows1252' ? 'Windows-1252' : t('preview.encodingRaw')
+      }}</span>
+    }
   </span>
 
   @if (preview.kind() === 'text' && preview.isMarkdown()) {

@@ -1012,7 +1012,7 @@ pub async fn sftp_read_text(
     connection_id: String,
     path: String,
     max_bytes: u64,
-) -> Result<String, String> {
+) -> Result<crate::text::TextRead, String> {
     let conn = get_connection(&pool, &connection_id).await?;
     let mut file = conn
         .sftp
@@ -1032,10 +1032,14 @@ pub async fn sftp_read_text(
         filled += read;
     }
     buffer.truncate(filled);
-    // Réversible, pas destructive : voir `text::decode`. Un fichier qui n'est
-    // pas en UTF-8 doit pouvoir être rouvert, modifié et réenregistré sans
-    // perdre les octets auxquels on n'a pas touché.
-    Ok(crate::text::decode(&buffer).0)
+    // Conversion sûre ou préservation exacte : voir `text.rs`. Le régime rendu
+    // ici doit revenir tel quel à l'écriture, c'est lui qui sait refabriquer
+    // les octets.
+    let (text, encoding) = crate::text::decode_smart(&buffer);
+    Ok(crate::text::TextRead {
+        text,
+        encoding: encoding.as_str(),
+    })
 }
 
 /// Lit le début d'un fichier distant encodé en base64 (aperçu d'image).
@@ -1076,11 +1080,18 @@ pub async fn sftp_write_text(
     connection_id: String,
     path: String,
     content: String,
-) -> Result<(), String> {
+    encoding: Option<String>,
+) -> Result<String, String> {
     let conn = get_connection(&pool, &connection_id).await?;
-    // L'inverse exact de la lecture : les octets qu'UTF-8 n'expliquait pas
-    // repartent tels qu'ils étaient.
-    conn.write_file(&path, &crate::text::encode(&content)).await
+    // Le régime vient de la LECTURE du même document : c'est lui qui sait
+    // refabriquer les octets. Le régime effectivement écrit est rendu, parce
+    // qu'il peut différer : un document Windows-1252 où l'édition a introduit
+    // un caractère hors table bascule en UTF-8 entier, et le front doit
+    // pouvoir le dire plutôt que de le laisser se découvrir au prochain diff.
+    let requested = crate::text::TextEncoding::parse(encoding.as_deref().unwrap_or("utf8"));
+    let (bytes, used) = crate::text::encode_for(&content, requested);
+    conn.write_file(&path, &bytes).await?;
+    Ok(used.as_str().to_string())
 }
 
 /// Ferme et retire une connexion du pool.

@@ -14,7 +14,7 @@ const FORMAT = 1;
 /**
  * Ce qu'un fichier de thème contient. Volontairement REDUIT à l'apparence :
  * ni profils, ni réglages, ni disposition. On partage un thème, pas sa
- * configuration — et surtout on ne fait pas voyager par mégarde la liste des
+ * configuration, et surtout on ne fait pas voyager par mégarde la liste des
  * serveurs de quelqu'un dans un fichier qu'il envoie sur un Slack.
  */
 interface ThemeFile {

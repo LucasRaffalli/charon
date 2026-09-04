@@ -43,7 +43,7 @@
             <div class="edit-head st" style="--d: 0s">
               <button type="button" class="edit-head__back" (click)="cancelEdit()">
                 <app-icon name="chevron-right" [size]="14" />
-                Retour
+                {{ t('connect.back') }}
               </button>
               <span class="edit-head__title">{{ t('connection.editServer') }}</span>
             </div>
@@ -153,7 +153,7 @@
                 [loading]="sftp.loading()"
                 (click)="connect()"
               >
-                Se connecter
+                {{ t('connect.submit') }}
               </app-button>
               <app-button type="submit" [disabled]="!canSubmit()">{{ t('common.buttons.save') }}</app-button>
             </div>

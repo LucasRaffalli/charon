@@ -64,7 +64,7 @@ export class ServerTreeNode {
 
   /**
    * Dossier : ouvre dans la vue principale (le panneau du même disque) ;
-   * fichier : l'aperçu côté serveur, le Finder côté local — l'aperçu ne lit
+   * fichier : l'aperçu côté serveur, le Finder côté local (l'aperçu ne lit
    * que le distant, et « montrer le fichier » est le geste local naturel.
    */
   protected open(): void {

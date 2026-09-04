@@ -39,7 +39,7 @@ const PRESETS: readonly { mode: string; hint: string }[] = [
  * chmod qui part sur le serveur.
  *
  * Sur un serveur, les droits sont souvent la première chose qu'on regarde
- * quand quelque chose ne marche pas — et la seule qu'on ne pouvait pas voir
+ * quand quelque chose ne marche pas, et la seule qu'on ne pouvait pas voir
  * dans Charon.
  */
 @Component({

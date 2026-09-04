@@ -111,7 +111,7 @@ export class SecretAccentService {
         return;
       }
       // Faux pas : ce code repart de zéro, mais cette touche peut elle-même
-      // être son premier pas — sinon une flèche haut ratée en interdirait une
+      // être son premier pas, sinon une flèche haut ratée en interdirait une
       // seconde tout de suite après.
       this.progress[index] = key === code.keys[0] ? 1 : 0;
       if (this.progress[index] === 1) {
@@ -129,7 +129,7 @@ export class SecretAccentService {
   /**
    * Un code qui aboutit se dit.
    *
-   * Sans retour, on ne sait pas si on a mal tapé ou si rien n'existe — et
+   * Sans retour, on ne sait pas si on a mal tapé ou si rien n'existe, et
    * l'accent caché est le seul des deux dont l'effet saute aux yeux ; le
    * mode atelier, lui, ne se voit qu'une fois le mode design ouvert. Clé
    * fixe : retaper un code remplace son toast au lieu de les empiler.

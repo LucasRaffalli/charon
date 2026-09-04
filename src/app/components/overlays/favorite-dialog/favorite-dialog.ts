@@ -54,7 +54,7 @@ export class FavoriteDialog {
    * douze icônes qui couvrent ce à quoi servent les dossiers d'un serveur.
    * Mais une saisie ouvre TOUT le catalogue lucide (1700 icônes), chargé en
    * chunk paresseux à la première frappe : on ne paie ni le poids au
-   * démarrage, ni le parcours d'une grille de cinquante entrées — on cherche.
+   * démarrage, ni le parcours d'une grille de cinquante entrées : on cherche.
    */
   protected readonly iconQuery = signal('');
   private readonly catalogReady = signal(false);

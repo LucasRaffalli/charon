@@ -168,7 +168,7 @@ export class TrashService {
    * Remet une entrée à sa place : le parent de la corbeille EST son dossier
    * d'origine, puisqu'une corbeille vit à côté de ce qu'elle recueille.
    *
-   * Un `rename` SFTP échoue si la cible existe déjà — c'est exactement ce
+   * Un `rename` SFTP échoue si la cible existe déjà, c'est exactement ce
    * qu'on veut : restaurer ne doit jamais écraser ce qui a repris la place.
    */
   async restore(entry: TrashEntry, dir: string): Promise<boolean> {

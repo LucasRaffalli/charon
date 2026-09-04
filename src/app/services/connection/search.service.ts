@@ -137,7 +137,7 @@ export class SearchService {
     }
 
     // Le motif part vers grep -E : en mode texte on échappe tout, en mode
-    // regex on exige un motif valide ET portable — jamais transmis sinon.
+    // regex on exige un motif valide ET portable, jamais transmis sinon.
     let pattern: string;
     let plain: string | null;
     if (this.regex()) {

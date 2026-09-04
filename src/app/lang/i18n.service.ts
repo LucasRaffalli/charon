@@ -92,7 +92,7 @@ export class I18nService {
   /**
    * La chaîne d'une clé dont le nom vient d'AILLEURS (le backend), donc non
    * vérifiable à la compilation. Rend `null` si la clé n'existe pas, pour que
-   * l'appelant décide du repli — afficher « errors.machin » à l'écran serait
+   * l'appelant décide du repli : afficher « errors.machin » à l'écran serait
    * pire que le message d'origine.
    */
   readonly lookup = (key: string): string | null => {
@@ -129,7 +129,7 @@ export class I18nService {
  * dans son gabarit.
  *
  * Une fonction et non un pipe : `t` lit le signal de langue, donc un composant
- * qui l'appelle se redessine quand la langue change — ce qu'un pipe pur ne
+ * qui l'appelle se redessine quand la langue change, ce qu'un pipe pur ne
  * ferait pas, et ce qu'un pipe impur ferait à chaque cycle de détection.
  */
 export function injectT(): I18nService['t'] {
@@ -142,7 +142,7 @@ export function injectT(): I18nService['t'] {
  * Rust ne renvoie pas de phrase mais `CHARON_ERR:<code>` suivi du détail brut
  * (voir `src-tauri/src/errors.rs`). On traduit le code et on garde le détail
  * tel quel : un chemin ne se traduit pas, et le message du système est dans
- * SA langue — le réécrire serait prétendre qu'il a dit autre chose.
+ * SA langue, le réécrire serait prétendre qu'il a dit autre chose.
  *
  * Tout ce qui n'est pas codé ressort inchangé : les messages non encore
  * convertis continuent de s'afficher comme avant, la migration peut se faire
@@ -163,6 +163,6 @@ export function injectErrorText(): (raw: unknown) => string {
       // le détail seul reste plus utile qu'un nom de clé.
       return match[2] || text;
     }
-    return match[2] ? `${translated} — ${match[2]}` : translated;
+    return match[2] ? `${translated} : ${match[2]}` : translated;
   };
 }

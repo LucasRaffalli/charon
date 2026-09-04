@@ -22,7 +22,7 @@
         treeToggle
         icon="monitor"
         [actionIcon]="sftp.protection() === 'readonly' ? null : 'upload'"
-        actionLabel="Envoyer vers le serveur"
+        [actionLabel]="t('panels.uploadAction')"
         [path]="localFs.currentPath()"
         [entries]="localEntries()"
         [loading]="localFs.loading()"

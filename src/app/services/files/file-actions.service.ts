@@ -228,7 +228,7 @@ export class FileActionsService {
   /**
    * Le dossier d'arrivée d'un téléchargement : celui du panneau local (le
    * contrat du double panneau), sauf si le réglage « toujours demander »
-   * est posé ou que le geste est explicitement « Télécharger vers… » — le
+   * est posé ou que le geste est explicitement « Télécharger vers… », le
    * Finder tranche alors, pré-ouvert sur le dossier local courant.
    *
    * Rend `null` si l'utilisateur annule le sélecteur : annuler le choix du

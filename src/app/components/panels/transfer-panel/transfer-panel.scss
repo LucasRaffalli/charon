@@ -147,7 +147,7 @@
 }
 
 // Vérification d'intégrité : « le fichier est identique » plutôt que « le
-// fichier est parti ». Un échec doit se voir, une impossibilité aussi — jamais
+// fichier est parti ». Un échec doit se voir, une impossibilité aussi : jamais
 // de silence qui passerait pour un succès.
 .row__verify {
   flex: none;

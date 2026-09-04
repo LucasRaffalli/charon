@@ -90,7 +90,7 @@
             type="button"
             class="row__resume"
             [title]="t('misc.a11y.resume')"
-            [attr.aria-label]="'Reprendre le transfert de ' + row.transfer.name"
+            [attr.aria-label]="t('misc.a11y.resumeNamed', { name: row.transfer.name })"
             (click)="row.session.transfers.resume(row.transfer)"
           >
             <app-icon name="refresh" [size]="13" />

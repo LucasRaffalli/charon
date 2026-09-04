@@ -533,7 +533,7 @@ export class SftpService extends FileBrowserState {
 
   /**
    * Change les permissions (idée 07), avec escalade sudo si le serveur refuse
-   * — c'est le cas courant sur les fichiers d'un autre utilisateur, et
+   * ce qui est courant sur les fichiers d'un autre utilisateur, et
    * l'escalade existait déjà pour mkdir, rm et mv.
    */
   async chmod(path: string, mode: string, recursive: boolean): Promise<void> {

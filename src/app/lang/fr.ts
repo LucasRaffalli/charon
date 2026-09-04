@@ -1,7 +1,7 @@
 /**
  * Le dictionnaire FRANÇAIS : la source de vérité.
  *
- * C'est lui qui définit les clés — `en.ts` est typé sur sa forme, donc une
+ * C'est lui qui définit les clés : `en.ts` est typé sur sa forme, donc une
  * entrée ajoutée ici et oubliée là-bas ne compile pas. C'est la seule façon
  * de tenir plusieurs centaines de chaînes sans qu'un écran se retrouve à
  * moitié traduit devant un utilisateur.
@@ -38,6 +38,8 @@ export const fr = {
       download: 'Télécharger',
       send: 'Envoyer',
       copy: 'Copier',
+      copied: 'Copié',
+      apply: 'Appliquer',
       open: 'Ouvrir',
     },
     errors: {
@@ -354,7 +356,7 @@ export const fr = {
       desc: 'Client SFTP/FTP privé pour macOS et Windows. Tu es sur {os}.',
       report: 'Signaler un problème',
       reportDesc:
-        "Ouvre le formulaire d'issue sur GitHub, version et système déjà remplis. Rien n'est envoyé en l'ouvrant : tu relis et tu décides. Le journal n'y est jamais joint — il contient des chemins et des noms d'hôtes, c'est à toi de choisir ce que tu y colles.",
+        "Ouvre le formulaire d'issue sur GitHub, version et système déjà remplis. Rien n'est envoyé en l'ouvrant : tu relis et tu décides. Le journal n'y est jamais joint : il contient des chemins et des noms d'hôtes, c'est à toi de choisir ce que tu y colles.",
       bug: 'Un bug',
       idea: 'Une idée',
       repo: 'Le dépôt',
@@ -400,6 +402,8 @@ export const fr = {
   connect: {
     tagline: 'Le passeur de fichiers',
     editServer: 'Modifier ce serveur',
+    back: 'Retour',
+    submit: 'Se connecter',
     server: 'Serveur',
     preferSftp: ': préfère SFTP dès que possible.',
     boarding: 'Traversée en cours…',
@@ -589,6 +593,7 @@ export const fr = {
       edit: 'Modifier',
       permissions: 'Permissions',
       resume: 'Reprendre ce transfert',
+      resumeNamed: 'Reprendre le transfert de {name}',
       profilePlaceholder: 'Mon VPS',
       editorPlaceholder: 'Visual Studio Code',
     },
@@ -699,7 +704,7 @@ export const fr = {
   // ------------------------------------------------- erreurs du backend --
   // Les clés ici portent le nom des CODES renvoyés par Rust
   // (`errors::user_err`). Elles ne sont donc pas vérifiées à la compilation :
-  // le nom vient d'ailleurs. Le détail brut — chemin, message système — est
+  // le nom vient d'ailleurs. Le détail brut (chemin, message système) est
   // ajouté après, tel quel.
   errors: {
     read_dir: 'Lecture du dossier impossible',
@@ -724,6 +729,12 @@ export const fr = {
   },
 
   // -------------------------------------------------------- noms de panneaux --
+  searchPane: {
+    placeholderContent: 'Chercher dans le contenu…',
+    placeholderNames: 'Chercher un nom de fichier…',
+    ariaLabel: 'Motif de recherche',
+    go: 'Chercher',
+  },
   panels: {
     local: 'Local',
     tree: 'Arborescence',
@@ -740,6 +751,7 @@ export const fr = {
     search: 'Recherche',
     trash: 'Corbeille',
     close: 'Fermer « {name} »',
+    uploadAction: 'Envoyer vers le serveur',
     reopen: 'Rouvrir : {name}',
     reopenAria: 'Rouvrir le panneau {name}',
   },

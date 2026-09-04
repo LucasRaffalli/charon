@@ -32,7 +32,7 @@ const SHORTHANDS: Readonly<Record<string, string>> = {
  *
  * Ces règles ne regardent JAMAIS le motif brut : `\\A` est un antislash
  * littéral suivi d'un A, `\??` un point d'interrogation littéral optionnel, et
- * `[(?=]` une classe de trois caractères — aucun des trois n'est une
+ * `[(?=]` une classe de trois caractères : aucun des trois n'est une
  * construction. Elles s'appliquent au **squelette** (voir `skeleton`), où les
  * paires échappées et les classes sont réduites à un caractère neutre.
  */
@@ -121,7 +121,7 @@ export interface RegexReport {
  * Dans une classe POSIX, l'antislash n'échappe RIEN : `[\]]` y est lu comme
  * « un antislash, puis un crochet », alors que JavaScript y voit « un
  * crochet ». Recopier la classe telle quelle, ce que faisait la première
- * version, fabriquait donc un motif qui matchait autre chose — le pire des
+ * version, fabriquait donc un motif qui matchait autre chose, le pire des
  * résultats, silencieux. Les règles POSIX sont positionnelles : `]` se met en
  * tête, `-` en queue, `^` jamais en tête, et c'est tout ce qu'une classe sait
  * faire.

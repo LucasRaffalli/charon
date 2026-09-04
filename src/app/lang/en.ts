@@ -5,7 +5,7 @@ import type { Dictionary } from './i18n.service';
  *
  * Typé sur la forme du français : il ne peut ni oublier une clé, ni en
  * inventer une, et le compilateur le dit avant l'utilisateur. Les jetons
- * `{nom}` se reprennent tels quels — ils peuvent changer de place dans la
+ * `{nom}` se reprennent tels quels, ils peuvent changer de place dans la
  * phrase, pas de nom.
  */
 export const en: Dictionary = {
@@ -28,6 +28,8 @@ export const en: Dictionary = {
       download: 'Download',
       send: 'Upload',
       copy: 'Copy',
+      copied: 'Copied',
+      apply: 'Apply',
       open: 'Open',
     },
     errors: {
@@ -326,7 +328,7 @@ export const en: Dictionary = {
       desc: 'Private SFTP/FTP client for macOS and Windows. You are on {os}.',
       report: 'Report a problem',
       reportDesc:
-        'Opens the GitHub issue form with version and system already filled in. Nothing is sent by opening it: you read it over and you decide. The journal is never attached — it holds paths and host names, what you paste is your call.',
+        'Opens the GitHub issue form with version and system already filled in. Nothing is sent by opening it: you read it over and you decide. The journal is never attached: it holds paths and host names, what you paste is your call.',
       bug: 'A bug',
       idea: 'An idea',
       repo: 'The repository',
@@ -371,6 +373,8 @@ export const en: Dictionary = {
   connect: {
     tagline: 'The file ferryman',
     editServer: 'Edit this server',
+    back: 'Back',
+    submit: 'Connect',
     server: 'Server',
     preferSftp: ': prefer SFTP whenever you can.',
     boarding: 'Crossing…',
@@ -556,6 +560,7 @@ export const en: Dictionary = {
       edit: 'Edit',
       permissions: 'Permissions',
       resume: 'Resume this transfer',
+      resumeNamed: 'Resume the transfer of {name}',
       profilePlaceholder: 'My VPS',
       editorPlaceholder: 'Visual Studio Code',
     },
@@ -682,6 +687,12 @@ export const en: Dictionary = {
     sftp_session: 'Could not open the SFTP session',
   },
 
+  searchPane: {
+    placeholderContent: 'Search in content…',
+    placeholderNames: 'Search a file name…',
+    ariaLabel: 'Search pattern',
+    go: 'Search',
+  },
   panels: {
     local: 'Local',
     tree: 'Tree',
@@ -698,6 +709,7 @@ export const en: Dictionary = {
     search: 'Search',
     trash: 'Trash',
     close: 'Close “{name}”',
+    uploadAction: 'Upload to server',
     reopen: 'Reopen: {name}',
     reopenAria: 'Reopen the {name} panel',
   },

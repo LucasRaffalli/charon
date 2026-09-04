@@ -115,7 +115,7 @@ export class ServerPane {
 
   /**
    * Les chemins distants en cours de téléchargement : le bouton de la ligne
-   * montre un spinner. En Set précalculé, pas en parcours par ligne — la
+   * montre un spinner. En Set précalculé, pas en parcours par ligne : la
    * règle du panneau (voir serverRows) : le gabarit ne refait pas de boucles.
    */
   private readonly downloadingPaths = computed(() => {

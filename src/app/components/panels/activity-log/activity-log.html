@@ -1,7 +1,7 @@
 @if (activity.entries().length > 0) {
   <div class="toolbar">
     <button type="button" class="toolbar__action" (click)="copy()">
-      {{ copied() ? 'Copié' : 'Copier' }}
+      {{ copied() ? t('common.buttons.copied') : t('common.buttons.copy') }}
     </button>
     <button type="button" class="toolbar__action" (click)="activity.clear()">{{ t('common.buttons.clear') }}</button>
   </div>

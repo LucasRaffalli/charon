@@ -114,7 +114,7 @@ export class ShortcutsService {
  * Sur un clavier français, `/` s'obtient avec Shift : la frappe se décrit
  * alors `mod+shift+/` alors que le raccourci est déclaré `mod+/`, et ⌘/ ne
  * marchait pas. Pour une touche de ponctuation, la variante sans `shift` est
- * donc proposée aussi — une lettre, elle, garde sa distinction (⌘S et ⌘⇧S ne
+ * donc proposée aussi ; une lettre, elle, garde sa distinction (⌘S et ⌘⇧S ne
  * sont pas le même geste sur aucune disposition).
  */
 function describe(event: KeyboardEvent): string[] {

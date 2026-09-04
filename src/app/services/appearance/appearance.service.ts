@@ -227,7 +227,7 @@ function layerOf(spot: GradientSpot): string {
  */
 /**
  * La couleur d'une source : la sienne si elle en a une, sinon l'une des deux
- * du dégradé. Son intensité propre s'y applique dans les deux cas — mais par
+ * du dégradé. Son intensité propre s'y applique dans les deux cas, mais par
  * des chemins différents, une variable CSS ne se multipliant pas.
  */
 function colorOf(spot: GradientSpot): string {

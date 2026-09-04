@@ -120,7 +120,7 @@ export abstract class FileBrowserState {
   }
 
   /**
-   * Maj-clic : la plage de l'ancre à cette ligne, dans la liste VISIBLE — une
+   * Maj-clic : la plage de l'ancre à cette ligne, dans la liste VISIBLE (une
    * plage qui embarquerait des entrées masquées par le filtre serait une
    * mauvaise surprise.
    */

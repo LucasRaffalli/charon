@@ -443,7 +443,7 @@
 }
 
 // Les états « en cours » et « fait » du bouton de téléchargement : VISIBLES
-// même hors survol — le retour doit se voir sans garder la souris dessus.
+// même hors survol : le retour doit se voir sans garder la souris dessus.
 // Ce sont des spans, pas des boutons : pendant et juste après le transfert,
 // il n'y a rien à cliquer, et un bouton désactivé raconterait moins bien.
 .entry__action--busy,

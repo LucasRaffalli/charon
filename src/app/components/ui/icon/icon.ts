@@ -130,7 +130,7 @@ export type IconName = keyof typeof ICONS;
 // Le registre ci-dessus reste la seule source du bundle initial : ~70 icônes
 // choisies une à une. Le reste de lucide (1700 icônes, 2,5 Mo) vit dans un
 // chunk paresseux que la recherche d'icônes des favoris charge à la première
-// saisie — le patron Prettier/Prism. Un favori qui porte une icône hors
+// saisie, le patron Prettier/Prism. Un favori qui porte une icône hors
 // registre déclenche aussi le chargement : l'icône apparaît dès que le chunk
 // arrive, un dossier générique tient la place d'ici là.
 

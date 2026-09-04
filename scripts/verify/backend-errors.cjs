@@ -31,7 +31,7 @@ const T = mod.exports.injectErrorText();
 const SEP = String.fromCharCode(31);
 check('code connu + détail',
   T('CHARON_ERR:read_dir' + SEP + '/var/www : Permission denied')
-    === 'Lecture du dossier impossible — /var/www : Permission denied');
+    === 'Lecture du dossier impossible : /var/www : Permission denied');
 check('code connu sans détail', T('CHARON_ERR:read_dir') === 'Lecture du dossier impossible');
 check('code inconnu : le détail reste', T('CHARON_ERR:futur_code' + SEP + '/x : boom') === '/x : boom');
 check('message non codé : inchangé', T('Connexion impossible : timeout') === 'Connexion impossible : timeout');

@@ -177,7 +177,7 @@ export class TerminalPane {
    *
    * Jusqu'ici, la session terminée affichait « Session du terminal terminée. »
    * et rien d'autre : un `exit` tapé par réflexe condamnait l'onglet pour
-   * toute la session Charon. La session SSH, elle, est toujours ouverte —
+   * toute la session Charon. La session SSH, elle, est toujours ouverte :
    * relancer ne coûte qu'un canal, ni reconnexion ni authentification.
    */
   protected async restart(): Promise<void> {

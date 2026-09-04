@@ -80,7 +80,7 @@ export class WhatsNew {
   }
 
   /**
-   * L'ordre du journal, du plus récent au plus ancien — celui du fichier.
+   * L'ordre du journal, du plus récent au plus ancien, celui du fichier.
    *
    * La version installée est **marquée, pas remontée** : la faire passer en
    * tête mettait 1.1.1 au-dessus de 1.2.0, ce qui n'est plus un journal. Le

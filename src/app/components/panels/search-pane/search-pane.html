@@ -4,8 +4,8 @@
     class="bar__field"
     [(value)]="search.query"
     (keydown)="onKeydown($event)"
-    [placeholder]="search.mode() === 'content' ? 'Chercher dans le contenu…' : 'Chercher un nom de fichier…'"
-    ariaLabel="Motif de recherche"
+    [placeholder]="search.mode() === 'content' ? t('searchPane.placeholderContent') : t('searchPane.placeholderNames')"
+    [ariaLabel]="t('searchPane.ariaLabel')"
   />
   @if (search.running()) {
     <button type="button" class="bar__stop" (click)="search.stop()">{{ t('common.buttons.stop') }}</button>
@@ -16,7 +16,7 @@
       [disabled]="!search.query().trim()"
       (click)="search.start()"
     >
-      Chercher
+      {{ t('searchPane.go') }}
     </button>
   }
 </div>

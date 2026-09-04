@@ -272,7 +272,7 @@ export class TransfersService {
    * C'est le serveur qui hache son fichier, par le canal exec : re-télécharger
    * pour hacher localement ne vérifierait que le second téléchargement.
    *
-   * Ne bloque rien — le transfert est déjà « terminé », la vérification
+   * Ne bloque rien : le transfert est déjà « terminé », la vérification
    * s'ajoute derrière et met à jour la ligne quand elle aboutit.
    */
   private async verify(id: string): Promise<void> {
@@ -317,7 +317,7 @@ export class TransfersService {
       }
     } catch (error) {
       // Un serveur sans sha256sum, un droit de lecture refusé : la
-      // vérification n'a pas eu lieu, et c'est dit — jamais un faux « ok ».
+      // vérification n'a pas eu lieu, et c'est dit : jamais un faux « ok ».
       this.patch(id, {
         verify: 'error',
         verifyDetail: typeof error === 'string' ? error : String(error),
@@ -331,7 +331,7 @@ export class TransfersService {
    * Les toasts avaient été volontairement débranchés des transferts : un lot
    * ferait une pluie. Mais un téléchargement atterrit HORS de l'app : c'est
    * exactement le geste dont le résultat ne se voit nulle part, et le panneau
-   * Transferts n'est pas toujours ouvert. Le compromis : UN toast par lot —
+   * Transferts n'est pas toujours ouvert. Le compromis : UN toast par lot,
    * les succès s'accumulent tant qu'un téléchargement tourne encore, et
    * l'annonce part quand le dernier se pose. Dix fichiers, un toast.
    *
@@ -344,7 +344,7 @@ export class TransfersService {
   /**
    * Les chemins distants dont le téléchargement vient d'aboutir : le bouton ⬇
    * de la ligne se change en coche quelques secondes. C'est le retour au plus
-   * près du geste — la confirmation apparaît LÀ où l'on a cliqué, pas dans un
+   * près du geste : la confirmation apparaît LÀ où l'on a cliqué, pas dans un
    * coin de l'écran (issue #11, précisé par Lucas).
    */
   private readonly _justDownloaded = signal<ReadonlySet<string>>(new Set());

@@ -65,19 +65,26 @@
 .spots__dot {
   position: absolute;
   // Une source à couleur propre la porte sur sa pastille : sinon six
-  // lumières de six teintes se ressembleraient toutes dans l'aperçu.
+  // lumières de six teintes se ressembleraient toutes dans l'aperçu. Seule
+  // déclaration de `background` : une seconde plus bas écrasait celle-ci en
+  // silence, la couleur propre ne s'affichait jamais sur la pastille.
   background: var(--dot-tint, var(--glow-solid, var(--accent)));
   width: 15px;
   height: 15px;
   margin: -8px 0 0 -8px;
   border: 2px solid var(--elev-0);
-  border-radius: 50%;
-  background: var(--glow-solid, var(--accent));
+  // Pastille à coins arrondis et non ronde : la purge des pleins arrondis
+  // (999px/50%) ne garde qu'une exception, le spinner d'un bouton qui doit
+  // tourner. Une poignée qu'on attrape n'en fait pas partie.
+  border-radius: 4px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   cursor: grab;
 
+  // Une source B sans teinte propre suit la seconde couleur du dégradé ;
+  // `--dot-tint` garde la priorité si elle est posée (même repli que la
+  // règle de base, sinon une source B teintée perdrait sa couleur ici).
   &--b {
-    background: var(--glow2-solid, var(--accent-solid));
+    background: var(--dot-tint, var(--glow2-solid, var(--accent-solid)));
   }
 
   // La source réglée par les curseurs : un anneau la désigne, sans changer
@@ -94,11 +101,10 @@
     border-color: var(--dot-tint, var(--glow-solid, var(--accent)));
     background: none;
     border-width: 3px;
-    border-color: var(--glow-solid, var(--accent));
   }
 
   &--b[data-shape='ring'] {
-    border-color: var(--glow2-solid, var(--accent-solid));
+    border-color: var(--dot-tint, var(--glow2-solid, var(--accent-solid)));
   }
 
   &[data-shape='edge'] {

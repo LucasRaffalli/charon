@@ -3,7 +3,7 @@
 :host {
   display: block;
   // Une largeur de colonne, pas un nombre : la liste sert dans la feuille ⌘/
-  // et dans le panneau des réglages, qui n'ont pas la même largeur — et une
+  // et dans le panneau des réglages, qui n'ont pas la même largeur, et une
   // media query jugerait la fenêtre, pas le conteneur.
   columns: 250px;
   column-gap: var(--space-lg);

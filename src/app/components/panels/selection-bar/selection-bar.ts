@@ -8,7 +8,7 @@ import { injectT } from '@app/lang/i18n.service';
  * Ce qui apparaît sous une liste quand plusieurs éléments sont sélectionnés :
  * le compte, et ce qu'on peut faire du lot.
  *
- * Purement présentationnel — l'état vit dans le navigateur de fichiers, les
+ * Purement présentationnel : l'état vit dans le navigateur de fichiers, les
  * actions ressortent en événements.
  */
 @Component({

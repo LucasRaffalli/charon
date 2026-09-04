@@ -64,7 +64,7 @@
       <span class="perms__sym">{{ request.entry.isDir ? 'd' : '-' }}{{ symbolic() }}</span>
       <span class="perms__spacer"></span>
       <app-button variant="ghost" (click)="permissions.close()">{{ t('common.buttons.cancel') }}</app-button>
-      <app-button variant="primary" [disabled]="!dirty()" [loading]="saving()" (click)="apply()"> Appliquer </app-button>
+      <app-button variant="primary" [disabled]="!dirty()" [loading]="saving()" (click)="apply()"> {{ t('common.buttons.apply') }} </app-button>
     </ng-container>
   </app-modal>
 }

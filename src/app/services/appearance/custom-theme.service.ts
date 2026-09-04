@@ -87,8 +87,8 @@ export interface CustomTheme {
  * Un thème sur mesure n'est PAS une palette repartie de zéro mais un
  * **calque** posé sur un thème existant : on choisit une base (clair, sombre,
  * contraste) et on ne redéfinit que ce qu'on veut. Tout le reste continue de
- * marcher — les palettes de coloration et de terminal, les voiles d'état, les
- * alias d'élévation — au lieu de laisser des trous partout où l'atelier
+ * marcher (les palettes de coloration et de terminal, les voiles d'état, les
+ * alias d'élévation) au lieu de laisser des trous partout où l'atelier
  * n'aurait pas pensé.
  *
  * Les jetons sont posés en style INLINE sur la racine : ils gagnent sur

@@ -199,7 +199,7 @@ export class FileTree {
    *
    * Le dossier CIBLE ne coûte jamais de requête : la vue principale vient de
    * le lister, ses entrées sont déjà là. Ne partent au réseau que les
-   * ancêtres jamais matérialisés — et en navigation ordinaire (descendre d'un
+   * ancêtres jamais matérialisés, et en navigation ordinaire (descendre d'un
    * cran), ils sont déjà tous dépliés : zéro requête d'arbre.
    */
   private async reveal(path: string): Promise<void> {

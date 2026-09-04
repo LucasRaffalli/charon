@@ -5,7 +5,7 @@ export { languageFor } from '@app/services/files/language-of';
  *
  * Le module `prism-grammars` (Prism + 24 grammaires, ~100 Ko) est un chunk
  * paresseux : `ensureHighlighter()` le charge à la première ouverture d'un
- * fichier colorable, et `highlightCode` reste SYNCHRONE ensuite — la
+ * fichier colorable, et `highlightCode` reste SYNCHRONE ensuite : la
  * superposition éditeur/coloration recolore à chaque frappe, elle ne peut
  * pas attendre une promesse. Tant que le module n'est pas là, la coloration
  * rend `null` et l'éditeur s'affiche en clair, ce qui est aussi son repli

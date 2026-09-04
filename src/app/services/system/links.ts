@@ -34,7 +34,7 @@ export function osLabel(): string {
  * publié en ouvrant la page : c'est un formulaire, l'utilisateur relit et
  * décide d'envoyer.
  *
- * Ce qui part d'ici se limite au strict nécessaire — **jamais le journal, ni
+ * Ce qui part d'ici se limite au strict nécessaire : **jamais le journal, ni
  * un chemin, ni un nom d'hôte**. Ces choses-là sont dans le panneau Journal,
  * avec son bouton « copier » : les coller reste un geste que l'utilisateur
  * fait sciemment, après avoir lu ce qu'elles contiennent.

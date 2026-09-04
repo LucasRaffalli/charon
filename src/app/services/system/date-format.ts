@@ -35,7 +35,7 @@ const RELEASE_DAY = new Intl.DateTimeFormat('fr-FR', {
 });
 
 /**
- * `29 août 2026` — la date d'une version, telle qu'on la dit. Le changelog la
+ * `29 août 2026`, la date d'une version, telle qu'on la dit. Le changelog la
  * stocke en ISO (triable, non ambiguë) ; l'afficher ainsi donnerait un numéro
  * de série là où on attend une date.
  */

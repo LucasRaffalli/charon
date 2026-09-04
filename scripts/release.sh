@@ -47,11 +47,25 @@ npx tauri build --config src-tauri/tauri.release.conf.json
 # Tag de release, créé puis poussé automatiquement (branche courante + tag) :
 # le push du tag déclenche le build Windows (workflow windows.yml) qui attache
 # l'installeur à la release GitHub — deploy.sh le récupérera tout seul.
+#
+# RETAG=1 : cas du rebuild sur la MÊME version (par ex. un deploy relancé sans
+# avoir bumpé le numéro). Un tag qui existe déjà ne bouge jamais tout seul —
+# le push d'un tag inchangé ne déclenche rien côté CI — donc sans ce drapeau
+# le rebuild part pour rien : nouveau binaire, mais tag et CI Windows figés
+# sur l'ancien commit. RETAG=1 supprime le tag local ET distant puis le
+# recrée sur HEAD, en forçant le push.
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(python3 -c "import json;print(json.load(open('$DIR/src-tauri/tauri.conf.json'))['version'])")"
 TAG="v$VERSION"
-if git -C "$DIR" rev-parse "$TAG" >/dev/null 2>&1; then
-  echo "Tag $TAG déjà présent (rebuild de la même version)."
+TAG_EXISTS="$(git -C "$DIR" rev-parse "$TAG" >/dev/null 2>&1 && echo 1 || echo 0)"
+if [ "$TAG_EXISTS" = "1" ] && [ "${RETAG:-0}" = "1" ]; then
+  git -C "$DIR" tag -d "$TAG" >/dev/null 2>&1 || true
+  git -C "$DIR" push origin ":refs/tags/$TAG" >/dev/null 2>&1 || true
+  echo "Tag $TAG retiré (local + distant), recréé sur ce commit."
+  TAG_EXISTS=0
+fi
+if [ "$TAG_EXISTS" = "1" ]; then
+  echo "Tag $TAG déjà présent (rebuild de la même version) — RETAG=1 pour le repousser."
 else
   git -C "$DIR" tag "$TAG"
   echo "Tag $TAG créé."

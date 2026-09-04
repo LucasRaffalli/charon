@@ -136,15 +136,32 @@
         <span class="entry__size data">{{ row.entry.isDir ? '–' : (row.entry.size | fileSize) }}</span>
       </button>
       @if (!row.entry.isDir) {
-        <button
-          type="button"
-          class="entry__action"
-          [title]="t('server.downloadHint')"
-          [attr.aria-label]="'Télécharger : ' + row.entry.name"
-          (click)="download(row.entry)"
-        >
-          <app-icon name="download" [size]="15" />
-        </button>
+        <!-- Trois états, le retour posé LÀ où l'on a cliqué : la flèche au
+             repos, un spinner pendant le transfert, la coche quelques
+             secondes quand le fichier est arrivé (issue #11). -->
+        @switch (downloadState(row.entry.name)) {
+          @case ('busy') {
+            <span class="entry__action entry__action--busy" [title]="t('server.downloading')">
+              <span class="entry__spin" aria-hidden="true"></span>
+            </span>
+          }
+          @case ('done') {
+            <span class="entry__action entry__action--done" [title]="t('server.downloadDone')">
+              <app-icon name="check" [size]="15" />
+            </span>
+          }
+          @default {
+            <button
+              type="button"
+              class="entry__action"
+              [title]="t('server.downloadHint')"
+              [attr.aria-label]="'Télécharger : ' + row.entry.name"
+              (click)="download(row.entry)"
+            >
+              <app-icon name="download" [size]="15" />
+            </button>
+          }
+        }
       }
     </li>
   } @empty {

@@ -9,6 +9,14 @@ communique avec l'app que par l'objet global **`charon`** (le SDK), et seulement
 dans les limites des **permissions** qu'il déclare. Tout le reste est refusé par
 défaut.
 
+Deux exemples à lire côte à côte avec ce guide : le module d'exemple minimal
+([example-module/](example-module/)) et le **Moniteur**, fourni avec
+l'application ([src-tauri/modules/monitor/](../src-tauri/modules/monitor/)) —
+un module complet et réel : relevés périodiques, `ui.render`, alertes au seuil,
+stockage des réglages, cadence pilotée par `panel-visibility`. Ce guide est
+aussi accessible depuis l'application : Réglages → Modules → « Ouvrir le
+guide ».
+
 ---
 
 ## 1. Anatomie d'un module
@@ -175,7 +183,15 @@ charon.events.on('connected',     function (p) { /* p = { protocol } */ });   //
 charon.events.on('disconnected',  function (p) {});
 charon.events.on('path-changed',  function (p) { /* p = { path } */ });
 charon.events.on('transfer-done', function (p) { /* p = { name, direction, remotePath, localPath, size } */ });
+charon.events.on('panel-visibility', function (p) { /* p = { visible } */ });
 ```
+
+`panel-visibility` dit si le panneau « Modules » est **ouvert et au premier
+plan**. C'est le signal pour cadencer un module qui rafraîchit en boucle :
+la MESURE peut continuer au ralenti panneau fermé (une alerte n'a de valeur
+que si elle arrive sans qu'on regarde), mais le RENDU ne sert à personne.
+Le Moniteur fait exactement ça : cadence choisie panneau visible, 120 s
+panneau fermé, et un relevé immédiat quand il redevient visible.
 
 ### Stockage — `charon.storage`
 

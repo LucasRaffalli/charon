@@ -21,7 +21,7 @@
           }
         </div>
         @if (dismissible()) {
-          <button type="button" class="modal__x" aria-label="Fermer" (click)="close()">
+          <button type="button" class="modal__x" [attr.aria-label]="t('common.buttons.close')" (click)="close()">
             <app-icon name="close" [size]="14" />
           </button>
         }

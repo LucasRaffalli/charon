@@ -1,4 +1,4 @@
-<div class="bar" data-tauri-drag-region role="tablist" aria-label="Sessions">
+<div class="bar" data-tauri-drag-region role="tablist" [attr.aria-label]="t('misc.a11y.sessions')">
   @for (tab of tabBar.tabs(); track trackOf(tab)) {
     @if (tab.kind === 'single') {
       <button
@@ -107,7 +107,7 @@
     class="bar__new"
     [class.bar__new--named]="tabBar.lonely()"
     [title]="newTabTitle()"
-    aria-label="Nouvelle session"
+    [attr.aria-label]="t('app.newTab')"
     (click)="tabBar.openTab()"
   >
     <app-icon name="plus" [size]="14" />

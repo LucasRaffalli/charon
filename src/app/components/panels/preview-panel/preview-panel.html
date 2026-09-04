@@ -1,4 +1,4 @@
-<div class="ftabs" role="tablist" aria-label="Fichiers ouverts">
+<div class="ftabs" role="tablist" [attr.aria-label]="t('misc.a11y.openFiles')">
   @for (row of tabRows(); track row.doc.id) {
     <button
       type="button"
@@ -248,7 +248,7 @@
           {{ zoomLabel() }}
         </button>
         <button type="button" class="media-bar__btn" [attr.aria-label]="t('preview.zoomIn')" (click)="zoomIn()">＋</button>
-        <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomFit()">Ajuster</button>
+        <button type="button" class="media-bar__btn media-bar__btn--wide" (click)="zoomFit()">{{ t('common.buttons.fit') }}</button>
         @if (imageDims(); as dims) {
           <span class="media-bar__dims data">{{ dims.w }} × {{ dims.h }}</span>
         }

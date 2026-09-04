@@ -1,6 +1,6 @@
 @if (settings.panelOpen()) {
   <div class="overlay" (click)="close()">
-    <section class="panel" role="dialog" aria-modal="true" aria-label="Réglages" (click)="$event.stopPropagation()">
+    <section class="panel" role="dialog" aria-modal="true" [attr.aria-label]="t('settingsPanel.title')" (click)="$event.stopPropagation()">
       <!-- Navigation latérale -->
       <aside class="panel__nav">
         <h2 class="panel__brand">
@@ -9,7 +9,7 @@
         </h2>
 
         <nav class="panel__nav-list" role="tablist">
-          @for (tab of tabs; track tab.id) {
+          @for (tab of tabs(); track tab.id) {
             <button
               type="button"
               role="tab"
@@ -21,20 +21,20 @@
               <app-icon [name]="tab.icon" [size]="15" />
               {{ tab.label }}
               @if (tab.id === 'updates' && updater.updateAvailable()) {
-                <span class="panel__nav-badge" aria-label="Mise à jour disponible"></span>
+                <span class="panel__nav-badge" [attr.aria-label]="t('settingsPanel.updates.availableBadge')"></span>
               }
             </button>
           }
         </nav>
 
-        <span class="panel__nav-version data">v.{{ updater.currentVersion() }}</span>
+        <span class="panel__nav-version data" [title]="t('settingsPanel.versionHint')">v.{{ updater.currentVersion() }}</span>
       </aside>
 
       <!-- Contenu de la section -->
       <div class="panel__content">
         <header class="panel__head">
           <h3 class="panel__head-title">{{ activeLabel() }}</h3>
-          <button type="button" class="panel__close" aria-label="Fermer" (click)="close()">
+          <button type="button" class="panel__close" [attr.aria-label]="t('common.buttons.close')" (click)="close()">
             <app-icon name="close" [size]="16" />
           </button>
         </header>
@@ -82,6 +82,20 @@
                 />
               </div>
 
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.askDownload.name') }}</span>
+                  <span class="setting__desc">
+                    {{ t('settingsPanel.askDownload.desc') }}
+                  </span>
+                </div>
+                <app-toggle
+                  [ariaLabel]="t('settingsPanel.askDownload.name')"
+                  [checked]="settings.askDownloadDir()"
+                  (checkedChange)="settings.update({ askDownloadDir: $event })"
+                />
+              </div>
+
               <div class="setting setting--stack">
                 <div class="setting__text">
                   <span class="setting__name">{{ t('settingsPanel.trash.name') }}</span>
@@ -126,7 +140,7 @@
                 <app-text-field
                   [ariaLabel]="t('settingsPanel.editor.name')"
                   name="editor-app"
-                  placeholder="Visual Studio Code"
+                  [placeholder]="t('misc.a11y.editorPlaceholder')"
                   [value]="settings.editorApp()"
                   (valueChange)="settings.update({ editorApp: $event })"
                 />
@@ -136,8 +150,7 @@
               <div class="setting">
                 <div class="setting__text">
                   <span class="setting__name">{{ t('settingsPanel.idle.name') }}</span>
-                  <span class="setting__desc"> {{ t('settingsPanel.idle.desc') }}
-                  </span>
+                  <span class="setting__desc"> {{ t('settingsPanel.idle.desc') }} </span>
                 </div>
                 <app-text-field
                   class="setting__minutes"
@@ -152,9 +165,8 @@
             @case ('shortcuts') {
               <div class="setting setting--stack">
                 <div class="setting__text">
-                  <span class="setting__name">Raccourcis clavier</span>
-                  <span class="setting__desc"> {{ t('settingsPanel.shortcuts.desc') }}
-                  </span>
+                  <span class="setting__name">{{ t('settingsPanel.shortcutsTitle') }}</span>
+                  <span class="setting__desc"> {{ t('settingsPanel.shortcuts.desc') }} </span>
                 </div>
               </div>
               <app-shortcuts-list />
@@ -165,12 +177,7 @@
                   <span class="setting__name">{{ t('settings.language.name') }}</span>
                   <span class="setting__desc">{{ t('settings.language.desc') }}</span>
                 </div>
-                <app-segmented-control
-                  class="setting__seg"
-                  [options]="langOptions"
-                  [value]="settings.lang()"
-                  (valueChange)="setLang($event)"
-                />
+                <app-segmented-control class="setting__seg" [options]="langOptions" [value]="settings.lang()" (valueChange)="setLang($event)" />
               </div>
 
               <div class="setting">
@@ -270,6 +277,20 @@
                 </app-button>
               </div>
 
+              <!-- Le guide existait depuis le début dans le dépôt : personne ne
+                   l'y trouvait (issue #13). Le lien vit là où naît l'envie
+                   d'écrire un module. -->
+              <div class="setting">
+                <div class="setting__text">
+                  <span class="setting__name">{{ t('settingsPanel.modules.guide') }}</span>
+                  <span class="setting__desc"> {{ t('settingsPanel.modules.guideDesc') }} </span>
+                </div>
+                <app-button variant="ghost" (click)="openLink(moduleGuideUrl)">
+                  <app-icon name="file-text" [size]="14" />
+                  {{ t('settingsPanel.modules.guideOpen') }}
+                </app-button>
+              </div>
+
               @if (modules.error(); as error) {
                 <p class="panel__update-error">{{ error }}</p>
               }
@@ -351,7 +372,7 @@
                 }
                 @case ('downloading') {
                   <p class="panel__update-status">
-                    Téléchargement…
+                    {{ t('settingsPanel.downloading') }}
                     @if (updater.status(); as status) {
                       @if (status.kind === 'downloading' && status.total > 0) {
                         {{ downloadPercent(status.transferred, status.total) }} %

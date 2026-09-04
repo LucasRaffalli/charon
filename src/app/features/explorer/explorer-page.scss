@@ -534,20 +534,47 @@
     position: absolute;
     inset: 0;
     z-index: -1;
-    background-color: var(--text);
-    opacity: 0.06;
+    // Opacité, taille, teinte et image viennent de l'apparence (réglables
+    // dans l'atelier) ; les défauts sont les valeurs d'avant, donc rien ne
+    // bouge pour qui n'y touche pas.
+    //
+    // En SILHOUETTE (le défaut), l'image sert de masque et se teinte : c'est
+    // le rendu du glyphe, qui marche avec n'importe quel dessin un peu
+    // contrasté. En mode IMAGE, elle s'affiche telle quelle (voir plus bas) :
+    // une photo ou un logo en couleur n'a rien à faire dans un masque.
+    background-color: var(--mark-color, var(--text));
+    opacity: var(--mark-opacity, 0.06);
     pointer-events: none;
-    -webkit-mask: var(--charon-mark) no-repeat center / min(44vmin, 460px);
-    mask: var(--charon-mark) no-repeat center / min(44vmin, 460px);
+    --mark-span: calc(min(44vmin, 460px) * var(--mark-scale, 1));
+    -webkit-mask: var(--mark-image, var(--charon-mark)) no-repeat center / var(--mark-span);
+    mask: var(--mark-image, var(--charon-mark)) no-repeat center / var(--mark-span);
   }
 
   // La translucidité du groupe contenant la vue serveur est gérée par le
   // dock (`.group--server` dans dock-node.scss).
 }
 
+// Filigrane en mode image : l'image s'affiche telle quelle, couleurs
+// comprises. Le masque est retiré (sinon il découperait l'image dans un
+// aplat de couleur) et la teinte n'a plus de sens.
+:host-context([data-mark='image']) .explorer--logo::before {
+  background-color: transparent;
+  background-image: var(--mark-image);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: var(--mark-span) auto;
+  -webkit-mask: none;
+  mask: none;
+}
+
 // Accent unicorn : le filigrane de fond devient l'image licorne (en couleur,
 // donc pas de masque monochrome).
-:host-context([data-accent='unicorn']) .explorer--logo::before {
+//
+// `:not([data-mark])` : une image posée à la main GAGNE sur la licorne. Sans
+// ça, l'accent secret écraserait le filigrane que l'utilisateur vient de
+// choisir, et rien ne l'expliquerait à l'écran. L'attribut n'est présent que
+// lorsque l'apparence a été appliquée, ce qui est toujours le cas ici.
+:host-context([data-accent='unicorn']:not([data-mark='image'])) .explorer--logo::before {
   background-color: transparent;
   background-image: url('/assets/webp/unicorn.webp');
   background-repeat: no-repeat;

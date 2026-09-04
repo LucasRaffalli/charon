@@ -7,7 +7,7 @@
       <app-icon name="refresh" [size]="13" />
     </button>
     @if (entries().length) {
-      <button type="button" class="bar__act bar__act--danger" (click)="empty()">Vider</button>
+      <button type="button" class="bar__act bar__act--danger" (click)="empty()">{{ t('common.buttons.clear') }}</button>
     }
   </header>
 

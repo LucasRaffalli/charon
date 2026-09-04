@@ -1,0 +1,225 @@
+// L'éditeur de lumières du dégradé libre. Ses styles vivent ici plutôt que
+// dans la carte : c'est son composant, et la carte tenait à peine dans son
+// budget.
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.spots__slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 2px;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+
+  > span:first-child {
+    flex: none;
+    width: 66px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+}
+
+.spots__value {
+  flex: none;
+  width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+// L'ajusteur de foyers : un rectangle qui montre le dégradé en petit, et
+// deux pastilles qu'on attrape. On place une lumière en la regardant, pas en
+// réglant ses coordonnées.
+.spots {
+  position: relative;
+  // Assez haut pour que six sources se distinguent : à 84 px elles se
+  // chevauchaient dès la quatrième.
+  height: 116px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--elev-0);
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+// Le même motif que le fond, en réduction : ce qu'on règle est ce qu'on voit.
+.spots__preview {
+  position: absolute;
+  inset: 0;
+  background: var(--grad-image, none);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.spots__dot {
+  position: absolute;
+  // Une source à couleur propre la porte sur sa pastille : sinon six
+  // lumières de six teintes se ressembleraient toutes dans l'aperçu.
+  background: var(--dot-tint, var(--glow-solid, var(--accent)));
+  width: 15px;
+  height: 15px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--elev-0);
+  border-radius: 50%;
+  background: var(--glow-solid, var(--accent));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+
+  &--b {
+    background: var(--glow2-solid, var(--accent-solid));
+  }
+
+  // La source réglée par les curseurs : un anneau la désigne, sans changer
+  // sa couleur (qui, elle, dit quelle teinte du dégradé elle emploie).
+  &--on {
+    box-shadow:
+      0 0 0 2px var(--accent),
+      0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  // La forme se lit sur la pastille : sans ça, six points identiques ne
+  // disent pas lequel est une écharpe et lequel est un anneau.
+  &[data-shape='ring'] {
+    border-color: var(--dot-tint, var(--glow-solid, var(--accent)));
+    background: none;
+    border-width: 3px;
+    border-color: var(--glow-solid, var(--accent));
+  }
+
+  &--b[data-shape='ring'] {
+    border-color: var(--glow2-solid, var(--accent-solid));
+  }
+
+  &[data-shape='edge'] {
+    width: 22px;
+    height: 10px;
+    margin: -5px 0 0 -11px;
+    border-radius: 5px;
+  }
+
+  &[data-shape='beam'] {
+    border-radius: 3px;
+  }
+}
+
+// Le trait qui dit l'orientation d'une écharpe. Purement indicatif, il ne
+// se clique pas : c'est la pastille qu'on attrape.
+.spots__axis {
+  position: absolute;
+  width: 62px;
+  height: 0;
+  border-top: 1px dashed var(--text-faint);
+  opacity: 0.5;
+  pointer-events: none;
+
+  &--on {
+    border-color: var(--accent);
+    opacity: 0.9;
+  }
+}
+
+// La barre d'actions : ajouter, retirer, et le rang de la source réglée.
+.spots__bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spots__act {
+  width: 24px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: var(--text);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.spots__count {
+  margin-left: auto;
+  font-size: calc(10.5px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.spots__swap {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: calc(11px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+// La couleur de la source sélectionnée : sa pastille, et le bouton qui dit
+// d'où elle vient (une des deux du dégradé, ou la sienne).
+.spots__tint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spots__swatch {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+
+  // Le champ natif dessine sa pastille avec une marge : on la colle aux
+  // bords pour que la couleur remplisse le carré.
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+  }
+}
+
+.spots__swap {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: calc(11px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}

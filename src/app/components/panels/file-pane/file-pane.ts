@@ -3,9 +3,11 @@ import {
   Component,
   booleanAttribute,
   computed,
+  inject,
   input,
   model,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 
@@ -13,6 +15,9 @@ import { SelectionBar } from '@app/components/panels/selection-bar/selection-bar
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { InputField } from '@app/components/ui/input/input';
 import { injectT } from '@app/lang/i18n.service';
+import { LocalTreeService } from '@app/services/connection/local-tree.service';
+import { ServerTreeNode } from '@app/components/panels/server-tree/server-tree-node';
+import { scopedKey } from '@app/services/system/window-scope';
 import { FileEntry } from '@app/interfaces';
 
 /**
@@ -21,7 +26,7 @@ import { FileEntry } from '@app/interfaces';
  */
 @Component({
   selector: 'app-file-pane',
-  imports: [Icon, InputField, SelectionBar],
+  imports: [Icon, InputField, SelectionBar, ServerTreeNode],
   templateUrl: './file-pane.html',
   styleUrl: './file-pane.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +62,29 @@ export class FilePane {
   readonly anchorable = input(false, { transform: booleanAttribute });
   readonly anchored = input(false);
   readonly anchorToggle = output<void>();
+
+  /**
+   * La vue arbre (issue #9, précisée par Lucas) : le panneau local peut se
+   * regarder en liste plate ou en arborescence, la même que celle du serveur
+   * (même moteur, même rendu). Un bouton d'en-tête bascule, et le choix est
+   * retenu PAR FENÊTRE (`scopedKey`, comme la disposition du dock) : c'est de
+   * la géographie d'écran, pas un réglage d'application.
+   */
+  readonly treeToggle = input(false, { transform: booleanAttribute });
+  protected readonly viewMode = signal<'list' | 'tree'>(readStoredView());
+  private readonly localTree = inject(LocalTreeService);
+  protected readonly treeRoot = computed(() => this.localTree.root());
+
+  protected toggleView(): void {
+    const next = this.viewMode() === 'list' ? 'tree' : 'list';
+    this.viewMode.set(next);
+    try {
+      localStorage.setItem(scopedKey(VIEW_KEY), next);
+    } catch {
+      // Un stockage indisponible ne casse pas la bascule, elle vaut pour la
+      // session en cours.
+    }
+  }
 
   /**
    * Ce qui est sélectionné, tel que le navigateur le voit. Les entrées et non
@@ -138,5 +166,16 @@ export class FilePane {
     if (!(event.target as HTMLElement).closest('[data-entry]')) {
       this.blankClick.emit();
     }
+  }
+}
+
+/** Clé du choix de vue du panneau local (liste ou arbre), par fenêtre. */
+const VIEW_KEY = 'charon:local-view';
+
+function readStoredView(): 'list' | 'tree' {
+  try {
+    return localStorage.getItem(scopedKey(VIEW_KEY)) === 'tree' ? 'tree' : 'list';
+  } catch {
+    return 'list';
   }
 }

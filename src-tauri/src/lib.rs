@@ -32,6 +32,7 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Les devtools ne s'ouvrent PAS d'office : ouverture manuelle en
             // dev (clic droit → Inspecter, ou Cmd+Option+I) ; verrouillés en

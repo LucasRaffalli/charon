@@ -89,7 +89,7 @@
           <button
             type="button"
             class="row__resume"
-            title="Reprendre ce transfert"
+            [title]="t('misc.a11y.resume')"
             [attr.aria-label]="'Reprendre le transfert de ' + row.transfer.name"
             (click)="row.session.transfers.resume(row.transfer)"
           >

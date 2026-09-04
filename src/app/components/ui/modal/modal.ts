@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, inject, input, output } from '@angular/core';
 
 import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Les modales ouvertes, dans l'ordre. Échap ne doit fermer QUE celle du
@@ -29,6 +30,7 @@ const stack: Modal[] = [];
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Modal {
+  protected readonly t = injectT();
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
 
   readonly title = input('');

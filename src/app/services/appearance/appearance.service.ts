@@ -1,6 +1,11 @@
 import { DOCUMENT, Injectable, computed, effect, inject, signal } from '@angular/core';
 
-import { Appearance, DEFAULT_APPEARANCE, parseAppearance } from '@app/interfaces';
+import {
+  Appearance,
+  DEFAULT_APPEARANCE,
+  GradientSpot,
+  parseAppearance,
+} from '@app/interfaces';
 import { ACCENT_OPTIONS, ThemeService } from '@app/services/appearance/theme.service';
 
 const STORAGE_KEY = 'charon:appearance';
@@ -39,10 +44,16 @@ export class AppearanceService {
   readonly gradient = computed(() => this._appearance().gradient);
   readonly intensity = computed(() => this._appearance().intensity);
   readonly colors = computed(() => this._appearance().colors);
+  readonly spots = computed(() => this._appearance().spots);
   readonly panels = computed(() => this._appearance().panels);
   readonly radius = computed(() => this._appearance().radius);
   readonly text = computed(() => this._appearance().text);
   readonly watermark = computed(() => this._appearance().watermark);
+  readonly markOpacity = computed(() => this._appearance().markOpacity);
+  readonly markSize = computed(() => this._appearance().markSize);
+  readonly markColor = computed(() => this._appearance().markColor);
+  readonly markImage = computed(() => this._appearance().markImage);
+  readonly markMode = computed(() => this._appearance().markMode);
 
   /** Les deux teintes effectives : celles choisies, ou celles de l'accent. */
   readonly effectiveColors = computed(() => {
@@ -68,8 +79,37 @@ export class AppearanceService {
         '--grad',
         value.gradient === 'none' ? '0' : String(value.intensity / 100),
       );
+      // Le motif « libre » est COMPOSÉ ici et non dans la feuille : le nombre
+      // de sources est variable (de une à six) et leurs formes diffèrent, ce
+      // qu'aucune règle CSS ne sait exprimer. Il est posé en inline, donc il
+      // gagne sur la feuille ; retiré pour les autres motifs, sinon il
+      // écraserait le leur.
+      if (value.gradient === 'libre') {
+        root.style.setProperty('--grad-image', composeGradient(value.spots));
+      } else {
+        root.style.removeProperty('--grad-image');
+      }
       root.dataset['radius'] = value.radius;
       root.dataset['text'] = value.text;
+
+      // Le filigrane : opacité, taille et teinte. En variables et non en dur
+      // dans la feuille, pour que l'atelier puisse les régler.
+      root.style.setProperty('--mark-opacity', String(value.markOpacity / 100));
+      root.style.setProperty('--mark-scale', String(value.markSize / 100));
+      if (value.markColor) {
+        root.style.setProperty('--mark-color', value.markColor);
+      } else {
+        root.style.removeProperty('--mark-color');
+      }
+      // L'image du filigrane : le glyphe par défaut, celle de l'utilisateur
+      // sinon. `data-mark` dit si elle se teinte (masque) ou s'affiche telle
+      // quelle, la feuille fait le reste.
+      if (value.markImage) {
+        root.style.setProperty('--mark-image', `url("${value.markImage}")`);
+      } else {
+        root.style.removeProperty('--mark-image');
+      }
+      root.dataset['mark'] = value.markImage ? value.markMode : 'silhouette';
 
       if (this.persisting()) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
@@ -82,6 +122,11 @@ export class AppearanceService {
       const root = this.document.documentElement;
       root.style.setProperty('--glow', rgba(from, GLOW_ALPHA));
       root.style.setProperty('--glow2', rgba(to, GLOW2_ALPHA));
+      // Les mêmes teintes en OPAQUE : les pastilles de l'ajusteur de foyers
+      // portent la couleur qu'elles placent, et une couleur à 14 % d'alpha
+      // ne se verrait pas sur une pastille de treize pixels.
+      root.style.setProperty('--glow-solid', from);
+      root.style.setProperty('--glow2-solid', to);
     });
   }
 
@@ -135,3 +180,83 @@ export class AppearanceService {
 }
 
 export { DEFAULT_APPEARANCE };
+
+/**
+ * Le motif « libre », en une valeur CSS : une couche par source de lumière,
+ * dans l'ordre où elles ont été posées (la dernière passe devant).
+ *
+ * Chaque forme est un dégradé natif du navigateur, pas une image : c'est ce
+ * qui permet d'en empiler six sans coûter plus qu'un fond ordinaire.
+ */
+function composeGradient(spots: readonly GradientSpot[]): string {
+  return spots.map(layerOf).join(', ');
+}
+
+function layerOf(spot: GradientSpot): string {
+  const color = colorOf(spot);
+  const at = `at ${spot.x}% ${spot.y}%`;
+  const size = spot.size;
+
+  switch (spot.shape) {
+    case 'beam':
+      return beamLayer(spot, color);
+    case 'edge':
+      // Une lueur d'horizon : très large, très plate. C'est ce qui la
+      // distingue de la tache, qui reste ronde quelle que soit sa taille.
+      return `radial-gradient(${size * 2.4}% ${size * 0.5}% ${at}, ${color}, transparent 70%)`;
+    case 'ring':
+      return `radial-gradient(${size}% ${size}% ${at}, transparent 40%, ${color} 58%, transparent 78%)`;
+    default:
+      return `radial-gradient(${size}% ${size}% ${at}, ${color}, transparent 68%)`;
+  }
+}
+
+/**
+ * L'écharpe oblique, POSITIONNABLE.
+ *
+ * Un `linear-gradient` n'a pas de point d'ancrage : ses arrêts se placent le
+ * long d'un axe qui traverse le centre, et la position (x, y) de la source
+ * n'y veut rien dire telle quelle. C'est pour cette raison que l'écharpe
+ * paraissait immobile alors qu'on la déplaçait bel et bien.
+ *
+ * On projette donc le point sur l'axe du dégradé pour en tirer la position
+ * de l'arrêt lumineux. Repères de la formule : à 90° (vers la droite), un
+ * point à x = 20 donne un arrêt à 20 % ; à 0° (vers le haut), un point tout
+ * en haut donne 100 %, tout en bas 0 % ; et le centre donne 50 % quel que
+ * soit l'angle.
+ */
+/**
+ * La couleur d'une source : la sienne si elle en a une, sinon l'une des deux
+ * du dégradé. Son intensité propre s'y applique dans les deux cas — mais par
+ * des chemins différents, une variable CSS ne se multipliant pas.
+ */
+function colorOf(spot: GradientSpot): string {
+  const strength = spot.alpha / 100;
+  if (spot.tint) {
+    // Couleur propre : on compose l'alpha directement, en repartant du même
+    // barème que les couleurs partagées pour que les deux se ressemblent.
+    const base = spot.color === 1 ? GLOW2_ALPHA : GLOW_ALPHA;
+    return rgba(spot.tint, Math.min(1, base * strength));
+  }
+  const shared = spot.color === 1 ? 'var(--glow2)' : 'var(--glow)';
+  // Couleur partagée : `color-mix` module son opacité sans avoir à connaître
+  // sa valeur, qui vit dans une variable posée ailleurs.
+  return strength === 1
+    ? shared
+    : `color-mix(in srgb, ${shared} ${Math.round(Math.min(100, strength * 100))}%, transparent)`;
+}
+
+function beamLayer(spot: GradientSpot, color: string): string {
+  const radians = (spot.angle * Math.PI) / 180;
+  const sin = Math.sin(radians);
+  const cos = Math.cos(radians);
+  const axis = Math.abs(sin) + Math.abs(cos);
+  const center = 50 + ((spot.x - 50) * sin + (50 - spot.y) * cos) / axis;
+
+  // La largeur de la bande, de part et d'autre de l'arrêt lumineux. Bornée
+  // aux extrémités, sinon un arrêt hors [0, 100] fait disparaître la bande.
+  const half = spot.size / 2;
+  const from = Math.max(0, Math.min(100, center - half));
+  const to = Math.max(0, Math.min(100, center + half));
+  return `linear-gradient(${spot.angle}deg, transparent ${from.toFixed(1)}%, ${color} ${center.toFixed(1)}%, transparent ${to.toFixed(1)}%)`;
+}

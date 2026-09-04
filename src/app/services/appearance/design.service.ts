@@ -4,6 +4,7 @@ import { Accent, Appearance, DEFAULT_APPEARANCE, DockNode, Theme } from '@app/in
 import { AppearanceService } from '@app/services/appearance/appearance.service';
 import { DockLayout } from '@app/services/workspace/dock-tree';
 import { DockService } from '@app/services/workspace/dock.service';
+import { CustomTheme, CustomThemeService } from '@app/services/appearance/custom-theme.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
 import { TranslationKey } from '@app/lang/i18n.service';
 
@@ -13,6 +14,14 @@ interface DesignSnapshot {
   appearance: Appearance;
   /** La disposition fait partie du brouillon : abandonner la rend aussi. */
   dock: DockNode;
+  /** Le thème sur mesure aussi : l'atelier est un brouillon comme le reste. */
+  custom: CustomTheme | null;
+}
+
+/** Taille d'une carte, quand l'utilisateur l'a redimensionnée. */
+export interface PanelSize {
+  width: number;
+  height: number;
 }
 
 export interface PanelPosition {
@@ -21,7 +30,7 @@ export interface PanelPosition {
 }
 
 /** Les deux panneaux flottants du mode design. */
-export type DesignPanelId = 'base' | 'gradient';
+export type DesignPanelId = 'base' | 'gradient' | 'atelier';
 
 /** Un thème tout fait : le point de départ, pas une prison. */
 export interface DesignTemplate {
@@ -109,6 +118,7 @@ export class DesignService {
   private readonly theme = inject(ThemeService);
   private readonly appearance = inject(AppearanceService);
   private readonly dock = inject(DockService);
+  private readonly customTheme = inject(CustomThemeService);
 
   private readonly _open = signal(false);
   private readonly _asking = signal(false);
@@ -116,16 +126,26 @@ export class DesignService {
   private readonly _collapsed = signal<Record<DesignPanelId, boolean>>({
     base: false,
     gradient: false,
+    atelier: false,
   });
   private readonly _positions = signal<Record<DesignPanelId, PanelPosition | null>>({
     base: null,
     gradient: null,
+    atelier: null,
+  });
+  /** `null` = taille libre : la carte s'ajuste à son contenu, dans la limite
+   *  que pose sa feuille. Une valeur = l'utilisateur a tiré la poignée. */
+  private readonly _sizes = signal<Record<DesignPanelId, PanelSize | null>>({
+    base: null,
+    gradient: null,
+    atelier: null,
   });
   readonly open = this._open.asReadonly();
   /** Vrai quand la modale « Enregistrer ce thème ? » est ouverte. */
   readonly asking = this._asking.asReadonly();
   readonly collapsed = this._collapsed.asReadonly();
   readonly positions = this._positions.asReadonly();
+  readonly sizes = this._sizes.asReadonly();
   readonly templates = DESIGN_TEMPLATES;
 
   /** Quelque chose a bougé depuis l'ouverture du mode design. */
@@ -138,6 +158,7 @@ export class DesignService {
       before.theme !== this.theme.theme() ||
       before.accent !== this.theme.accent() ||
       JSON.stringify(before.appearance) !== JSON.stringify(this.appearance.appearance()) ||
+      JSON.stringify(before.custom) !== JSON.stringify(this.customTheme.custom()) ||
       before.dock !== this.dock.tree()
     );
   });
@@ -151,21 +172,37 @@ export class DesignService {
       accent: this.theme.accent(),
       appearance: this.appearance.appearance(),
       dock: this.dock.tree(),
+      custom: this.customTheme.custom(),
     });
     this.theme.setPersisting(false);
     this.appearance.setPersisting(false);
     this.dock.setPersisting(false);
-    this._collapsed.set({ base: false, gradient: false });
+    this.customTheme.setPersisting(false);
+    this._collapsed.set({ base: false, gradient: false, atelier: false });
     this._asking.set(false);
     this._open.set(true);
   }
 
   toggleCollapsed(id: DesignPanelId): void {
+    const folding = !this._collapsed()[id];
     this._collapsed.update((current) => ({ ...current, [id]: !current[id] }));
+    // Replier doit vraiment replier : une hauteur posée à la poignée
+    // laisserait la carte à sa taille avec un corps vide en dessous. La
+    // LARGEUR est conservée, elle reste pertinente une fois dépliée.
+    if (folding) {
+      this._sizes.update((current) => {
+        const size = current[id];
+        return size ? { ...current, [id]: { ...size, height: 0 } } : current;
+      });
+    }
   }
 
   moveTo(id: DesignPanelId, position: PanelPosition): void {
     this._positions.update((current) => ({ ...current, [id]: position }));
+  }
+
+  resizeTo(id: DesignPanelId, size: PanelSize): void {
+    this._sizes.update((current) => ({ ...current, [id]: size }));
   }
 
   /** Une disposition toute faite. Réversible tant qu'on n'a pas tranché. */
@@ -175,6 +212,10 @@ export class DesignService {
 
   /** Un thème tout fait : thème, accent et apparence d'un coup. */
   applyTemplate(template: DesignTemplate): void {
+    // Un préréglage EST un thème complet : le calque de l'atelier se retire,
+    // sinon on choisirait « Aurore » pour se retrouver avec ses propres
+    // couleurs par-dessus.
+    this.customTheme.reset();
     this.theme.select(template.theme);
     this.theme.selectAccent(template.accent);
     this.appearance.set({ ...template.appearance });
@@ -201,6 +242,7 @@ export class DesignService {
       this.theme.select(before.theme);
       this.theme.restoreAccent(before.accent);
       this.appearance.set(before.appearance);
+      this.customTheme.set(before.custom);
       this.dock.restoreTree(before.dock);
     }
     this.finish();
@@ -217,6 +259,7 @@ export class DesignService {
     this.theme.setPersisting(true);
     this.appearance.setPersisting(true);
     this.dock.setPersisting(true);
+    this.customTheme.setPersisting(true);
     this._asking.set(false);
     this._open.set(false);
     this._snapshot.set(null);

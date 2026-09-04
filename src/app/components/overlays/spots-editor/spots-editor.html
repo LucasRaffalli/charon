@@ -1,0 +1,129 @@
+<div
+  class="spots"
+  #spotsBox
+  (pointerdown)="onSpotDown($event)"
+  (pointermove)="onSpotMove($event)"
+  (pointerup)="onSpotUp($event)"
+  (pointercancel)="onSpotUp($event)"
+>
+  <span class="spots__preview"></span>
+  @for (spot of appearance.spots(); track $index) {
+    <!-- L'axe d'une écharpe : elle ne se déplace que
+         PERPENDICULAIREMENT à lui, la glisser le long ne change
+         rien. Sans ce trait, le geste paraît sans effet. -->
+    @if (spot.shape === 'beam') {
+      <span
+        class="spots__axis"
+        [class.spots__axis--on]="selectedSpot() === $index"
+        [style.left.%]="spot.x"
+        [style.top.%]="spot.y"
+        [style.transform]="'translate(-50%, -50%) rotate(' + (90 - spot.angle) + 'deg)'"
+        aria-hidden="true"
+      ></span>
+    }
+    <span
+      class="spots__dot"
+      [class.spots__dot--b]="spot.color === 1 && !spot.tint"
+      [style.--dot-tint]="spot.tint"
+      [class.spots__dot--on]="selectedSpot() === $index"
+      [attr.data-shape]="spot.shape"
+      [style.left.%]="spot.x"
+      [style.top.%]="spot.y"
+      [attr.data-spot]="$index"
+      [title]="shapeLabel(spot.shape)"
+    ></span>
+  }
+</div>
+
+<div class="spots__bar">
+  <button
+    type="button"
+    class="spots__act"
+    [disabled]="appearance.spots().length >= maxSpots"
+    [title]="t('design.addSpot')"
+    (click)="addSpot()"
+  >
+    ＋
+  </button>
+  <button
+    type="button"
+    class="spots__act"
+    [disabled]="appearance.spots().length <= 1"
+    [title]="t('design.removeSpot')"
+    (click)="removeSpot()"
+  >
+    −
+  </button>
+  <span class="spots__count data">
+    {{ selectedSpot() + 1 }} / {{ appearance.spots().length }}
+  </span>
+</div>
+
+@if (currentSpot(); as spot) {
+  <app-segmented-control
+    [options]="shapeOptions"
+    [value]="spot.shape"
+    (valueChange)="setSpotShape($event)"
+  />
+  <label class="spots__slider">
+    <span>{{ t('design.spotSize') }}</span>
+    <input
+      type="range"
+      min="10"
+      max="120"
+      step="2"
+      [value]="spot.size"
+      (input)="setSpotField('size', $event)"
+    />
+    <span class="spots__value data">{{ spot.size }} %</span>
+  </label>
+  <!-- L'angle ne veut dire quelque chose que pour une écharpe. -->
+  @if (spot.shape === 'beam') {
+    <label class="spots__slider">
+      <span>{{ t('design.spotAngle') }}</span>
+      <input
+        type="range"
+        min="0"
+        max="360"
+        step="2"
+        [value]="spot.angle"
+        (input)="setSpotField('angle', $event)"
+      />
+      <span class="spots__value data">{{ spot.angle }}°</span>
+    </label>
+  }
+  <label class="spots__slider">
+    <span>{{ t('design.spotAlpha') }}</span>
+    <input
+      type="range"
+      min="10"
+      max="200"
+      step="5"
+      [value]="spot.alpha"
+      (input)="setSpotField('alpha', $event)"
+    />
+    <span class="spots__value data">{{ spot.alpha }} %</span>
+  </label>
+
+  <!-- Chaque source peut porter SA couleur, indépendante des deux du
+       dégradé. Sans couleur propre, elle suit l'une des deux, et le bouton
+       dit laquelle. -->
+  <div class="spots__tint">
+    <input
+      type="color"
+      class="spots__swatch"
+      [value]="spotTint()"
+      (input)="setSpotTint($event)"
+      [attr.aria-label]="t('design.spotTint')"
+    />
+    @if (spot.tint) {
+      <button type="button" class="spots__swap" (click)="clearSpotTint()">
+        {{ t('design.spotTintAuto') }}
+      </button>
+    } @else {
+      <button type="button" class="spots__swap" (click)="swapSpotColor()">
+        {{ t(spot.color === 1 ? 'design.spotColorB' : 'design.spotColorA') }}
+      </button>
+    }
+  </div>
+}

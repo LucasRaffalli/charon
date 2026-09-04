@@ -95,7 +95,25 @@ pub fn keychain_secret(profile_id: &str) -> Result<Option<String>, String> {
     match keychain_entry(profile_id)?.get_password() {
         Ok(secret) => Ok(Some(secret)),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Lecture du trousseau impossible : {e}")),
+        // Le refus d'accès a une cause précise et un remède précis, et le
+        // message brut de macOS envoie exactement dans le mauvais sens.
+        //
+        // Le trousseau lie chaque entrée à la SIGNATURE du binaire qui l'a
+        // créée. Charon est signé ad hoc (pas de compte Apple Developer), et
+        // une signature ad hoc change à chaque build : après une mise à jour
+        // (ou un rebuild en dev), macOS ouvre sa boîte système et demande le
+        // mot de passe DE LA SESSION MAC pour ré-autoriser. Le réflexe est d'y
+        // taper le mot de passe du serveur : refus, et l'erreur « user name or
+        // passphrase not correct » laisse croire que le profil est corrompu.
+        Err(e) => {
+            let raw = e.to_string();
+            if raw.contains("not correct") || raw.contains("-25293") {
+                Err("Le trousseau macOS a refusé l'accès. Après une mise à jour                      de Charon, macOS redemande l'autorisation : retente, et dans                      la boîte du trousseau tape le mot de passe de ta session Mac                      (pas celui du serveur), puis « Toujours autoriser »."
+                    .to_string())
+            } else {
+                Err(format!("Lecture du trousseau impossible : {raw}"))
+            }
+        }
     }
 }
 

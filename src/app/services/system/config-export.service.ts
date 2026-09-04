@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 
 import { AppearanceService } from '@app/services/appearance/appearance.service';
+import { CustomThemeService } from '@app/services/appearance/custom-theme.service';
 import { DockService } from '@app/services/workspace/dock.service';
 import { ProfilesService } from '@app/services/connection/profiles.service';
 import { SettingsService } from '@app/services/system/settings.service';
@@ -34,6 +35,7 @@ const stamp = (): string => new Date().toISOString().slice(0, 16).replace(/[:T]/
 export class ConfigExportService {
   private readonly theme = inject(ThemeService);
   private readonly appearance = inject(AppearanceService);
+  private readonly customTheme = inject(CustomThemeService);
   private readonly dock = inject(DockService);
   private readonly settings = inject(SettingsService);
   private readonly profiles = inject(ProfilesService);
@@ -65,6 +67,9 @@ export class ConfigExportService {
         theme: this.theme.theme(),
         accent: this.theme.accent(),
         ...this.appearance.appearance(),
+        // Le thème sur mesure, s'il y en a un : c'est de l'apparence, ça
+        // s'emporte avec le reste (et ça ne contient que des couleurs).
+        themeSurMesure: this.customTheme.custom(),
       },
       disposition: this.dock.tree(),
       reglages: this.settings.settings(),

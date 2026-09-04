@@ -6,6 +6,7 @@ import { Session, SessionRegistry } from '@app/services/connection/session-regis
 import { formatClock } from '@app/services/system/date-format';
 import { ActivityLogService } from '@app/services/workspace/activity-log.service';
 import { TabBarService } from '@app/services/workspace/tab-bar.service';
+import { injectT } from '@app/lang/i18n.service';
 
 const KIND_ICONS: Record<ActivityKind, IconName> = {
   connect: 'server',
@@ -33,6 +34,7 @@ const KIND_ICONS: Record<ActivityKind, IconName> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ActivityLog {
+  protected readonly t = injectT();
   protected readonly activity = inject(ActivityLogService);
   private readonly sessionRegistry = inject(SessionRegistry);
   private readonly tabBar = inject(TabBarService);

@@ -1,0 +1,258 @@
+// Le corps de la carte, repris tel quel : il appartient désormais à ce
+// composant. Le plafond de hauteur et le défilement restent posés par la
+// carte, qui décide de sa propre enveloppe.
+.design__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+}
+
+.design__group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.design__label {
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+.design__hint {
+  margin: 0;
+  font-size: calc(11px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+.design__hint--warn {
+  color: var(--warning);
+}
+
+// --- L'atelier ------------------------------------------------------------
+
+// Deux onglets, dans le vocabulaire du dock : la surface de l'onglet actif
+// rejoint celle du corps, sans filet entre les deux.
+.atelier__tabs {
+  display: flex;
+  gap: 2px;
+  margin: -2px 0 var(--space-2xs);
+  border-bottom: 1px solid var(--border);
+}
+
+.atelier__tab {
+  flex: 1;
+  margin-bottom: -1px;
+  padding: 5px 10px 6px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text-muted);
+  }
+
+  &--on {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+  }
+}
+
+// Un groupe : sa légende en petites capitales, puis ses lignes.
+.atelier__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--space-xs);
+}
+
+.atelier__legend {
+  font-size: calc(9.5px * var(--text-scale));
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+// Une ligne de jeton : pastille, nom, valeur. Elle s'éclaire au survol pour
+// qu'on voie ce qu'on s'apprête à changer.
+.atelier__token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 3px 5px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+}
+
+.atelier__swatch {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+
+  // Le champ natif dessine sa pastille avec une marge : on la colle aux
+  // bords pour que la couleur remplisse le carré.
+  &::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  &::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
+  }
+}
+
+.atelier__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+}
+
+// La valeur en chasse fixe : on lit un code couleur, on le compare, on le
+// recopie ailleurs.
+.atelier__hex {
+  flex: none;
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+  text-transform: uppercase;
+}
+
+.atelier__slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 5px;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-muted);
+
+  > span:first-child {
+    flex: none;
+    width: 58px;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+}
+
+.atelier__value {
+  flex: none;
+  width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(10px * var(--text-scale));
+  color: var(--text-faint);
+}
+
+// Le filigrane : sa vignette à gauche, ses actions à droite.
+.atelier__mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-xs);
+}
+
+.atelier__preview {
+  flex: none;
+  width: 60px;
+  height: 60px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  // Le damier dit la transparence : un logo découpé se juge sur son fond.
+  background-color: var(--elev-0);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 70% auto;
+}
+
+.atelier__markact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.atelier__cta,
+.atelier__reset {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--elev-1);
+  color: var(--text);
+  font: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    background: var(--state-hover);
+  }
+}
+
+.atelier__reset {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.atelier__clear {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: calc(10px * var(--text-scale));
+  cursor: pointer;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.design__hint--warn {
+  color: var(--warning);
+}
+
+// Le partage : un champ de nom, puis les deux actions.
+.atelier__share {
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+}
+
+.atelier__field {
+  width: 100%;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--elev-0));
+  color: var(--text);
+  font: inherit;
+  font-size: calc(11.5px * var(--text-scale));
+  outline: none;
+
+  &:focus {
+    border-color: var(--accent);
+  }
+}

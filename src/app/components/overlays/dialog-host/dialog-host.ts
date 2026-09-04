@@ -4,6 +4,7 @@ import { Button } from '@app/components/ui/button/button';
 import { Modal } from '@app/components/ui/modal/modal';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { DialogService } from '@app/services/workspace/dialog.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Rendu des dialogues confirm/prompt. À placer une seule fois, à la racine. */
 @Component({
@@ -14,6 +15,7 @@ import { DialogService } from '@app/services/workspace/dialog.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DialogHost {
+  protected readonly t = injectT();
   protected readonly dialog = inject(DialogService);
   protected readonly input = signal('');
 

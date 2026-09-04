@@ -12,6 +12,7 @@ import { SessionRegistry } from '@app/services/connection/session-registry';
 import { fileIconFor } from '@app/services/files/file-icon';
 import { PreviewService } from '@app/services/files/preview.service';
 import { DockService } from '@app/services/workspace/dock.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Un résultat de contenu, regroupé sous son fichier. */
 interface HitGroup {
@@ -32,6 +33,7 @@ interface HitGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SearchPane {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get search(): SearchService {

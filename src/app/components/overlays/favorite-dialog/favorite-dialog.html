@@ -11,8 +11,16 @@
 
       <div class="edit__field">
         <span class="edit__label">{{ t('favorites.icon') }}</span>
+        <!-- Vide, la poignée choisie ; une saisie cherche dans tout le
+             catalogue lucide, chargé à la première frappe. -->
+        <app-input
+          class="edit__search"
+          [placeholder]="t('favorites.searchIcon')"
+          [value]="iconQuery()"
+          (valueChange)="onIconQuery($event)"
+        />
         <div class="edit__icons">
-          @for (name of icons; track name) {
+          @for (name of icons(); track name) {
             <button
               type="button"
               class="edit__icon"
@@ -25,15 +33,18 @@
             </button>
           }
         </div>
+        @if (iconQuery().trim() && icons().length === 0) {
+          <p class="edit__none">{{ t('favorites.noIcon') }}</p>
+        }
       </div>
 
       <app-text-field label="Chemin" placeholder="/var/www" hint="Chemin absolu sur le serveur." [(value)]="path" />
     </div>
 
     <ng-container modal-foot>
-      <app-button variant="ghost" (click)="remove()">Retirer</app-button>
+      <app-button variant="ghost" (click)="remove()">{{ t('common.buttons.remove') }}</app-button>
       <span class="edit__spacer"></span>
-      <app-button variant="ghost" (click)="edit.close()">Annuler</app-button>
+      <app-button variant="ghost" (click)="edit.close()">{{ t('common.buttons.cancel') }}</app-button>
       <app-button variant="primary" [disabled]="!valid() || !dirty()" [loading]="saving()" (click)="apply()"> Enregistrer </app-button>
     </ng-container>
   </app-modal>

@@ -25,7 +25,7 @@
           <span class="fav__label">{{ favorite.label }}</span>
           <span class="fav__path">{{ favorite.path }}</span>
         </button>
-        <button type="button" class="row__edit" aria-label="Modifier ce favori" title="Modifier" (click)="edit(favorite)">
+        <button type="button" class="row__edit" [attr.aria-label]="t('misc.a11y.editFavorite')" [title]="t('misc.a11y.edit')" (click)="edit(favorite)">
           <app-icon name="pencil" [size]="12" />
         </button>
       </li>

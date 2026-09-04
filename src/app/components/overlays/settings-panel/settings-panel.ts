@@ -126,19 +126,26 @@ export class SettingsPanel {
     });
   }
 
-  protected readonly tabs: readonly TabOption[] = [
-    { id: 'design', icon: 'palette', label: 'Design' },
-    { id: 'files', icon: 'folder', label: 'Fichiers' },
-    { id: 'connection', icon: 'server', label: 'Connexion' },
-    { id: 'shortcuts', icon: 'command', label: 'Raccourcis' },
-    { id: 'data', icon: 'file', label: 'Données' },
-    { id: 'modules', icon: 'layout-grid', label: 'Modules' },
-    { id: 'updates', icon: 'refresh', label: 'Mises à jour' },
-    { id: 'about', icon: 'info', label: 'À propos' },
-  ];
+  /**
+   * Les onglets. En `computed` et non en constante : les libellés viennent du
+   * dictionnaire, et une liste figée à la construction resterait dans la
+   * langue de départ après un changement de langue.
+   */
+  protected readonly tabs = computed<readonly TabOption[]>(() => [
+    { id: 'design', icon: 'palette', label: this.t('settingsPanel.tabDesign') },
+    { id: 'files', icon: 'folder', label: this.t('settingsPanel.tabFiles') },
+    { id: 'connection', icon: 'server', label: this.t('settingsPanel.tabConnection') },
+    { id: 'shortcuts', icon: 'command', label: this.t('settingsPanel.tabShortcuts') },
+    { id: 'data', icon: 'file', label: this.t('settingsPanel.tabData') },
+    { id: 'modules', icon: 'layout-grid', label: this.t('settingsPanel.tabModules') },
+    { id: 'updates', icon: 'refresh', label: this.t('settingsPanel.tabUpdates') },
+    { id: 'about', icon: 'info', label: this.t('settingsPanel.tabAbout') },
+  ]);
 
   // Le dépôt, son auteur, et le formulaire d'issue pré-rempli.
   protected readonly repoUrl = GITHUB_REPO;
+  /** Le guide d'écriture des modules, dans le dépôt (issue #13). */
+  protected readonly moduleGuideUrl = `${GITHUB_REPO}/blob/main/docs/module-development.md`;
   protected readonly userUrl = GITHUB_USER;
   protected readonly os = osLabel();
   protected readonly reportIssue = injectIssueReporter();
@@ -159,7 +166,7 @@ export class SettingsPanel {
   }
 
   /** Titre de la section affichée (en-tête du contenu). */
-  protected readonly activeLabel = computed(() => this.tabs.find((tab) => tab.id === this.activeTab())?.label ?? '');
+  protected readonly activeLabel = computed(() => this.tabs().find((tab) => tab.id === this.activeTab())?.label ?? '');
 
   /**
    * Le dossier d'ouverture du panneau local a disparu. Un réglage qui ne fait
@@ -215,7 +222,7 @@ export class SettingsPanel {
         title: this.t('misc.moduleDelete.title', { name }),
         message: this.t('misc.moduleDelete.message', { name }),
         placeholder: name,
-        confirmLabel: 'Supprimer',
+        confirmLabel: this.t('common.buttons.delete'),
         danger: true,
       })
     )?.trim();

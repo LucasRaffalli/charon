@@ -113,6 +113,30 @@ export class ServerPane {
     return this.session().clipboard;
   }
 
+  /**
+   * Les chemins distants en cours de téléchargement : le bouton de la ligne
+   * montre un spinner. En Set précalculé, pas en parcours par ligne — la
+   * règle du panneau (voir serverRows) : le gabarit ne refait pas de boucles.
+   */
+  private readonly downloadingPaths = computed(() => {
+    const paths = new Set<string>();
+    for (const transfer of this.session().transfers.transfers()) {
+      if (transfer.direction === 'download' && transfer.status === 'active') {
+        paths.add(transfer.remotePath);
+      }
+    }
+    return paths;
+  });
+
+  /** L'état du bouton de téléchargement d'une ligne : repos, en cours, fait. */
+  protected downloadState(name: string): 'idle' | 'busy' | 'done' {
+    const path = this.sftp.pathTo(name);
+    if (this.session().transfers.justDownloaded().has(path)) {
+      return 'done';
+    }
+    return this.downloadingPaths().has(path) ? 'busy' : 'idle';
+  }
+
   private get preview(): PreviewService {
     return this.session().preview;
   }
@@ -778,7 +802,15 @@ export class ServerPane {
     const first: ContextMenuItem = entry.isDir
       ? { label: this.t('menu.open'), icon: 'folder', action: () => void this.sftp.openDir(entry.name) }
       : { label: this.t('common.buttons.download'), icon: 'download', action: () => this.download(entry) };
+    const downloadTo: ContextMenuItem = {
+      label: this.t('server.downloadTo'),
+      icon: 'download',
+      action: () => void this.actions.download(this.session(), entry, true),
+    };
     const items: ContextMenuItem[] = [first];
+    if (!entry.isDir) {
+      items.push(downloadTo);
+    }
     if (entry.isDir) {
       items.push(...this.folderActions(this.sftp.pathTo(entry.name)));
     }
@@ -928,6 +960,11 @@ export class ServerPane {
         label: `Télécharger ${files} fichier${files > 1 ? 's' : ''}`,
         icon: 'download',
         action: () => this.downloadSelection(),
+      },
+      {
+        label: this.t('server.downloadSelectionTo'),
+        icon: 'download',
+        action: () => void this.actions.downloadSelection(this.session(), true),
       });
     }
     if (this.sftp.protocol() === 'sftp') {

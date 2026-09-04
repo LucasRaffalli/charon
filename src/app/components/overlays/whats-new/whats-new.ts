@@ -6,6 +6,7 @@ import { CharonGlyph } from '@app/components/brand/charon-logo/charon-glyph';
 import { ChangeKind, ChangeNote, ChangelogEntry } from '@app/interfaces';
 import { formatReleaseDate } from '@app/services/system/date-format';
 import { WhatsNewService } from '@app/services/system/whats-new.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /**
  * Compare deux versions sémantiques. `localeCompare` dirait que 1.10 précède
@@ -61,6 +62,7 @@ export interface NoteGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WhatsNew {
+  protected readonly t = injectT();
   protected readonly whatsNew = inject(WhatsNewService);
   protected readonly kindLabels = KIND_LABELS;
   protected readonly formatDate = formatReleaseDate;

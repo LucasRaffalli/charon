@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 
 import { Button } from '@app/components/ui/button/button';
-import { Icon, IconName } from '@app/components/ui/icon/icon';
+import { InputField } from '@app/components/ui/input/input';
+import { Icon, IconName, catalogNames, ensureIconCatalog } from '@app/components/ui/icon/icon';
 import { Modal } from '@app/components/ui/modal/modal';
 import { TextField } from '@app/components/ui/text-field/text-field';
 import { FavoriteEditService } from '@app/services/connection/favorite-edit.service';
@@ -32,7 +33,7 @@ export const FAVORITE_ICONS: readonly IconName[] = [
 /** La modale d'édition d'un favori : nom, icône, chemin, retrait. */
 @Component({
   selector: 'app-favorite-dialog',
-  imports: [Button, Icon, Modal, TextField],
+  imports: [Button, Icon, InputField, Modal, TextField],
   templateUrl: './favorite-dialog.html',
   styleUrl: './favorite-dialog.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,12 +44,50 @@ export class FavoriteDialog {
   private readonly profiles = inject(ProfilesService);
   private readonly dialog = inject(DialogService);
 
-  protected readonly icons = FAVORITE_ICONS;
-
   protected readonly label = signal('');
   protected readonly path = signal('');
-  protected readonly icon = signal<IconName>('folder');
+  protected readonly icon = signal<string>('folder');
   protected readonly saving = signal(false);
+
+  /**
+   * La recherche d'icône (issue #10). La poignée choisie reste le défaut :
+   * douze icônes qui couvrent ce à quoi servent les dossiers d'un serveur.
+   * Mais une saisie ouvre TOUT le catalogue lucide (1700 icônes), chargé en
+   * chunk paresseux à la première frappe : on ne paie ni le poids au
+   * démarrage, ni le parcours d'une grille de cinquante entrées — on cherche.
+   */
+  protected readonly iconQuery = signal('');
+  private readonly catalogReady = signal(false);
+
+  protected readonly icons = computed<readonly string[]>(() => {
+    const query = this.iconQuery().trim().toLowerCase();
+    if (!query) {
+      return FAVORITE_ICONS;
+    }
+    if (!this.catalogReady()) {
+      // Le temps que le chunk arrive, la poignée filtre déjà.
+      return FAVORITE_ICONS.filter((name) => name.includes(query));
+    }
+    const matches: string[] = [];
+    for (const name of catalogNames()) {
+      if (name.includes(query)) {
+        matches.push(name);
+        // Un plafond : mille résultats ne se choisissent pas plus que
+        // cinquante, et le DOM n'a pas à les porter.
+        if (matches.length >= 48) {
+          break;
+        }
+      }
+    }
+    return matches;
+  });
+
+  protected onIconQuery(value: string): void {
+    this.iconQuery.set(value);
+    if (value.trim() && !this.catalogReady()) {
+      void ensureIconCatalog().then(() => this.catalogReady.set(true));
+    }
+  }
 
   constructor() {
     // Le brouillon repart du favori à chaque ouverture : rouvrir la modale

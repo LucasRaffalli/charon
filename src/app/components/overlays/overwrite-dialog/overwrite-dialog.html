@@ -141,7 +141,7 @@
         @if (request.canKeepBoth) {
           <app-button variant="ghost" (click)="all('keep-both')">{{ t('overwrite.keepBoth') }}</app-button>
         }
-        <app-button variant="ghost" (click)="cancel()">Ignorer</app-button>
+        <app-button variant="ghost" (click)="cancel()">{{ t('common.buttons.skip') }}</app-button>
         <app-button variant="danger-solid" (click)="confirm()">{{ t('overwrite.overwrite') }}</app-button>
       </div>
     </section>

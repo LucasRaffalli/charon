@@ -1,3 +1,13 @@
+<!-- La poignée de redimensionnement : largeur et hauteur d'un seul geste. -->
+<span
+  class="design__grip"
+  aria-hidden="true"
+  (pointerdown)="onResizeStart($event)"
+  (pointermove)="onResizeMove($event)"
+  (pointerup)="onResizeEnd($event)"
+  (pointercancel)="onResizeEnd($event)"
+></span>
+
 @if (side() === 'base') {
   <!-- Panneau de gauche : l'identité (thèmes, couleurs, formes) -->
   <header
@@ -7,110 +17,85 @@
     (pointerup)="onDragEnd($event)"
     (pointercancel)="onDragEnd($event)"
   >
-    <span class="design__title">Design</span>
-    <button
-      type="button"
-      class="design__icon"
-      [attr.aria-label]="design.collapsed().base ? 'Déplier' : 'Réduire'"
-      (click)="design.toggleCollapsed('base')"
-    >
+    <span class="design__title" [title]="t('design.titleHint')">{{ t('design.titleBase') }}</span>
+    <button type="button" class="design__icon" [attr.aria-label]="design.collapsed().base ? 'Déplier' : 'Réduire'" (click)="design.toggleCollapsed('base')">
       {{ design.collapsed().base ? '+' : '–' }}
     </button>
-    <button type="button" class="design__icon" aria-label="Fermer" (click)="design.requestClose()">
-      ✕
-    </button>
+    <button type="button" class="design__icon" [attr.aria-label]="t('common.buttons.close')" (click)="design.requestClose()">✕</button>
   </header>
 
   @if (!design.collapsed().base) {
-  <div class="design__body">
-    <div class="design__group">
-      <span class="design__label">{{ t('design.presets') }}</span>
-      <div class="design__templates" role="group" [attr.aria-label]="t('design.presets')">
-        @for (template of design.templates; track template.label) {
-          <button
-            type="button"
-            class="design__template"
-            [title]="t(template.hint)"
-            (click)="applyTemplate(template)"
-          >
-            {{ t(template.label) }}
-          </button>
-        }
+    <div class="design__body">
+      <div class="design__group">
+        <span class="design__label">{{ t('design.presets') }}</span>
+        <div class="design__templates" role="group" [attr.aria-label]="t('design.presets')">
+          @for (template of design.templates; track template.label) {
+            <button type="button" class="design__template" [title]="t(template.hint)" (click)="applyTemplate(template)">
+              {{ t(template.label) }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="design__group">
+        <span class="design__label">{{ t('design.theme') }}</span>
+        <app-segmented-control ariaLabel="Thème" [options]="themeOptions" [value]="themeService.theme()" (valueChange)="setTheme($event)" />
+      </div>
+
+      <div class="design__group">
+        <span class="design__label" [title]="t('design.accentHint')">{{ t('design.accent') }}</span>
+        <div class="design__swatches" role="group" [attr.aria-label]="t('design.accent')">
+          @for (option of themeService.visibleAccents(); track option.value) {
+            <button
+              type="button"
+              class="design__swatch"
+              [class.design__swatch--on]="themeService.accent() === option.value"
+              [style.background]="option.swatch"
+              [style.color]="option.swatch"
+              [attr.aria-label]="option.label"
+              [attr.aria-pressed]="themeService.accent() === option.value"
+              [title]="option.label"
+              (click)="themeService.selectAccent(option.value)"
+            ></button>
+          }
+        </div>
+      </div>
+
+      <div class="design__group">
+        <span class="design__label">{{ t('design.radius') }}</span>
+        <app-segmented-control [ariaLabel]="t('design.radius')" [options]="radiusOptions" [value]="appearance.radius()" (valueChange)="setRadius($event)" />
+        <span class="design__note">
+          {{ t('design.radiusDesc') }}
+        </span>
+      </div>
+
+      <div class="design__group">
+        <span class="design__label">{{ t('design.textSize') }}</span>
+        <app-segmented-control ariaLabel="Taille du texte" [options]="textOptions" [value]="appearance.text()" (valueChange)="setText($event)" />
+      </div>
+
+      <div class="design__group">
+        <span class="design__label">{{ t('design.watermark') }}</span>
+        <app-segmented-control
+          ariaLabel="Filigrane du logo"
+          [options]="watermarkOptions"
+          [value]="appearance.watermark() ? 'on' : 'off'"
+          (valueChange)="setWatermark($event)"
+        />
       </div>
     </div>
 
-    <div class="design__group">
-      <span class="design__label">{{ t('design.theme') }}</span>
-      <app-segmented-control
-        ariaLabel="Thème"
-        [options]="themeOptions"
-        [value]="themeService.theme()"
-        (valueChange)="setTheme($event)"
-      />
-    </div>
-
-    <div class="design__group">
-      <span class="design__label">Accent</span>
-      <div class="design__swatches" role="group" aria-label="Accent">
-        @for (option of themeService.visibleAccents(); track option.value) {
-          <button
-            type="button"
-            class="design__swatch"
-            [class.design__swatch--on]="themeService.accent() === option.value"
-            [style.background]="option.swatch"
-            [style.color]="option.swatch"
-            [attr.aria-label]="option.label"
-            [attr.aria-pressed]="themeService.accent() === option.value"
-            [title]="option.label"
-            (click)="themeService.selectAccent(option.value)"
-          ></button>
-        }
-      </div>
-    </div>
-
-    <div class="design__group">
-      <span class="design__label">{{ t('design.radius') }}</span>
-      <app-segmented-control
-        [ariaLabel]="t('design.radius')"
-        [options]="radiusOptions"
-        [value]="appearance.radius()"
-        (valueChange)="setRadius($event)"
-      />
-      <span class="design__note">
-        {{ t('design.radiusDesc') }}
+    <footer class="design__foot">
+      <span class="design__state" [class.design__state--dirty]="design.dirty()">
+        {{ t(design.dirty() ? 'design.dirty' : 'design.clean') }}
       </span>
-    </div>
-
-    <div class="design__group">
-      <span class="design__label">{{ t('design.textSize') }}</span>
-      <app-segmented-control
-        ariaLabel="Taille du texte"
-        [options]="textOptions"
-        [value]="appearance.text()"
-        (valueChange)="setText($event)"
-      />
-    </div>
-
-    <div class="design__group">
-      <span class="design__label">{{ t('design.watermark') }}</span>
-      <app-segmented-control
-        ariaLabel="Filigrane du logo"
-        [options]="watermarkOptions"
-        [value]="appearance.watermark() ? 'on' : 'off'"
-        (valueChange)="setWatermark($event)"
-      />
-    </div>
-  </div>
-
-  <footer class="design__foot">
-    <span class="design__state" [class.design__state--dirty]="design.dirty()">
-      {{ t(design.dirty() ? 'design.dirty' : 'design.clean') }}
-    </span>
-    <button type="button" class="design__done" (click)="design.save()">{{ t('design.done') }}</button>
-  </footer>
+      <button type="button" class="design__done" (click)="design.save()">{{ t('design.done') }}</button>
+    </footer>
   }
-} @else {
-  <!-- Panneau de droite : le fond et la disposition -->
+} @else if (side() === 'gradient') {
+  <!-- Panneau de droite : le fond et la disposition.
+       La branche est NOMMÉE et non un `@else` : avec une troisième carte
+       (l'atelier), un `@else` la remplissait aussi de ce contenu-ci. -->
   <header
     class="design__head"
     (pointerdown)="onDragStart($event)"
@@ -118,7 +103,7 @@
     (pointerup)="onDragEnd($event)"
     (pointercancel)="onDragEnd($event)"
   >
-    <span class="design__title">Fond et panneaux</span>
+    <span class="design__title">{{ t('design.titleGradient') }}</span>
     <button
       type="button"
       class="design__icon"
@@ -130,132 +115,149 @@
   </header>
 
   @if (!design.collapsed().gradient) {
-  <div class="design__body">
-    <div class="design__group">
-      <span class="design__label">{{ t('design.gradient') }}</span>
-      <div class="design__grads" role="group" [attr.aria-label]="t('design.gradient')">
-        @for (option of gradientOptions; track option.value) {
-          <button
-            type="button"
-            class="design__grad"
-            [class.design__grad--on]="appearance.gradient() === option.value"
-            [attr.aria-pressed]="appearance.gradient() === option.value"
-            (click)="setGradient(option.value)"
-          >
-            <span class="design__grad-preview" [attr.data-motif]="option.value"></span>
-            {{ option.label }}
-          </button>
-        }
-      </div>
-    </div>
-
-    @if (appearance.gradient() !== 'none') {
+    <div class="design__body">
       <div class="design__group">
-        <span class="design__label">Couleurs</span>
-        <div class="design__colors">
-          <input
-            type="color"
-            [attr.aria-label]="t('design.firstColor')"
-            [value]="appearance.effectiveColors().from"
-            (input)="setColor('from', $event)"
-          />
-          <input
-            type="color"
-            [attr.aria-label]="t('design.secondColor')"
-            [value]="appearance.effectiveColors().to"
-            (input)="setColor('to', $event)"
-          />
-          <button
-            type="button"
-            class="design__follow"
-            [disabled]="followsAccent()"
-            (click)="followAccent()"
-          >
-            {{ followsAccent() ? 'Suit l\'accent' : 'Suivre l\'accent' }}
-          </button>
-        </div>
-        <div class="design__presets" role="group" [attr.aria-label]="t('design.colorPresets')">
-          @for (preset of presets; track preset.label) {
+        <span class="design__label">{{ t('design.gradient') }}</span>
+        <div class="design__grads" role="group" [attr.aria-label]="t('design.gradient')">
+          @for (option of gradientOptions; track option.value) {
             <button
               type="button"
-              class="design__preset"
-              [style.background]="'linear-gradient(120deg, ' + preset.from + ', ' + preset.to + ')'"
-              [attr.aria-label]="preset.label"
-              [title]="preset.label"
-              (click)="applyPreset(preset)"
-            ></button>
+              class="design__grad"
+              [class.design__grad--on]="appearance.gradient() === option.value"
+              [attr.aria-pressed]="appearance.gradient() === option.value"
+              (click)="setGradient(option.value)"
+            >
+              <span class="design__grad-preview" [attr.data-motif]="option.value"></span>
+              {{ option.label }}
+            </button>
           }
         </div>
       </div>
 
-      <div class="design__group">
-        <span class="design__label">{{ t('design.intensity') }}</span>
-        <div class="slider">
-          <div class="slider__track">
-            <div class="slider__fill" [style.width.%]="appearance.intensity()"></div>
-            <div class="slider__thumb" [style.left.%]="appearance.intensity()"></div>
+      <!-- Le motif « libre » : deux foyers qu'on attrape et qu'on pose. Un
+         aperçu manipulable plutôt que quatre curseurs : on place une lumière
+         en la regardant, pas en réglant ses coordonnées. -->
+      @if (appearance.gradient() === 'libre') {
+        <div class="design__group">
+          <span class="design__label" [title]="t('design.spotsHint')">{{ t('design.spots') }}</span>
+          <app-spots-editor />
+        </div>
+      }
+
+      @if (appearance.gradient() !== 'none') {
+        <div class="design__group">
+          <span class="design__label">{{ t('design.colors') }}</span>
+          <div class="design__colors">
+            <input type="color" [attr.aria-label]="t('design.firstColor')" [value]="appearance.effectiveColors().from" (input)="setColor('from', $event)" />
+            <input type="color" [attr.aria-label]="t('design.secondColor')" [value]="appearance.effectiveColors().to" (input)="setColor('to', $event)" />
+            <button type="button" class="design__follow" [disabled]="followsAccent()" (click)="followAccent()">
+              {{ followsAccent() ? "Suit l'accent" : "Suivre l'accent" }}
+            </button>
           </div>
-          <input
-            class="slider__input"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            [attr.aria-label]="t('design.intensityAria')"
-            [value]="appearance.intensity()"
-            (input)="setIntensity($event)"
-          />
+          <div class="design__presets" role="group" [attr.aria-label]="t('design.colorPresets')">
+            @for (preset of presets; track preset.label) {
+              <button
+                type="button"
+                class="design__preset"
+                [style.background]="'linear-gradient(120deg, ' + preset.from + ', ' + preset.to + ')'"
+                [attr.aria-label]="preset.label"
+                [title]="preset.label"
+                (click)="applyPreset(preset)"
+              ></button>
+            }
+          </div>
         </div>
-        <div class="slider__legend">
-          <span>Doux</span>
-          <span class="slider__value">{{ appearance.intensity() }} %</span>
-          <span>{{ t('design.marked') }}</span>
+
+        <div class="design__group">
+          <span class="design__label">{{ t('design.intensity') }}</span>
+          <div class="slider">
+            <div class="slider__track">
+              <div class="slider__fill" [style.width.%]="appearance.intensity()"></div>
+              <div class="slider__thumb" [style.left.%]="appearance.intensity()"></div>
+            </div>
+            <input
+              class="slider__input"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              [attr.aria-label]="t('design.intensityAria')"
+              [value]="appearance.intensity()"
+              (input)="setIntensity($event)"
+            />
+          </div>
+          <div class="slider__legend">
+            <span>Doux</span>
+            <span class="slider__value">{{ appearance.intensity() }} %</span>
+            <span>{{ t('design.marked') }}</span>
+          </div>
         </div>
-      </div>
-    }
-
-    <div class="design__group">
-      <span class="design__label">Panneaux</span>
-      <app-segmented-control
-        [ariaLabel]="t('design.panelOpacity')"
-        [options]="panelOptions"
-        [value]="appearance.panels()"
-        (valueChange)="setPanels($event)"
-      />
-      @if (hiddenByPanels()) {
-        <span class="design__note">
-          {{ t('design.gutterHint') }}
-        </span>
       }
-      @if (translucencyIgnored()) {
-        <span class="design__note">
-          {{ t('design.contrastHint') }}
-        </span>
-      }
-    </div>
 
-    <div class="design__group">
-      <span class="design__label">{{ t('design.layout') }}</span>
-      <div class="design__templates" role="group" [attr.aria-label]="t('design.layout')">
-        @for (layout of dock.layouts; track layout.label) {
-          <button
-            type="button"
-            class="design__template"
-            [title]="layout.hint"
-            (click)="applyLayout(layout)"
-          >
-            {{ layout.label }}
-          </button>
+      <div class="design__group">
+        <span class="design__label">{{ t('design.panels') }}</span>
+        <app-segmented-control
+          [ariaLabel]="t('design.panelOpacity')"
+          [options]="panelOptions"
+          [value]="appearance.panels()"
+          (valueChange)="setPanels($event)"
+        />
+        @if (hiddenByPanels()) {
+          <span class="design__note">
+            {{ t('design.gutterHint') }}
+          </span>
+        }
+        @if (translucencyIgnored()) {
+          <span class="design__note">
+            {{ t('design.contrastHint') }}
+          </span>
         }
       </div>
-      <button type="button" class="design__wide" (click)="resetDock()">
-        {{ t('design.reset') }}
-      </button>
-      <span class="design__note">
-        {{ t('design.resetHint') }}
-      </span>
+
+      <div class="design__group">
+        <span class="design__label">{{ t('design.layout') }}</span>
+        <div class="design__templates" role="group" [attr.aria-label]="t('design.layout')">
+          @for (layout of dock.layouts; track layout.label) {
+            <button type="button" class="design__template" [title]="layout.hint" (click)="applyLayout(layout)">
+              {{ layout.label }}
+            </button>
+          }
+        </div>
+        <button type="button" class="design__wide" (click)="resetDock()">
+          {{ t('design.reset') }}
+        </button>
+        <span class="design__note">
+          {{ t('design.resetHint') }}
+        </span>
+      </div>
     </div>
-  </div>
+  }
+}
+
+@if (side() === 'atelier') {
+  <!-- L'atelier : les jetons du thème et le filigrane, à la main. Carte
+       cachée derrière un code, elle n'existe pas pour qui ne l'a pas
+       trouvée. -->
+  <header
+    class="design__head"
+    (pointerdown)="onDragStart($event)"
+    (pointermove)="onDragMove($event)"
+    (pointerup)="onDragEnd($event)"
+    (pointercancel)="onDragEnd($event)"
+  >
+    <span class="design__title">{{ t('design.atelier') }}</span>
+    <button
+      type="button"
+      class="design__icon"
+      [attr.aria-label]="design.collapsed().atelier ? 'Déplier' : 'Réduire'"
+      (click)="design.toggleCollapsed('atelier')"
+    >
+      {{ design.collapsed().atelier ? '+' : '–' }}
+    </button>
+  </header>
+
+  @if (!design.collapsed().atelier) {
+    <app-atelier-body />
   }
 }
 
@@ -265,13 +267,12 @@
     <div class="ask__box">
       <span class="ask__title">{{ t('design.saveTitle') }}</span>
       <p class="ask__text">
-        Les changements sont appliqués pour que tu voies le résultat, mais ils ne sont pas encore
-        enregistrés. Abandonner remettra l'apparence d'avant.
+        Les changements sont appliqués pour que tu voies le résultat, mais ils ne sont pas encore enregistrés. Abandonner remettra l'apparence d'avant.
       </p>
       <div class="ask__actions">
-        <button type="button" (click)="design.discard()">Abandonner</button>
-        <button type="button" (click)="design.keepEditing()">Continuer</button>
-        <button type="button" class="ask__primary" (click)="design.save()">Enregistrer</button>
+        <button type="button" (click)="design.discard()">{{ t('design.discard') }}</button>
+        <button type="button" (click)="design.keepEditing()">{{ t('design.keepEditing') }}</button>
+        <button type="button" class="ask__primary" (click)="design.save()">{{ t('design.save') }}</button>
       </div>
     </div>
   </div>

@@ -21,6 +21,16 @@ export const fr = {
   // d'autre la lit.
   common: {
     buttons: {
+      cancel: 'Annuler',
+      save: 'Enregistrer',
+      close: 'Fermer',
+      clear: 'Vider',
+      remove: 'Retirer',
+      skip: 'Ignorer',
+      stop: 'Arrêter',
+      fit: 'Ajuster',
+      install: 'Installer',
+      understood: 'Compris',
       create: 'Créer',
       rename: 'Renommer',
       delete: 'Supprimer',
@@ -50,8 +60,7 @@ export const fr = {
       file: { title: 'Supprimer « {name} » ?' },
       dir: {
         title: 'Supprimer « {name} » et tout son contenu ?',
-        message:
-          'Le dossier et tout ce qu’il contient seront supprimés définitivement. Tape « {name} » pour confirmer.',
+        message: 'Le dossier et tout ce qu’il contient seront supprimés définitivement. Tape « {name} » pour confirmer.',
       },
       guarded: {
         title: 'Serveur protégé : supprimer « {name} » ?',
@@ -173,6 +182,10 @@ export const fr = {
     filterServer: 'Filtrer le dossier serveur',
     currentPath: 'Chemin courant sur le serveur',
     downloadHint: 'Télécharger dans le dossier local courant',
+    downloading: 'Téléchargement en cours…',
+    downloadDone: 'Téléchargé',
+    downloadTo: 'Télécharger vers…',
+    downloadSelectionTo: 'Télécharger la sélection vers…',
     dropHere: 'Déposer pour envoyer vers',
     previewFtp: "L'aperçu n'est pas disponible en FTP",
     previewFtpHint: 'Le clic droit propose « Télécharger ».',
@@ -237,8 +250,7 @@ export const fr = {
     seeTransfers: 'Voir le panneau Transferts pour le détail',
     bridgeFilesOnly: 'Le pont entre serveurs ne copie que des fichiers pour l’instant',
     copiedNotRemoved: '« {name} » copié mais pas retiré de la source',
-    mergeQuestion:
-      'Un dossier ne peut pas être remplacé sans être fusionné, ce que Charon ne fait pas. Le copier sous le nom « {name} » ?',
+    mergeQuestion: 'Un dossier ne peut pas être remplacé sans être fusionné, ce que Charon ne fait pas. Le copier sous le nom « {name} » ?',
     keepBoth: 'Garder les deux',
     failed: '{count} élément(s) sur {total} n’ont pas pu être traités',
     skipped: '{count} élément(s) ignoré(s)',
@@ -261,6 +273,9 @@ export const fr = {
 
   // ------------------------------------------------------------ connexion --
   connection: {
+    auth: 'Authentification',
+    editServer: 'Modifier ce serveur',
+    newConnection: 'Nouvelle connexion',
     readonly: 'Serveur en lecture seule : action refusée.',
     lost: 'La connexion au serveur a été perdue : serveur arrêté, réseau coupé ou session fermée à distance.',
     idle: 'Session fermée pour inactivité.',
@@ -288,7 +303,18 @@ export const fr = {
 
   // -------------------------------------------------------------- réglages --
   settingsPanel: {
+    tabDesign: 'Design',
+    tabFiles: 'Fichiers',
+    tabConnection: 'Connexion',
+    tabShortcuts: 'Raccourcis',
+    tabData: 'Données',
+    tabModules: 'Modules',
+    tabUpdates: 'Mises à jour',
+    tabAbout: 'À propos',
+    shortcutsTitle: 'Raccourcis clavier',
+    downloading: 'Téléchargement…',
     title: 'Réglages',
+    versionHint: 'Le clavier ouvre parfois des portes.',
     hidden: { name: 'Fichiers cachés', desc: 'Afficher les fichiers commençant par un point.' },
     verify: {
       name: 'Vérifier les transferts',
@@ -299,6 +325,10 @@ export const fr = {
       name: "Formater à l'enregistrement",
       desc: "Prettier repasse sur le fichier quand tu enregistres depuis l'aperçu (JS/TS, JSON, CSS, HTML, Markdown, YAML). Une erreur de syntaxe n'empêche jamais d'enregistrer.",
       aria: "Formater avec Prettier à l'enregistrement",
+    },
+    askDownload: {
+      name: 'Demander le dossier à chaque téléchargement',
+      desc: 'Sans ça, le fichier arrive dans le dossier du panneau local. « Télécharger vers… » du clic droit demande toujours.',
     },
     trash: {
       name: 'Corbeille distante',
@@ -333,8 +363,7 @@ export const fr = {
     },
     data: {
       export: 'Exporter la configuration',
-      exportDesc:
-        'Un fichier JSON dans ton dossier Téléchargements : apparence, disposition des panneaux, réglages et coordonnées de tes serveurs.',
+      exportDesc: 'Un fichier JSON dans ton dossier Téléchargements : apparence, disposition des panneaux, réglages et coordonnées de tes serveurs.',
       exportAction: 'Exporter',
       exportedIn: 'Exporté dans',
       absent: "Ce qui n'y est pas",
@@ -344,6 +373,9 @@ export const fr = {
     modules: {
       folder: 'Dossier des modules',
       folderDesc: 'Installe un module en déposant son dossier ici, puis actualise.',
+      guide: 'Créer un module',
+      guideDesc: 'Le guide de développement : manifeste, permissions, API charon.*, exemples complets',
+      guideOpen: 'Ouvrir le guide',
       empty: 'Aucun module installé. Dépose un dossier de module dans le dossier ci-dessus.',
       remove: 'Supprimer ce module',
     },
@@ -392,8 +424,7 @@ export const fr = {
     identical: 'Les deux versions sont identiques.',
     unreadable: '« {path} » n’a pas pu être lu sur « {session} ».',
     absentOn: 'absent sur « {session} »',
-    truncated:
-      'Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas écraser le reste.',
+    truncated: 'Fichier volumineux : aperçu tronqué, édition désactivée pour ne pas écraser le reste.',
     readonly: 'Serveur en lecture seule : édition désactivée.',
     binary: "Fichier binaire : pas d'aperçu texte.",
     unsaved: 'Modifications non enregistrées',
@@ -417,8 +448,7 @@ export const fr = {
     exists: '« {name} » existe déjà',
     newerLead: 'La version de destination est',
     newerWord: 'plus récente',
-    newerTail:
-      "que celle qui arrive : vous risquez d'écraser des changements faits ailleurs.",
+    newerTail: "que celle qui arrive : vous risquez d'écraser des changements faits ailleurs.",
     keepBothLead: 'Un fichier de ce nom est déjà là. Vous pouvez le',
     keepBothWord: 'garder les deux',
     keepBothTail: '(une copie sera créée à côté), ou comparer les deux versions avant de choisir.',
@@ -439,7 +469,40 @@ export const fr = {
   },
 
   // ---------------------------------------------------------- mode design --
+  secrets: {
+    unicorn: 'Accent débloqué',
+    unicornHint: 'Un accent caché vient de rejoindre les réglages.',
+    stars: 'Ciel étoilé',
+    starsHint: "Un accent caché s'est allumé : regarde le fond.",
+    craft: 'Atelier débloqué',
+    craftHint: 'Ouvre le mode design : une carte de plus permet de fabriquer ton thème.',
+    craftAgain: 'Il est déjà ouvert, dans le mode design.',
+  },
+
   design: {
+    titleBase: 'Design',
+    titleHint: 'Un atelier peut en cacher un autre.',
+    titleGradient: 'Fond et panneaux',
+    accent: 'Accent',
+    accentHint: "Toutes les teintes ne se montrent pas d'emblée.",
+    colors: 'Couleurs',
+    panels: 'Panneaux',
+    discard: 'Abandonner',
+    keepEditing: 'Continuer',
+    save: 'Enregistrer',
+    themeLight: 'Clair',
+    themeDark: 'Sombre',
+    themeContrast: 'Contraste',
+    panelsOpaque: 'Opaques',
+    panelsTranslucent: 'Translucides',
+    radiusSharp: 'Net',
+    radiusSoft: 'Doux',
+    radiusRound: 'Rond',
+    textSmall: 'Petit',
+    textNormal: 'Normal',
+    textLarge: 'Grand',
+    markModeImage: 'Image',
+    markModeSilhouette: 'Silhouette',
     presets: 'Thèmes tout faits',
     theme: 'Thème',
     radius: 'Rayon des angles',
@@ -450,16 +513,59 @@ export const fr = {
     clean: 'Aucun changement',
     done: 'Terminé',
     gradient: 'Motif du dégradé',
+    spots: 'Foyers de lumière',
+    spotsHint: 'Les directions ont parfois de la mémoire.',
+    shape: {
+      spot: 'Tache',
+      beam: 'Écharpe',
+      edge: 'Bord',
+      ring: 'Anneau',
+    },
+    addSpot: 'Ajouter une lumière',
+    removeSpot: 'Retirer cette lumière',
+    spotSize: 'Étendue',
+    spotAngle: 'Orientation',
+    spotAlpha: 'Intensité',
+    spotTint: 'Couleur de cette lumière',
+    spotTintAuto: 'couleur propre',
+    spotColorA: 'Première couleur',
+    spotColorB: 'Seconde couleur',
+    free: 'Libre',
+    spotA: 'Premier',
+    spotB: 'Second',
+    atelier: 'Atelier',
+    atelierIntro: "Fabrique ton thème : pars de celui que tu as à l'écran et redéfinis ce que tu veux. Le reste continue de suivre le thème de base.",
+    atelierStart: 'Partir du thème actuel',
+    atelierReset: 'Retirer mon thème',
+    markTitle: 'Filigrane',
+    shareExport: 'Exporter mon thème',
+    shareTitle: 'Partager',
+    shareImport: 'Importer un thème',
+    shareName: 'Nom du thème',
+    shareDone: 'Thème exporté',
+    shareFailed: "Le thème n'a pas pu être écrit",
+    importDone: 'Thème importé',
+    importFailed: 'Import impossible',
+    importNotTheme: "Ce fichier n'est pas un thème Charon.",
+    atelierColors: 'Couleurs',
+    markChoose: 'Choisir une image',
+    markReplace: 'Changer l’image',
+    markDefault: 'Rendre le glyphe',
+    markMode: 'Rendu',
+    markUnreadable: "Ce fichier n'a pas pu être lu comme une image.",
+    markHidden: 'Le filigrane est éteint : active-le dans « Fond et panneaux » pour le voir.',
+    markOpacity: 'Opacité',
+    markSize: 'Taille',
+    markColor: 'Teinte du filigrane',
+    markColorAuto: 'auto',
     intensity: 'Intensité',
     intensityAria: 'Intensité du dégradé, en pourcentage',
     marked: 'Marqué',
-    gutterHint:
-      'Les gouttières ne font que 4 px : passe les panneaux en translucides pour voir le dégradé.',
+    gutterHint: 'Les gouttières ne font que 4 px : passe les panneaux en translucides pour voir le dégradé.',
     contrastHint: 'En contraste élevé, la lisibilité prime : les panneaux restent opaques.',
     layout: 'Disposition des panneaux',
     reset: 'Réinitialiser les panneaux',
-    resetHint:
-      "Un panneau absent d'une disposition n'est pas perdu : il se rouvre depuis la barre de statut.",
+    resetHint: "Un panneau absent d'une disposition n'est pas perdu : il se rouvre depuis la barre de statut.",
     saveTitle: 'Enregistrer ce thème ?',
     firstColor: 'Première couleur',
     secondColor: 'Seconde couleur',
@@ -469,6 +575,29 @@ export const fr = {
 
   // ------------------------------------------------------- longue traîne --
   misc: {
+    a11y: {
+      closePanel: 'Fermer ce panneau',
+      openFiles: 'Fichiers ouverts',
+      editFavorite: 'Modifier ce favori',
+      whatsNew: 'Nouveautés',
+      advanced: 'Options avancées',
+      palette: 'Recherche et commandes',
+      sessions: 'Sessions',
+      movePanel: 'Déplacer ce panneau',
+      disconnect: 'Fermer la connexion',
+      edit: 'Modifier',
+      permissions: 'Permissions',
+      resume: 'Reprendre ce transfert',
+      profilePlaceholder: 'Mon VPS',
+      editorPlaceholder: 'Visual Studio Code',
+    },
+    beforeThat: 'Avant ça',
+    noCommand: 'Aucune commande ne correspond.',
+    maxFilters: 'Six filtres au maximum. Retire-en un pour en poser un autre.',
+    noActivity: 'Aucune activité enregistrée. Le journal reste sur ce Mac.',
+    noModuleView: "Aucun module n'a de vue à afficher pour l'instant.",
+    noModuleViewHint: 'Les modules qui rendent un tableau de bord apparaîtront ici.',
+    serverTree: 'Serveur',
     preview: {
       unsavedLost: 'Les modifications non enregistrées seront perdues.',
       cannotPreview: 'Aperçu impossible.',
@@ -498,6 +627,8 @@ export const fr = {
       tooBig: 'Fichier trop volumineux pour une vérification rapide',
       mismatch: '{name} : les empreintes diffèrent',
       mismatchHint: 'Le fichier transféré n’est pas identique à la source',
+      downloadedMany: '{count} fichiers téléchargés',
+      reveal: 'Afficher',
     },
     tabs: {
       splitWith: 'Côte à côte avec « {name} »',
@@ -543,14 +674,14 @@ export const fr = {
     icon: 'Icône',
     name: 'Nom',
     namePlaceholder: 'Nom du raccourci',
+    searchIcon: 'Chercher une icône…',
+    noIcon: 'Aucune icône ne porte ce nom.',
     editTitle: 'Modifier le favori',
     edit: 'Modifier ce favori',
     connectFirst: 'Connecte-toi pour retrouver tes raccourcis.',
     addCurrent: 'Ajouter ce dossier',
-    noProfile:
-      "Cette connexion n'a pas de profil : les favoris se rangent dans un profil, enregistre-la pour en garder.",
-    empty:
-      "Aucun favori. « Ajouter ce dossier » garde l'endroit où tu es, le crayon permet de le renommer.",
+    noProfile: "Cette connexion n'a pas de profil : les favoris se rangent dans un profil, enregistre-la pour en garder.",
+    empty: "Aucun favori. « Ajouter ce dossier » garde l'endroit où tu es, le crayon permet de le renommer.",
     hint: "Le nom et l'icône ne servent qu'ici : le dossier du serveur n'est pas touché.",
   },
 
@@ -578,15 +709,11 @@ export const fr = {
     connect: 'Connexion impossible',
     auth: 'Authentification refusée',
     cert_no_authority:
-      "Ce serveur présente un certificat d’hôte, mais aucune autorité n’est déclarée pour lui dans ~/.ssh/known_hosts (ligne « @cert-authority »).",
-    cert_invalid:
-      "Le certificat d’hôte n’est pas valide : signature, autorité inconnue, ou dates de validité dépassées.",
-    cert_not_host:
-      "Ce serveur présente un certificat d’utilisateur, pas un certificat d’hôte : il ne prouve rien sur son identité.",
-    cert_wrong_host:
-      "Le certificat d’hôte n’a pas été émis pour ce nom de machine.",
-    cert_critical_options:
-      'Le certificat porte des options critiques que Charon ne sait pas interpréter : par prudence, la connexion est refusée.',
+      'Ce serveur présente un certificat d’hôte, mais aucune autorité n’est déclarée pour lui dans ~/.ssh/known_hosts (ligne « @cert-authority »).',
+    cert_invalid: 'Le certificat d’hôte n’est pas valide : signature, autorité inconnue, ou dates de validité dépassées.',
+    cert_not_host: 'Ce serveur présente un certificat d’utilisateur, pas un certificat d’hôte : il ne prouve rien sur son identité.',
+    cert_wrong_host: 'Le certificat d’hôte n’a pas été émis pour ce nom de machine.',
+    cert_critical_options: 'Le certificat porte des options critiques que Charon ne sait pas interpréter : par prudence, la connexion est refusée.',
     key_missing: 'Clé introuvable',
     no_key: 'Aucune clé SSH trouvée dans ~/.ssh',
     key_unreadable: 'Clé illisible (chiffrée sans passphrase ?)',
@@ -637,8 +764,7 @@ export const fr = {
     ended: 'Session du terminal terminée.',
     restart: 'Relancer',
     followDir: 'Suivre le dossier',
-    followHint:
-      "Le terminal se place dans le dossier affiché à chaque navigation. Rien n'est envoyé pendant qu'une commande tourne.",
+    followHint: "Le terminal se place dans le dossier affiché à chaque navigation. Rien n'est envoyé pendant qu'une commande tourne.",
     gitClean: 'Rien à valider',
   },
 
@@ -661,8 +787,7 @@ export const fr = {
     neon: 'Néon',
     forest: 'Forêt',
     resetTitle: 'Réinitialiser la disposition ?',
-    resetMessage:
-      "Les panneaux reprennent leur agencement d'origine. Les tailles et les onglets déplacés sont perdus.",
+    resetMessage: "Les panneaux reprennent leur agencement d'origine. Les tailles et les onglets déplacés sont perdus.",
     reset: 'Réinitialiser',
   },
 
@@ -690,15 +815,20 @@ export const fr = {
     remoteEditsOngoing: 'Éditions en cours',
     permsRecursive: 'Appliquer à tout le contenu',
     permsRecursiveAria: 'Appliquer récursivement',
-    permsRecursiveHint:
-      "Les mêmes droits s'appliqueront aux fichiers comme aux dossiers : les fichiers deviendront exécutables si le bit l'est.",
+    permsRecursiveHint: "Les mêmes droits s'appliqueront aux fichiers comme aux dossiers : les fichiers deviendront exécutables si le bit l'est.",
     unknownOwner: 'propriétaire inconnu',
   },
 
   // --------------------------------------------------------------- panneaux --
   panes: {
+    tree: {
+      empty: 'vide',
+      unreadable: 'lecture refusée',
+    },
     header: {
       parent: 'Dossier parent',
+      viewTree: "Afficher l'arborescence",
+      viewList: 'Afficher la liste',
       anchorSet: 'Ouvrir ce dossier au démarrage',
       anchorClear: 'Ce dossier est celui d’ouverture. Cliquer pour retirer l’ancre.',
     },

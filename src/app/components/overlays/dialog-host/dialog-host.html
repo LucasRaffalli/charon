@@ -11,7 +11,7 @@
 
     <ng-container modal-foot>
       <span class="dialog__spacer"></span>
-      <app-button variant="ghost" type="button" (click)="cancel()">Annuler</app-button>
+      <app-button variant="ghost" type="button" (click)="cancel()">{{ t('common.buttons.cancel') }}</app-button>
       <app-button [variant]="state.danger ? 'danger-solid' : 'primary'" type="button" (click)="onSubmit($event)">
         {{ state.confirmLabel }}
       </app-button>

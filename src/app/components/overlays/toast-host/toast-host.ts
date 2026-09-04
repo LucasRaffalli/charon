@@ -11,6 +11,7 @@ import {
 import { Icon, IconName } from '@app/components/ui/icon/icon';
 import { Toast, ToastKind } from '@app/interfaces';
 import { ToastService } from '@app/services/workspace/toast.service';
+import { injectT } from '@app/lang/i18n.service';
 
 const KIND_ICONS: Record<ToastKind, IconName> = {
   success: 'check',
@@ -56,6 +57,7 @@ const GAP = 8;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ToastHost {
+  protected readonly t = injectT();
   protected readonly toasts = inject(ToastService);
   protected readonly expanded = signal(false);
 

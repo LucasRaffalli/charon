@@ -60,3 +60,23 @@
 .edit__spacer {
   flex: 1;
 }
+
+// Le champ de recherche d'icône : la même robe que les filtres de panneau.
+.edit__search {
+  margin-bottom: 8px;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg, var(--bg));
+  font-size: calc(12px * var(--text-scale));
+
+  &:focus-within {
+    border-color: var(--accent);
+  }
+}
+
+.edit__none {
+  margin: 6px 0 0;
+  font-size: calc(11.5px * var(--text-scale));
+  color: var(--text-faint);
+}

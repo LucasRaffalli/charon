@@ -4,6 +4,7 @@ import { Icon } from '@app/components/ui/icon/icon';
 import { ServerTreeNode } from '@app/components/panels/server-tree/server-tree-node';
 import { SftpTreeService } from '@app/services/connection/sftp-tree.service';
 import { SessionRegistry } from '@app/services/connection/session-registry';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Panneau latéral : arborescence des dossiers du serveur depuis la racine. */
 @Component({
@@ -14,6 +15,7 @@ import { SessionRegistry } from '@app/services/connection/session-registry';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServerTree {
+  protected readonly t = injectT();
   private readonly sessionRegistry = inject(SessionRegistry);
 
   protected get tree(): SftpTreeService {

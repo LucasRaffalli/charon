@@ -38,6 +38,15 @@ $accents: (
     hover-dark: #ee6cb0,
     hover-light: #a02f6d,
   ),
+  // Stars : la lumière d'une étoile, un bleu-blanc froid qui tire sur le
+  // violet. Assez clair pour se lire sur une nuit profonde.
+  'stars': (
+    solid: #6f7bd6,
+    bright: #9fb2f0,
+    deep: #4a55a8,
+    hover-dark: #b3c2f5,
+    hover-light: #3d4791,
+  ),
 );
 
 @each $name, $accent in $accents {
@@ -172,4 +181,55 @@ $accents: (
 // les dissocie. Déclaré en dernier pour ne pas écraser la règle ci-dessus.
 :root:not([data-accent='unloved']) {
   --danger-solid: var(--danger);
+}
+
+// Stars : la nuit. Un bleu très profond, presque noir, où les surfaces se
+// décollent par des bleus successifs plutôt que par des gris. C'est le seul
+// autre accent, avec Unicorn, à repeindre vraiment le fond. ✦
+:root[data-theme='dark'][data-accent='stars'] {
+  --elev-0: #080b16;
+  --elev-1: #0e1322;
+  --elev-2: #151b2e;
+  --elev-3: #1d243b;
+
+  --border: #1c2338;
+  --border-strong: #2e3855;
+
+  --text: #e6ebfa;
+  --text-muted: #9aa5c7;
+  --text-faint: #6b7699;
+
+  --state-hover: rgba(159, 178, 240, 0.06);
+  --state-active: rgba(159, 178, 240, 0.1);
+
+  // Coloration syntaxique : les couleurs d'un ciel, froides et lumineuses.
+  --code-comment: #5a648a;
+  --code-punct: #a9b4d4;
+  --code-keyword: #b39cf5;
+  --code-string: #86d8c0;
+  --code-number: #f0c987;
+  --code-function: #86b6f5;
+  --code-tag: #f090a8;
+  --code-attr: #e6d59a;
+
+  // Le terminal parle la même langue que l'éditeur, comme partout ailleurs.
+  --term-black: #2e3855;
+  --term-red: #f090a8;
+  --term-green: #86d8c0;
+  --term-yellow: #e6d59a;
+  --term-blue: #86b6f5;
+  --term-magenta: #b39cf5;
+  --term-cyan: #8fd6e8;
+  --term-white: #a9b4d4;
+  --term-bright-black: #5a648a;
+  --term-bright-red: #ffb0c2;
+  --term-bright-green: #a4ecd8;
+  --term-bright-yellow: #f5e6b8;
+  --term-bright-blue: #a8ccff;
+  --term-bright-magenta: #cbb8ff;
+  --term-bright-cyan: #b0e8f5;
+  --term-bright-white: #f2f5ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 10px 32px rgba(3, 6, 18, 0.66);
 }

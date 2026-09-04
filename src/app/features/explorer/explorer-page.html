@@ -18,7 +18,8 @@
   <div class="explorer__hangar" data-dock-hangar>
     <div class="explorer__panel" data-dock-panel="local" [hidden]="!dock.activePanels().has('local')">
       <app-file-pane
-        title="Cet ordinateur"
+        [title]="t('panels.local')"
+        treeToggle
         icon="monitor"
         [actionIcon]="sftp.protection() === 'readonly' ? null : 'upload'"
         actionLabel="Envoyer vers le serveur"
@@ -220,7 +221,7 @@
     <button
       type="button"
       class="explorer__status-btn explorer__status-btn--danger"
-      title="Fermer la connexion"
+      [title]="t('misc.a11y.disconnect')"
       (click)="disconnect()"
     >
       <app-icon name="log-out" [size]="13" />

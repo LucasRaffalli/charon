@@ -1,8 +1,8 @@
 <button
   type="button"
   class="fab"
-  title="Options avancées"
-  aria-label="Options avancées"
+  [title]="t('misc.a11y.advanced')"
+  [attr.aria-label]="t('misc.a11y.advanced')"
   [class.fab--set]="hasOptions()"
   [class.fab--update]="updater.updateAvailable()"
   (click)="open.set(!open())"
@@ -13,10 +13,10 @@
 @if (open()) {
   <div class="sheet__veil" (click)="open.set(false)"></div>
 
-  <div class="sheet" role="dialog" aria-label="Options avancées">
+  <div class="sheet" role="dialog" [attr.aria-label]="t('misc.a11y.advanced')">
     <div class="sheet__head">
       <span class="sheet__title">{{ t('advanced.title') }}</span>
-      <button type="button" class="sheet__close" aria-label="Fermer" (click)="open.set(false)">
+      <button type="button" class="sheet__close" [attr.aria-label]="t('common.buttons.close')" (click)="open.set(false)">
         <app-icon name="close" [size]="14" />
       </button>
     </div>
@@ -87,7 +87,7 @@
       </div>
 
       @if (updater.status().kind === 'available') {
-        <app-button type="button" (click)="updater.install()">Installer</app-button>
+        <app-button type="button" (click)="updater.install()">{{ t('common.buttons.install') }}</app-button>
       } @else {
         <app-button
           variant="ghost"

@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: Settings = {
   showHidden: false,
   verifyTransfers: false,
   formatOnSave: true,
+  askDownloadDir: false,
   trashDays: 7,
   idleMinutes: 15,
   editorApp: '',
@@ -28,6 +29,7 @@ export class SettingsService {
   readonly showHidden = computed(() => this._settings().showHidden);
   readonly verifyTransfers = computed(() => this._settings().verifyTransfers);
   readonly formatOnSave = computed(() => this._settings().formatOnSave);
+  readonly askDownloadDir = computed(() => this._settings().askDownloadDir);
   readonly trashDays = computed(() => this._settings().trashDays);
   readonly idleMinutes = computed(() => this._settings().idleMinutes);
   readonly editorApp = computed(() => this._settings().editorApp);
@@ -80,6 +82,7 @@ export class SettingsService {
         showHidden: parsed.showHidden ?? DEFAULT_SETTINGS.showHidden,
         verifyTransfers: parsed.verifyTransfers ?? DEFAULT_SETTINGS.verifyTransfers,
         formatOnSave: parsed.formatOnSave ?? DEFAULT_SETTINGS.formatOnSave,
+        askDownloadDir: parsed.askDownloadDir ?? DEFAULT_SETTINGS.askDownloadDir,
         // Borné à l'année : une corbeille qu'on ne purge jamais se règle
         // avec 0, pas avec un nombre de jours absurde.
         trashDays: Math.min(365, Math.max(0, parsed.trashDays ?? DEFAULT_SETTINGS.trashDays)),

@@ -1,6 +1,6 @@
 @if (whatsNew.open()) {
   <div class="scrim" (click)="whatsNew.close()">
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="Nouveautés" (click)="$event.stopPropagation()" (keydown.escape)="whatsNew.close()">
+    <div class="sheet" role="dialog" aria-modal="true" [attr.aria-label]="t('misc.a11y.whatsNew')" (click)="$event.stopPropagation()" (keydown.escape)="whatsNew.close()">
       @if (featured(); as entry) {
         <!-- Le héros. Par défaut le ciel de l'écran d'ouverture, pour que la
              carte appartienne à Charon même quand la version n'a pas
@@ -15,7 +15,7 @@
             <i class="hero__glow"></i>
           }
 
-          <button type="button" class="hero__x" aria-label="Fermer" (click)="whatsNew.close()">✕</button>
+          <button type="button" class="hero__x" [attr.aria-label]="t('common.buttons.close')" (click)="whatsNew.close()">✕</button>
 
           <!-- Sur le ciel, l'identité se pose DANS le bandeau : ce n'est qu'un
                fond. Sur une cover, elle passe en dessous : une illustration
@@ -62,7 +62,7 @@
 
           @if (previous().length) {
             <div class="before">
-              <span class="before__lab">Avant ça</span>
+              <span class="before__lab">{{ t('misc.beforeThat') }}</span>
               @for (old of previous(); track old.version) {
                 <section class="past">
                   <div class="past__head">
@@ -105,7 +105,7 @@
       </ng-template>
 
       <footer class="sheet__foot">
-        <app-button variant="primary" (click)="whatsNew.close()">Compris</app-button>
+        <app-button variant="primary" (click)="whatsNew.close()">{{ t('common.buttons.understood') }}</app-button>
       </footer>
     </div>
   </div>

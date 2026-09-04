@@ -41,14 +41,15 @@ import { WhatsNewService } from '@app/services/system/whats-new.service';
 import { windowLabel } from '@app/services/system/window-scope';
 import { DesignService } from '@app/services/appearance/design.service';
 import { ModuleHostService } from '@app/services/modules/module-host.service';
+import { Starfield } from '@app/components/brand/starfield/starfield';
+import { CustomThemeService } from '@app/services/appearance/custom-theme.service';
 import { SecretAccentService } from '@app/services/appearance/secret-accent.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
 import { UpdaterService } from '@app/services/system/updater.service';
 
 @Component({
   selector: 'app-root',
-  imports: [
-    CommandPalette,
+  imports: [CommandPalette,
     ConnectPage,
     ExplorerPage,
     SettingsPanel,
@@ -63,8 +64,7 @@ import { UpdaterService } from '@app/services/system/updater.service';
     DesignPanel,
     TabBar,
     Sparkles,
-    ToastHost,
-  ],
+    ToastHost, Starfield],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -258,4 +258,5 @@ export class App {
 
   // Écoute le code de l'accent caché, tapé n'importe où dans l'app.
   private readonly secretAccent = inject(SecretAccentService);
+  protected readonly customTheme = inject(CustomThemeService);
 }

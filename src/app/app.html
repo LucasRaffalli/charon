@@ -28,6 +28,8 @@
     [class.design--anchored]="!design.positions().base"
     [style.left.px]="design.positions().base?.x"
     [style.top.px]="design.positions().base?.y"
+    [style.--card-w.px]="design.sizes().base?.width"
+    [style.--card-h.px]="design.sizes().base?.height || null"
   />
   <app-design-panel
     side="gradient"
@@ -35,7 +37,22 @@
     [class.design--anchored]="!design.positions().gradient"
     [style.left.px]="design.positions().gradient?.x"
     [style.top.px]="design.positions().gradient?.y"
+    [style.--card-w.px]="design.sizes().gradient?.width"
+    [style.--card-h.px]="design.sizes().gradient?.height || null"
   />
+  <!-- L'atelier n'existe que pour qui a trouvé son code : ni carte, ni
+       trace, ni mention nulle part tant qu'il dort. -->
+  @if (customTheme.unlocked()) {
+    <app-design-panel
+      side="atelier"
+      class="design--atelier"
+      [class.design--anchored]="!design.positions().atelier"
+      [style.left.px]="design.positions().atelier?.x"
+      [style.top.px]="design.positions().atelier?.y"
+      [style.--card-w.px]="design.sizes().atelier?.width"
+      [style.--card-h.px]="design.sizes().atelier?.height || null"
+    />
+  }
 }
 
 <app-settings-panel />
@@ -51,4 +68,5 @@
   <app-command-palette />
 }
 <app-toast-host />
+<app-starfield />
 <app-sparkles />

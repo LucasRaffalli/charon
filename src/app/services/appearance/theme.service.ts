@@ -42,6 +42,13 @@ export const ACCENT_OPTIONS: readonly AccentOption[] = [
     glow: { from: '#e0559f', to: '#c19bff' },
     secret: true,
   },
+  {
+    value: 'stars',
+    label: 'Stars',
+    swatch: '#6f7bd6',
+    glow: { from: '#2a3570', to: '#9fb2f0' },
+    secret: true,
+  },
 ];
 
 @Injectable({ providedIn: 'root' })
@@ -114,9 +121,9 @@ export class ThemeService {
     this._accent.set(accent);
   }
 
-  /** Seule porte d'entrée de l'accent caché : le code tapé dans l'app. */
-  activateSecretAccent(): void {
-    this._accent.set('unicorn');
+  /** Seule porte d'entrée des accents cachés : le code tapé dans l'app. */
+  activateSecretAccent(accent: Accent = 'unicorn'): void {
+    this._accent.set(accent);
   }
 
   /**

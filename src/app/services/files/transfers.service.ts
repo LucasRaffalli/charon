@@ -2,6 +2,10 @@ import { Injectable, computed, effect, inject, signal, untracked } from '@angula
 import { SESSION_ID } from '@app/services/connection/session-token';
 import { scopedKey } from '@app/services/system/window-scope';
 import { invoke } from '@tauri-apps/api/core';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
+
+/** Durée de la coche sur le bouton de téléchargement d'une ligne. */
+const DOWNLOAD_FLASH_MS = 2500;
 import { injectTauriListen } from '@app/services/system/scoped-listen';
 
 import { Transfer, TransferDirection, TransferProgressEvent } from '@app/interfaces';
@@ -321,6 +325,74 @@ export class TransfersService {
     }
   }
 
+  /**
+   * Les téléchargements réussis en attente d'annonce (issue #11).
+   *
+   * Les toasts avaient été volontairement débranchés des transferts : un lot
+   * ferait une pluie. Mais un téléchargement atterrit HORS de l'app : c'est
+   * exactement le geste dont le résultat ne se voit nulle part, et le panneau
+   * Transferts n'est pas toujours ouvert. Le compromis : UN toast par lot —
+   * les succès s'accumulent tant qu'un téléchargement tourne encore, et
+   * l'annonce part quand le dernier se pose. Dix fichiers, un toast.
+   *
+   * Les envois restent muets (le fichier apparaît dans le listing, ça se
+   * voit), les échecs gardent le panneau et le journal, et le pont a sa route
+   * affichée : rien d'autre ne change.
+   */
+  private doneDownloads: { name: string; localPath: string }[] = [];
+
+  /**
+   * Les chemins distants dont le téléchargement vient d'aboutir : le bouton ⬇
+   * de la ligne se change en coche quelques secondes. C'est le retour au plus
+   * près du geste — la confirmation apparaît LÀ où l'on a cliqué, pas dans un
+   * coin de l'écran (issue #11, précisé par Lucas).
+   */
+  private readonly _justDownloaded = signal<ReadonlySet<string>>(new Set());
+  readonly justDownloaded = this._justDownloaded.asReadonly();
+
+  private flashDownloaded(remotePath: string): void {
+    this._justDownloaded.update((set) => new Set(set).add(remotePath));
+    setTimeout(() => {
+      this._justDownloaded.update((set) => {
+        const next = new Set(set);
+        next.delete(remotePath);
+        return next;
+      });
+    }, DOWNLOAD_FLASH_MS);
+  }
+
+  private noteDownloadDone(transfer: Transfer): void {
+    this.flashDownloaded(transfer.remotePath);
+    this.doneDownloads.push({ name: transfer.name, localPath: transfer.localPath });
+    const stillRunning = this._transfers().some(
+      (candidate) => candidate.direction === 'download' && candidate.status === 'active',
+    );
+    if (stillRunning) {
+      return;
+    }
+    const batch = this.doneDownloads;
+    this.doneDownloads = [];
+    // Un fichier seul : la coche sur son bouton suffit, pas de toast. Le
+    // toast n'existe que pour le LOT, dont la fin ne se voit nulle part.
+    if (batch.length < 2) {
+      return;
+    }
+    const last = batch[batch.length - 1];
+    const dir = last.localPath.slice(0, last.localPath.lastIndexOf('/')) || '/';
+    this.toasts.success(this.t('misc.transfers.downloadedMany', { count: String(batch.length) }), {
+      detail: dir,
+      // La même clé remplace : deux lots rapprochés ne s'empilent pas.
+      key: 'download-done',
+      // Le barème du succès (3,5 s) est calibré pour une annonce qu'on lit,
+      // pas pour un bouton qu'on doit viser.
+      life: 6500,
+      action: {
+        label: this.t('misc.transfers.reveal'),
+        run: () => void revealItemInDir(last.localPath).catch(() => undefined),
+      },
+    });
+  }
+
   /** Exécute l'opération et traduit le résultat en statut de la file. */
   private async run(id: string, operation: () => Promise<number>): Promise<boolean> {
     const target = () => this._transfers().find((t) => t.id === id);
@@ -331,6 +403,9 @@ export class TransfersService {
       if (transfer) {
         this.activity.log(transfer.direction === 'remote' ? 'upload' : transfer.direction, 'remote', transfer.remotePath, `${written} octets`);
         void this.verify(id);
+        if (transfer.direction === 'download') {
+          this.noteDownloadDone(transfer);
+        }
       }
       return true;
     } catch (error) {

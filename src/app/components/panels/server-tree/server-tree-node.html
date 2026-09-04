@@ -1,6 +1,6 @@
 <div
   class="node"
-  [class.node--active]="node().isDir && sftp.currentPath() === node().path"
+  [class.node--active]="node().isDir && currentPath() === node().path"
 >
   @if (node().isDir) {
     <button
@@ -32,10 +32,16 @@
 @if (node().expanded) {
   <div class="node__children">
     @for (child of visibleChildren(); track child.path) {
-      <app-server-tree-node [node]="child" />
+      <app-server-tree-node [node]="child" [local]="local()" />
     } @empty {
-      @if (!node().loading) {
-        <p class="node__empty">vide</p>
+      @if (node().error; as reason) {
+        <!-- La lecture a échoué : on le DIT, à la place des enfants. Un
+             chevron qui se referme sans un mot ne se diagnostique pas. -->
+        <p class="node__empty node__empty--error" [title]="reason">
+          {{ t('panes.tree.unreadable') }}
+        </p>
+      } @else if (!node().loading) {
+        <p class="node__empty">{{ t('panes.tree.empty') }}</p>
       }
     }
   </div>

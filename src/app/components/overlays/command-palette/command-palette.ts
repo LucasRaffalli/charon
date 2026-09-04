@@ -19,6 +19,7 @@ import {
   PaletteCategory,
   PaletteCommand,
 } from '@app/services/workspace/command-palette.service';
+import { injectT } from '@app/lang/i18n.service';
 
 /** Un groupe de résultats : son compte réel, et les quelques lignes montrées. */
 interface PaletteGroup {
@@ -67,6 +68,7 @@ const score = (command: PaletteCommand, query: string): number => {
   // dans la liste ⌘/.
 })
 export class CommandPalette {
+  protected readonly t = injectT();
   protected readonly palette = inject(CommandPaletteService);
 
   /** La saisie vit dans le service : elle doit survivre à la fermeture. */

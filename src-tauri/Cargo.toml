@@ -1,6 +1,6 @@
 [package]
 name = "charon"
-version = "1.2.1"
+version = "1.2.2"
 description = "Client SFTP/FTP privé pour macOS"
 authors = ["lucas"]
 edition = "2021"
@@ -32,6 +32,7 @@ tauri-plugin-process = "2"
 base64 = "0.23"
 notify = "8"
 sha2 = "0.11"
+tauri-plugin-dialog = "2.7.3"
 
 # Coffre à secrets natif : Keychain sur macOS, Credential Manager sur Windows.
 [target.'cfg(target_os = "macos")'.dependencies]

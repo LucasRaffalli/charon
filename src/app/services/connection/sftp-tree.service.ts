@@ -53,14 +53,28 @@ const findNode = (node: TreeNode, path: string): TreeNode | null => {
   return null;
 };
 
+/** Ce que le moteur d'arbre demande à son système de fichiers. */
+export interface TreeSource {
+  /** Faut-il tenir l'arbre (connecté côté serveur, toujours côté local) ? */
+  active(): boolean;
+  currentPath(): string;
+  /** Les entrées du dossier courant, celles de la vue principale. */
+  entries(): FileEntry[];
+  /** Liste un dossier quelconque, ou `null` si la lecture échoue. */
+  fetchEntries(path: string): Promise<FileEntryDto[] | null>;
+}
+
 /**
- * Arborescence du serveur (dossiers ET fichiers) : chargement paresseux à
- * l'expansion, dépliage automatique jusqu'au dossier courant de la vue
- * principale, tri dossiers d'abord.
+ * Arborescence d'un système de fichiers (dossiers ET fichiers) : chargement
+ * paresseux à l'expansion, dépliage automatique jusqu'au dossier courant de
+ * la vue principale, tri dossiers d'abord.
+ *
+ * MOTEUR paramétré par une `TreeSource` : la même mécanique sert l'arbre
+ * serveur (une instance par session) et l'arbre local (issue #9). Les deux
+ * bugs payés fin août (le nœud faussement vide, le listing pas encore
+ * arrivé) vivent ici et n'existent donc qu'en un exemplaire.
  */
-@Injectable({ providedIn: 'root' })
-export class SftpTreeService {
-  private readonly sftp = inject(SftpService);
+export class FileTree {
   private readonly _root = signal<TreeNode>(freshRoot());
 
   /** Sérialise les dépliages automatiques pour éviter les courses. */
@@ -68,10 +82,10 @@ export class SftpTreeService {
 
   readonly root = this._root.asReadonly();
 
-  constructor() {
+  constructor(private readonly source: TreeSource) {
     effect(() => {
-      const connected = this.sftp.connected();
-      const path = this.sftp.currentPath();
+      const connected = this.source.active();
+      const path = this.source.currentPath();
       if (!connected) {
         this._root.set(freshRoot());
         return;
@@ -90,11 +104,11 @@ export class SftpTreeService {
     // le dépliage. Sans ce rattrapage, l'arbre restait figé sur sa racine
     // jusqu'au premier clic de l'utilisateur.
     effect(() => {
-      if (!this.sftp.connected()) {
+      if (!this.source.active()) {
         return;
       }
-      const path = this.sftp.currentPath();
-      const entries = this.sftp.entries();
+      const path = this.source.currentPath();
+      const entries = this.source.entries();
       untracked(() => {
         const node = findNode(this._root(), path);
         if (!node || (node.children === null && !node.expanded)) {
@@ -146,7 +160,7 @@ export class SftpTreeService {
 
   /** Déplie un nœud en rafraîchissant sa liste de sous-dossiers. */
   private async expand(path: string): Promise<void> {
-    this.patch(path, (n) => ({ ...n, expanded: true, loading: true }));
+    this.patch(path, (n) => ({ ...n, expanded: true, loading: true, error: null }));
     const children = await this.fetchChildren(path);
     if (children === null) {
       // Échec de lecture (au démarrage, la connexion n'est pas toujours prête
@@ -157,10 +171,27 @@ export class SftpTreeService {
       // FAUSSEMENT vide, la chaîne du dépliage automatique ne trouvait plus
       // rien dessous et abandonnait, et plus personne ne retentait. L'arbre
       // affichait un `/` vide jusqu'à ce qu'on clique dedans à la main.
-      this.patch(path, (n) => ({ ...n, loading: false, expanded: false }));
+      // Deux échecs très différents, et ils ne se traitent pas pareil.
+      //
+      // SANS raison, c'est que la source n'était pas prête (au démarrage, la
+      // connexion n'est pas toujours ouverte quand l'arbre se déplie). On
+      // REPLIE en laissant `children` à null, c'est-à-dire « pas encore
+      // chargé » : l'effet qui suit les entrées rejouera le dépliage. Poser
+      // une erreur ici figerait le nœud et personne ne retenterait.
+      //
+      // AVEC une raison, c'est un vrai refus (droits, dossier disparu,
+      // autorisation macOS pas accordée). Le nœud reste alors DÉPLIÉ et le
+      // dit : un chevron qui se referme tout seul ne se diagnostique pas.
+      const reason = this.lastError;
+      this.patch(path, (n) => ({
+        ...n,
+        loading: false,
+        expanded: reason !== null,
+        error: reason,
+      }));
       return;
     }
-    this.patch(path, (n) => ({ ...n, loading: false, children }));
+    this.patch(path, (n) => ({ ...n, loading: false, children, error: null }));
   }
 
   /**
@@ -180,7 +211,7 @@ export class SftpTreeService {
         return;
       }
       if (step === path) {
-        const entries = this.sftp.entries();
+        const entries = this.source.entries();
         if (entries.length === 0) {
           // Le listing de la vue principale n'est pas encore arrivé : au
           // démarrage, l'arbre se déplie AVANT lui. S'en servir quand même
@@ -205,28 +236,59 @@ export class SftpTreeService {
     this._root.update((root) => mapNode(root, path, fn));
   }
 
+  /** La raison du dernier échec de lecture, pour l'afficher sur le nœud. */
+  private lastError: string | null = null;
+
+  /** Une source signale pourquoi la lecture a échoué. */
+  protected noteError(error: unknown): void {
+    const raw = typeof error === 'string' ? error : String(error);
+    // Le message balisé du backend porte son détail après un séparateur.
+    this.lastError = raw.split('\u001f').pop()?.trim() || raw;
+  }
+
   private async fetchChildren(path: string): Promise<TreeNode[] | null> {
-    const connectionId = this.sftp.connectionId();
-    if (!connectionId) {
+    this.lastError = null;
+    const entries = await this.source.fetchEntries(path);
+    if (entries === null) {
       return null;
     }
-    try {
-      const entries = await invoke<FileEntryDto[]>(this.sftp.commandFor('list_dir'), {
-        connectionId,
-        path,
-      });
-      return sortNodes(
-        entries.map((entry) => ({
-          name: entry.name,
-          path: childPath(path, entry.name),
-          isDir: entry.is_dir,
-          expanded: false,
-          loading: false,
-          children: null,
-        })),
-      );
-    } catch {
-      return null;
-    }
+    return sortNodes(
+      entries.map((entry) => ({
+        name: entry.name,
+        path: childPath(path, entry.name),
+        isDir: entry.is_dir,
+        expanded: false,
+        loading: false,
+        children: null,
+      })),
+    );
+  }
+}
+
+/** L'arbre du serveur : le moteur branché sur la session SFTP. */
+@Injectable({ providedIn: 'root' })
+export class SftpTreeService extends FileTree {
+  constructor() {
+    const sftp = inject(SftpService);
+    super({
+      active: () => sftp.connected(),
+      currentPath: () => sftp.currentPath(),
+      entries: () => sftp.entries(),
+      fetchEntries: async (path) => {
+        const connectionId = sftp.connectionId();
+        if (!connectionId) {
+          return null;
+        }
+        try {
+          return await invoke<FileEntryDto[]>(sftp.commandFor('list_dir'), {
+            connectionId,
+            path,
+          });
+        } catch (error) {
+          this.noteError(error);
+          return null;
+        }
+      },
+    });
   }
 }

@@ -31,7 +31,7 @@
       class="palette"
       role="dialog"
       aria-modal="true"
-      aria-label="Recherche et commandes"
+      [attr.aria-label]="t('misc.a11y.palette')"
       (click)="$event.stopPropagation()"
     >
       <!-- Rangée segmentée : loupe, filtres, motif. La loupe est carrée, sa
@@ -135,7 +135,7 @@
             </li>
           }
         } @empty {
-          <li class="palette__empty">Aucune commande ne correspond.</li>
+          <li class="palette__empty">{{ t('misc.noCommand') }}</li>
         }
       </ul>
 
@@ -147,7 +147,7 @@
       } @else if (palette.refused()) {
         <div class="palette__status palette__status--warning" role="status">
           <span class="dot" aria-hidden="true"></span>
-          <span>Six filtres au maximum. Retire-en un pour en poser un autre.</span>
+          <span>{{ t('misc.maxFilters') }}</span>
         </div>
       } @else if (notPortable().length) {
         <div class="palette__status palette__status--warning" role="status">

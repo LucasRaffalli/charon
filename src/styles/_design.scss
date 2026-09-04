@@ -92,6 +92,10 @@ app-root {
     radial-gradient(120% 100% at 50% 50%, transparent 46%, rgba(0, 0, 0, 0.55));
 }
 
+// Le motif « libre » n'a PAS de règle ici : ses sources sont en nombre
+// variable et de formes différentes, ce qu'aucune règle CSS ne sait
+// exprimer. `AppearanceService` compose la valeur et la pose en inline.
+
 // --- Les bento translucides ------------------------------------------------
 // Les gouttières du dock font 4 px : un dégradé posé sur le fond n'apparaîtrait
 // que dans des filets invisibles. C'est la translucidité des panneaux qui fait

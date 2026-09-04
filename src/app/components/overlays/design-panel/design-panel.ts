@@ -6,13 +6,23 @@ import {
   computed,
   inject,
   input,
+  viewChild,
+  signal,
 } from '@angular/core';
 
+import { AtelierBody } from '@app/components/overlays/atelier-body/atelier-body';
+import { SpotsEditor } from '@app/components/overlays/spots-editor/spots-editor';
 import {
   SegmentedControl,
   SegmentedOption,
 } from '@app/components/ui/segmented-control/segmented-control';
-import { Gradient, GradientColors } from '@app/interfaces';
+import {
+  Gradient,
+  GradientColors,
+  GradientSpot,
+  MAX_SPOTS,
+  SpotShape,
+} from '@app/interfaces';
 import { AppearanceService } from '@app/services/appearance/appearance.service';
 import { DesignPanelId, DesignService, DesignTemplate } from '@app/services/appearance/design.service';
 import { DialogService } from '@app/services/workspace/dialog.service';
@@ -37,7 +47,7 @@ interface ColorPreset {
 
 @Component({
   selector: 'app-design-panel',
-  imports: [SegmentedControl],
+  imports: [SegmentedControl, AtelierBody, SpotsEditor],
   templateUrl: './design-panel.html',
   styleUrl: './design-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -56,26 +66,26 @@ export class DesignPanel {
   protected readonly dock = inject(DockService);
 
   protected readonly themeOptions: readonly SegmentedOption[] = [
-    { value: 'light', label: 'Clair' },
-    { value: 'dark', label: 'Sombre' },
-    { value: 'contrast', label: 'Contraste' },
+    { value: 'light', label: this.t('design.themeLight') },
+    { value: 'dark', label: this.t('design.themeDark') },
+    { value: 'contrast', label: this.t('design.themeContrast') },
   ];
 
   protected readonly panelOptions: readonly SegmentedOption[] = [
-    { value: 'opaque', label: 'Opaques' },
-    { value: 'translucide', label: 'Translucides' },
+    { value: 'opaque', label: this.t('design.panelsOpaque') },
+    { value: 'translucide', label: this.t('design.panelsTranslucent') },
   ];
 
   protected readonly radiusOptions: readonly SegmentedOption[] = [
-    { value: 'net', label: 'Net' },
-    { value: 'doux', label: 'Doux' },
-    { value: 'rond', label: 'Rond' },
+    { value: 'net', label: this.t('design.radiusSharp') },
+    { value: 'doux', label: this.t('design.radiusSoft') },
+    { value: 'rond', label: this.t('design.radiusRound') },
   ];
 
   protected readonly textOptions: readonly SegmentedOption[] = [
-    { value: 'petit', label: 'Petit' },
-    { value: 'normal', label: 'Normal' },
-    { value: 'grand', label: 'Grand' },
+    { value: 'petit', label: this.t('design.textSmall') },
+    { value: 'normal', label: this.t('design.textNormal') },
+    { value: 'grand', label: this.t('design.textLarge') },
   ];
 
   protected readonly watermarkOptions: readonly SegmentedOption[] = [
@@ -90,6 +100,7 @@ export class DesignPanel {
     { value: 'aurore', label: 'Aurore' },
     { value: 'maille', label: 'Maille' },
     { value: 'voute', label: this.t('themes.vault') },
+    { value: 'libre', label: this.t('design.free') },
   ];
 
   protected readonly presets: readonly ColorPreset[] = [
@@ -174,6 +185,49 @@ export class DesignPanel {
   // --- Déplacement -------------------------------------------------------
   // L'hôte du composant EST la carte : pas de viewChild à chercher.
 
+  /**
+   * La poignée du coin bas-droit : elle règle la largeur ET la hauteur.
+   *
+   * Le corps de la carte défile déjà quand il déborde, mais une carte haute
+   * cache la vue derrière elle : pouvoir la raccourcir vaut mieux que la
+   * replier entièrement. Les bornes évitent les deux impasses, la carte
+   * réduite à un timbre et celle qui sort de l'écran.
+   */
+  private resizeFrom: { x: number; y: number; width: number; height: number } | null = null;
+
+  protected onResizeStart(event: PointerEvent): void {
+    if (event.button !== 0) {
+      return;
+    }
+    const rect = this.host.nativeElement.getBoundingClientRect();
+    this.resizeFrom = { x: event.clientX, y: event.clientY, width: rect.width, height: rect.height };
+    // La position est figée avant de redimensionner : sans ça, une carte
+    // encore ancrée à droite grandirait vers la gauche, ce qui se lit comme
+    // un déplacement et non comme un agrandissement.
+    this.design.moveTo(this.side(), { x: rect.left, y: rect.top });
+    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  protected onResizeMove(event: PointerEvent): void {
+    const from = this.resizeFrom;
+    const view = this.document.defaultView;
+    if (!from || !view) {
+      return;
+    }
+    const rect = this.host.nativeElement.getBoundingClientRect();
+    this.design.resizeTo(this.side(), {
+      width: clamp(from.width + (event.clientX - from.x), 210, view.innerWidth - rect.left - MARGIN),
+      height: clamp(from.height + (event.clientY - from.y), 140, view.innerHeight - rect.top - MARGIN),
+    });
+  }
+
+  protected onResizeEnd(event: PointerEvent): void {
+    this.resizeFrom = null;
+    (event.target as HTMLElement).releasePointerCapture?.(event.pointerId);
+  }
+
   protected onDragStart(event: PointerEvent): void {
     if (event.button !== 0) {
       return;
@@ -222,3 +276,6 @@ export class DesignPanel {
     }
   }
 }
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));

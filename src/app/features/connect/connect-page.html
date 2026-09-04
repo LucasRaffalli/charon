@@ -45,7 +45,7 @@
                 <app-icon name="chevron-right" [size]="14" />
                 Retour
               </button>
-              <span class="edit-head__title">Modifier ce serveur</span>
+              <span class="edit-head__title">{{ t('connection.editServer') }}</span>
             </div>
           }
 
@@ -77,7 +77,7 @@
 
           <div class="sect st" style="--d: 0.14s">
             <div class="sect__lab">
-              <span>Authentification</span>
+              <span>{{ t('connection.auth') }}</span>
               @if (protocol() === 'sftp') {
                 <app-segmented-control
                   variant="chip"
@@ -134,7 +134,7 @@
               <app-text-field
                 [label]="t('connect.profileName')"
                 name="profile-name"
-                placeholder="Mon VPS"
+                [placeholder]="t('misc.a11y.profilePlaceholder')"
                 [(value)]="profileName"
               />
             } @else {
@@ -155,7 +155,7 @@
               >
                 Se connecter
               </app-button>
-              <app-button type="submit" [disabled]="!canSubmit()">Enregistrer</app-button>
+              <app-button type="submit" [disabled]="!canSubmit()">{{ t('common.buttons.save') }}</app-button>
             </div>
           } @else {
             <button
@@ -222,7 +222,7 @@
               <p class="servers__empty-hint">
                 {{ t('connect.noProfileHint') }}
               </p>
-              <app-button variant="ghost" (click)="setPanel('form')">Nouvelle connexion</app-button>
+              <app-button variant="ghost" (click)="setPanel('form')">{{ t('connection.newConnection') }}</app-button>
             </div>
           }
         </div>

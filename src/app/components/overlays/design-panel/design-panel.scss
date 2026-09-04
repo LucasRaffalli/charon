@@ -10,11 +10,56 @@
   width: 244px;
   max-height: calc(100vh - 16px);
   overflow: hidden;
+  // La carte peut être redimensionnée ; sans taille posée, elle s'ajuste à
+  // son contenu comme avant.
+  width: var(--card-w, 244px);
+  height: var(--card-h, auto);
   background: var(--elev-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   animation: design-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+// Le corps défile : l'atelier a beaucoup de contrôles, et une carte qui
+// grandit jusqu'à couvrir l'écran cache justement ce qu'on est en train de
+// régler. Le plafond est en `vh` pour rester valable sur tous les écrans ;
+// une hauteur posée à la poignée le remplace.
+.design__body {
+  max-height: 56vh;
+  overflow-y: auto;
+}
+
+:host([style*='--card-h']) .design__body {
+  max-height: none;
+}
+
+// La poignée : un petit triangle dans le coin, discret mais attrapable.
+.design__grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid var(--text-faint);
+    border-bottom: 1.5px solid var(--text-faint);
+    border-bottom-right-radius: 2px;
+  }
+
+  &:hover::after {
+    border-color: var(--text-muted);
+  }
 }
 
 @keyframes design-in {
@@ -40,6 +85,13 @@
 :host(.design--anchored.design--gradient) {
   left: 12px;
   bottom: 12px;
+}
+
+// L'atelier s'ancre en HAUT à droite : les deux coins bas sont pris, et il
+// est de toute façon déplaçable comme les autres.
+:host(.design--anchored.design--atelier) {
+  right: 12px;
+  top: 12px;
 }
 
 .design__head {

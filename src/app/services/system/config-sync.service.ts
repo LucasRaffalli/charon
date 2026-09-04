@@ -2,6 +2,7 @@ import { Injectable, effect, inject } from '@angular/core';
 import { emit, listen } from '@tauri-apps/api/event';
 
 import { AppearanceService } from '@app/services/appearance/appearance.service';
+import { CustomThemeService } from '@app/services/appearance/custom-theme.service';
 import { DesignService } from '@app/services/appearance/design.service';
 import { ThemeService } from '@app/services/appearance/theme.service';
 import { SettingsService } from '@app/services/system/settings.service';
@@ -33,6 +34,7 @@ const ANNOUNCE_DELAY_MS = 80;
 export class ConfigSyncService {
   private readonly theme = inject(ThemeService);
   private readonly appearance = inject(AppearanceService);
+  private readonly customTheme = inject(CustomThemeService);
   private readonly settings = inject(SettingsService);
   private readonly design = inject(DesignService);
 
@@ -50,6 +52,7 @@ export class ConfigSyncService {
       }
       this.theme.reloadFromStorage();
       this.appearance.reloadFromStorage();
+      this.customTheme.reloadFromStorage();
       this.settings.reloadFromStorage();
     });
 
@@ -60,6 +63,7 @@ export class ConfigSyncService {
       this.theme.accent();
       this.settings.settings();
       this.appearance.appearance();
+      this.customTheme.custom();
       const drafting = this.design.open();
       if (first) {
         first = false;

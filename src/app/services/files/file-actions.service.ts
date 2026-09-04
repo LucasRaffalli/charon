@@ -1,8 +1,10 @@
+import { open } from '@tauri-apps/plugin-dialog';
 import { Injectable, inject } from '@angular/core';
 
 import { FileEntry } from '@app/interfaces';
 import { FileBrowserState } from '@app/services/connection/file-browser-state';
 import { LocalFsService } from '@app/services/connection/local-fs.service';
+import { SettingsService } from '@app/services/system/settings.service';
 import { Session } from '@app/services/connection/session-registry';
 import { lineDiff } from '@app/services/files/diff';
 import { OverwriteService } from '@app/services/files/overwrite.service';
@@ -49,6 +51,7 @@ export class FileActionsService {
   private readonly toasts = inject(ToastService);
   private readonly overwrite = inject(OverwriteService);
   private readonly localFs = inject(LocalFsService);
+  private readonly settings = inject(SettingsService);
   private readonly t = injectT();
 
   async renameEntry(browser: FileBrowserState, entry: FileEntry): Promise<void> {
@@ -223,30 +226,61 @@ export class FileActionsService {
     await browser.refresh();
   }
 
-  /** Télécharge un fichier du serveur vers le dossier local courant. */
-  async download(session: Session, entry: FileEntry): Promise<void> {
+  /**
+   * Le dossier d'arrivée d'un téléchargement : celui du panneau local (le
+   * contrat du double panneau), sauf si le réglage « toujours demander »
+   * est posé ou que le geste est explicitement « Télécharger vers… » — le
+   * Finder tranche alors, pré-ouvert sur le dossier local courant.
+   *
+   * Rend `null` si l'utilisateur annule le sélecteur : annuler le choix du
+   * dossier annule le téléchargement, pas de repli silencieux ailleurs.
+   */
+  private async resolveDownloadDir(ask: boolean): Promise<string | null> {
+    if (!ask && !this.settings.askDownloadDir()) {
+      return this.localFs.currentPath();
+    }
+    const picked = await open({
+      directory: true,
+      multiple: false,
+      defaultPath: this.localFs.currentPath(),
+    });
+    return typeof picked === 'string' ? picked : null;
+  }
+
+  /** Télécharge un fichier du serveur ; `ask` force le choix du dossier. */
+  async download(session: Session, entry: FileEntry, ask = false): Promise<void> {
+    const dir = await this.resolveDownloadDir(ask);
+    if (dir === null) {
+      return;
+    }
     const done = await session.transfers.download(
       session.sftp.pathTo(entry.name),
-      this.localFs.pathTo(entry.name),
+      joinLocal(dir, entry.name),
       entry.name,
     );
-    if (done) {
+    if (done && dir === this.localFs.currentPath()) {
       await this.localFs.refresh();
     }
   }
 
   /** Télécharge tout ce qui est sélectionné, fichier par fichier. */
-  async downloadSelection(session: Session): Promise<void> {
+  async downloadSelection(session: Session, ask = false): Promise<void> {
+    const dir = await this.resolveDownloadDir(ask);
+    if (dir === null) {
+      return;
+    }
     // Un instantané : la liste bouge sous nos pieds au fil des refresh.
     const files = session.sftp.selectedEntries().filter((entry) => !entry.isDir);
     for (const entry of files) {
       await session.transfers.download(
         session.sftp.pathTo(entry.name),
-        this.localFs.pathTo(entry.name),
+        joinLocal(dir, entry.name),
         entry.name,
       );
     }
-    await this.localFs.refresh();
+    if (dir === this.localFs.currentPath()) {
+      await this.localFs.refresh();
+    }
   }
 
   /**
@@ -309,4 +343,9 @@ export class FileActionsService {
       () => this.toasts.error(this.t('common.errors.clipboard')),
     );
   }
+}
+
+/** Un chemin local sous un dossier, sans doubler la barre à la racine. */
+function joinLocal(dir: string, name: string): string {
+  return dir.endsWith('/') ? `${dir}${name}` : `${dir}/${name}`;
 }

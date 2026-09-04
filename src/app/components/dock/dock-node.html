@@ -61,7 +61,7 @@
 
       <span
         class="group__grip"
-        title="Déplacer ce panneau"
+        [title]="t('misc.a11y.movePanel')"
         aria-hidden="true"
         (pointerdown)="onTabPointerDown($event, g, g.active)"
         (pointermove)="onTabPointerMove($event)"
@@ -75,8 +75,8 @@
         <button
           type="button"
           class="group__close"
-          title="Fermer ce panneau"
-          aria-label="Fermer ce panneau"
+          [title]="t('misc.a11y.closePanel')"
+          [attr.aria-label]="t('misc.a11y.closePanel')"
           (click)="dock.closePanel(g.active)"
         >
           <app-icon name="close" [size]="13" />

@@ -115,10 +115,11 @@ charon.commands.register(id, title, handler, opts?)    // ui:command
 charon.ui.render(view, title?)                         // ui:panel (panneau déclaratif)
 
 charon.events.on('connected' | 'disconnected'
-  | 'path-changed' | 'transfer-done', cb)              // events
+  | 'path-changed' | 'transfer-done'
+  | 'panel-visibility', cb)                            // events
 
 charon.storage.get(key) / set(key, value) / keys()     // storage
-charon.notify(message, level?)                         // journal hôte (toujours permis)
+charon.notify(message, level?)                         // journal + toast (toujours permis)
 ```
 
 Tout appel non couvert par une permission déclarée est **rejeté par l'hôte**
@@ -130,8 +131,10 @@ Un module ne dessine **jamais de HTML** (pas d'iframe, pas d'injection possible)
 Il appelle `charon.ui.render(view)` avec une **structure** — titre, sections,
 statistiques (avec jauges), tableaux — que l'hôte rend **nativement** dans le
 panneau « Modules » du dock. Ce panneau est un panneau dockable de première
-classe (drag, onglets, fermeture) ; il s'ouvre automatiquement au premier
-`render`. Les chaînes sont interpolées, jamais évaluées → aucune surface XSS.
+classe (drag, onglets, fermeture) ; il s'ouvre au premier `render`, mais **ne
+s'impose qu'une fois** : refermé par l'utilisateur, il ne se rouvre pas à
+chaque lancement (drapeau `charon:modules-panel-offered`). Les chaînes sont
+interpolées, jamais évaluées → aucune surface XSS.
 
 Forme d'une vue (`ModuleView`) :
 
@@ -163,8 +166,14 @@ Forme d'une vue (`ModuleView`) :
 
 ## Distribution & confiance
 
-- Un module = dossier `manifest.json` + `main.js` (+ assets), installable depuis
-  Réglages → Modules (choisir un dossier / une archive).
+- Un module = dossier `manifest.json` + `main.js`, installé en **déposant le
+  dossier** dans `app_data_dir/modules/` (Réglages → Modules → « Ouvrir » le
+  dossier, puis actualiser).
+- Des modules sont **fournis avec l'application** (le Moniteur) : posés au
+  premier lancement, **désactivés** — une proposition, pas un supplément
+  imposé. Ils se mettent à jour indépendamment des releases (un module déjà
+  présent n'est réécrit que si la version embarquée est plus récente), et
+  restent modifiables et supprimables comme n'importe quel module.
 - **Consentement explicite** aux permissions à l'activation.
 - v1 : modules locaux, de confiance (installés par l'utilisateur).
 - Plus tard : **signature** des modules, **registre interne** d'entreprise,
@@ -182,7 +191,11 @@ Forme d'une vue (`ModuleView`) :
    déclaratifs**.
 6. Onglet Réglages → Modules (liste, activer/désactiver, ouvrir le dossier,
    supprimer).
-7. Deux modules d'exemple : « Compteur de fichiers » et « Moniteur VPS ».
+7. Deux modules de référence : le « Compteur de fichiers » minimal
+   ([example-module/](example-module/)) et le **Moniteur**, fourni avec
+   l'application (`src-tauri/modules/monitor/`) — relevés périodiques,
+   panneau déclaratif, alertes au seuil, cadence pilotée par
+   `panel-visibility`.
 
 Non-v1 : `ui:menu` (menu contextuel), `local:write`, signature/registre
 (chantier ③), WASM.
@@ -202,3 +215,7 @@ Non-v1 : `ui:menu` (menu contextuel), `local:write`, signature/registre
   (namespacé par slug).
 - Désactiver un module ne laisse **aucun** résidu (Worker `terminate()`,
   commandes et vues retirées).
+- Les Workers ne tournent que dans la fenêtre **principale** : une fenêtre
+  secondaire qui active un module le fait savoir à `main`
+  (`flotte:modules-changed`), qui réconcilie. Un module n'a jamais deux
+  instances qui se marchent dessus.

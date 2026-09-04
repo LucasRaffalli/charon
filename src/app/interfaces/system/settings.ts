@@ -24,6 +24,9 @@ export interface Settings {
   verifyTransfers: boolean;
   /** Formater avec Prettier à l'enregistrement depuis l'aperçu (types couverts). */
   formatOnSave: boolean;
+  /** Demander le dossier d'arrivée à chaque téléchargement (défaut : le
+   *  dossier du panneau local, sans question). */
+  askDownloadDir: boolean;
   /**
    * Jours de rétention de la corbeille distante (idée 02), purgée à la
    * connexion. 0 = ne jamais purger.

@@ -8,7 +8,7 @@
     ariaLabel="Motif de recherche"
   />
   @if (search.running()) {
-    <button type="button" class="bar__stop" (click)="search.stop()">Arrêter</button>
+    <button type="button" class="bar__stop" (click)="search.stop()">{{ t('common.buttons.stop') }}</button>
   } @else {
     <button
       type="button"

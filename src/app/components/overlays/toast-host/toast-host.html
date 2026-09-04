@@ -13,7 +13,7 @@
       <div class="toast__top">
         <app-icon class="toast__ico" [name]="iconFor(toast.kind)" [size]="13" />
         <span class="toast__kind">{{ toast.title || wordFor(toast.kind) }}</span>
-        <button type="button" class="toast__close" aria-label="Fermer" (click)="toasts.dismiss(toast.id)">
+        <button type="button" class="toast__close" [attr.aria-label]="t('common.buttons.close')" (click)="toasts.dismiss(toast.id)">
           <app-icon name="close" [size]="12" />
         </button>
       </div>

@@ -13,6 +13,17 @@
       <app-icon name="anchor" [size]="14" />
     </button>
   }
+  @if (treeToggle()) {
+    <button
+      type="button"
+      class="pane__up"
+      [title]="t(viewMode() === 'list' ? 'panes.header.viewTree' : 'panes.header.viewList')"
+      [attr.aria-pressed]="viewMode() === 'tree'"
+      (click)="toggleView()"
+    >
+      <app-icon [name]="viewMode() === 'list' ? 'list-tree' : 'rows'" [size]="14" />
+    </button>
+  }
   <button
     type="button"
     class="pane__up"
@@ -30,7 +41,7 @@
   <p class="pane__error" role="alert">{{ message }}</p>
 }
 
-@if (filterable()) {
+@if (filterable() && viewMode() === 'list') {
   <app-input
     #filterField
     class="pane__filter"
@@ -41,6 +52,13 @@
   />
 }
 
+@if (treeToggle() && viewMode() === 'tree') {
+  <!-- La même arborescence que le serveur : même moteur, même rendu. Un
+       dossier navigue le panneau, un fichier se montre dans le Finder. -->
+  <div class="pane__treeview">
+    <app-server-tree-node [node]="treeRoot()" [local]="true" />
+  </div>
+} @else {
 <ul
   class="pane__list"
   [class.pane__list--loading]="loading()"
@@ -88,8 +106,9 @@
     <li class="pane__empty">{{ t(filter().trim() ? 'panes.empty.filtered' : 'panes.empty.dir') }}</li>
   }
 </ul>
+}
 
-@if (selected().length) {
+@if (selected().length && viewMode() === 'list') {
   <app-selection-bar
     [count]="selected().length"
     [fileCount]="selectedFileCount()"

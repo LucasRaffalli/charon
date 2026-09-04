@@ -117,3 +117,10 @@
   font-style: italic;
   color: var(--text-faint);
 }
+
+// Un dossier qu'on n'a pas pu lire : la raison exacte est dans l'infobulle,
+// la ligne dit seulement qu'il y a quelque chose à comprendre.
+.node__empty--error {
+  color: var(--warning);
+  cursor: help;
+}

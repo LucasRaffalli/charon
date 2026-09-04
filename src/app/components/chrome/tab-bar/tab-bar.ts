@@ -33,7 +33,7 @@ const DRAG_THRESHOLD = 5;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TabBar {
-  private readonly t = injectT();
+  protected readonly t = injectT();
   protected readonly tabBar = inject(TabBarService);
   private readonly registry = inject(SessionRegistry);
   private readonly contextMenu = inject(ContextMenuService);

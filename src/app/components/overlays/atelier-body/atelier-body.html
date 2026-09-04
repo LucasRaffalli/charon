@@ -1,0 +1,162 @@
+<div class="design__body">
+  <!-- Deux onglets : les couleurs de l'interface, et le décor de fond.
+       Deux sujets sans rapport, empilés ils faisaient une carte à
+       défilement sans fin. -->
+  <div class="atelier__tabs" role="tablist" [attr.aria-label]="t('design.atelier')">
+    <button
+      type="button"
+      role="tab"
+      class="atelier__tab"
+      [class.atelier__tab--on]="tab() === 'colors'"
+      [attr.aria-selected]="tab() === 'colors'"
+      (click)="tab.set('colors')"
+    >
+      {{ t('design.atelierColors') }}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="atelier__tab"
+      [class.atelier__tab--on]="tab() === 'mark'"
+      [attr.aria-selected]="tab() === 'mark'"
+      (click)="tab.set('mark')"
+    >
+      {{ t('design.markTitle') }}
+    </button>
+  </div>
+
+  @if (tab() === 'colors') {
+    @if (!custom.active()) {
+      <p class="design__hint">{{ t('design.atelierIntro') }}</p>
+      <button type="button" class="atelier__cta" (click)="custom.begin()">
+        {{ t('design.atelierStart') }}
+      </button>
+    } @else {
+      @for (group of tokenGroups; track group.id) {
+        <div class="atelier__group">
+          <span class="atelier__legend">{{ group.label }}</span>
+          @for (token of tokensOf(group.id); track token.name) {
+            <label class="atelier__token">
+              <input
+                type="color"
+                class="atelier__swatch"
+                [value]="tokenValue(token.name)"
+                (input)="setToken(token.name, $event)"
+              />
+              <span class="atelier__name">{{ token.label }}</span>
+              <span class="atelier__hex data">{{ tokenValue(token.name) }}</span>
+            </label>
+          }
+        </div>
+      }
+
+      <button type="button" class="atelier__reset" (click)="custom.reset()">
+        {{ t('design.atelierReset') }}
+      </button>
+    }
+
+    <!-- Le partage vaut même sans calque : un thème, c'est aussi son
+         accent, son dégradé et son filigrane. -->
+    <div class="atelier__group atelier__share">
+      <span class="atelier__legend">{{ t('design.shareTitle') }}</span>
+      <input
+        class="atelier__field"
+        type="text"
+        [placeholder]="t('design.shareName')"
+        [value]="themeName()"
+        (input)="themeName.set($any($event.target).value)"
+      />
+      <div class="atelier__markact">
+        <button
+          type="button"
+          class="atelier__cta"
+          [disabled]="share.working()"
+          (click)="exportTheme()"
+        >
+          {{ t('design.shareExport') }}
+        </button>
+        <button type="button" class="atelier__reset" (click)="importTheme()">
+          {{ t('design.shareImport') }}
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- Le filigrane : l'image d'abord, puisque c'est elle qui décide de
+         ce que les réglages en dessous veulent dire. -->
+    <div class="atelier__mark">
+      <span class="atelier__preview" [style.background-image]="previewImage()"></span>
+      <div class="atelier__markact">
+        <button type="button" class="atelier__cta" (click)="pickMark()">
+          {{ t(appearance.markImage() ? 'design.markReplace' : 'design.markChoose') }}
+        </button>
+        @if (appearance.markImage()) {
+          <button type="button" class="atelier__reset" (click)="clearMarkImage()">
+            {{ t('design.markDefault') }}
+          </button>
+        }
+      </div>
+    </div>
+    @if (markError()) {
+      <p class="design__hint design__hint--warn">{{ t('design.markUnreadable') }}</p>
+    }
+
+    @if (appearance.markImage()) {
+      <div class="atelier__group">
+        <span class="atelier__legend">{{ t('design.markMode') }}</span>
+        <app-segmented-control
+          [options]="markModeOptions"
+          [value]="appearance.markMode()"
+          (valueChange)="setMarkMode($event)"
+        />
+      </div>
+    }
+
+    <div class="atelier__group">
+      <label class="atelier__slider">
+        <span>{{ t('design.markOpacity') }}</span>
+        <input
+          type="range"
+          min="0"
+          max="30"
+          step="1"
+          [value]="appearance.markOpacity()"
+          (input)="setMark('markOpacity', $event)"
+        />
+        <span class="atelier__value data">{{ appearance.markOpacity() }} %</span>
+      </label>
+      <label class="atelier__slider">
+        <span>{{ t('design.markSize') }}</span>
+        <input
+          type="range"
+          min="20"
+          max="200"
+          step="5"
+          [value]="appearance.markSize()"
+          (input)="setMark('markSize', $event)"
+        />
+        <span class="atelier__value data">{{ appearance.markSize() }} %</span>
+      </label>
+      <!-- La teinte ne veut rien dire d'une image affichée telle quelle. -->
+      @if (tintable()) {
+        <label class="atelier__token">
+          <input
+            type="color"
+            class="atelier__swatch"
+            [value]="markColor()"
+            (input)="setMarkColor($event)"
+          />
+          <span class="atelier__name">{{ t('design.markColor') }}</span>
+          @if (appearance.markColor()) {
+            <button type="button" class="atelier__clear" (click)="clearMarkColor()">
+              {{ t('design.markColorAuto') }}
+            </button>
+          }
+        </label>
+      }
+    </div>
+
+    @if (!appearance.watermark()) {
+      <p class="design__hint">{{ t('design.markHidden') }}</p>
+    }
+  }
+</div>

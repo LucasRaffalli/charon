@@ -187,3 +187,11 @@
     border-color: var(--accent);
   }
 }
+
+// La vue arbre : le même conteneur défilant que la liste, l'arbre dedans.
+.pane__treeview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-xs);
+}

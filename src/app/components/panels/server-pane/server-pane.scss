@@ -441,3 +441,41 @@
 :host(.pane--picking) .entry {
   cursor: crosshair;
 }
+
+// Les états « en cours » et « fait » du bouton de téléchargement : VISIBLES
+// même hors survol — le retour doit se voir sans garder la souris dessus.
+// Ce sont des spans, pas des boutons : pendant et juste après le transfert,
+// il n'y a rien à cliquer, et un bouton désactivé raconterait moins bien.
+.entry__action--busy,
+.entry__action--done {
+  opacity: 1 !important;
+  cursor: default;
+}
+
+.entry__action--done {
+  color: var(--success);
+}
+
+// Un cercle, comme le spinner du bouton : c'est l'exception assumée à la
+// purge des pleins arrondis, un anneau qui tourne ne peut être que rond.
+.entry__spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: entry-spin 0.7s linear infinite;
+}
+
+@keyframes entry-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry__spin {
+    animation: none;
+  }
+}

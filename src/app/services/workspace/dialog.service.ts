@@ -8,6 +8,10 @@ export interface DialogState {
   danger?: boolean;
   value?: string;
   placeholder?: string;
+  /** Libellé d'une case à cocher qui doit être cochée avant de pouvoir
+   *  confirmer. Remplace le mot à retaper pour un lot : un geste explicite
+   *  plutôt qu'une saisie, mais qui reste un geste, pas un clic distrait. */
+  acknowledge?: string;
 }
 
 export interface ConfirmOptions {
@@ -15,6 +19,8 @@ export interface ConfirmOptions {
   message?: string;
   confirmLabel?: string;
   danger?: boolean;
+  /** Voir `DialogState.acknowledge`. */
+  acknowledge?: string;
 }
 
 export interface PromptOptions {
@@ -42,6 +48,7 @@ export class DialogService {
       message: options.message,
       confirmLabel: options.confirmLabel ?? 'Confirmer',
       danger: options.danger,
+      acknowledge: options.acknowledge,
     });
     return new Promise((resolve) => {
       this.resolver = (result) => resolve(result === true);

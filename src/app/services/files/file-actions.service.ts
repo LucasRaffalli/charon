@@ -193,19 +193,18 @@ export class FileActionsService {
       }
     } else if (dirs > 0) {
       // Un dossier seul exige de retaper son nom : un lot QUI EN CONTIENT ne
-      // doit pas être plus facile à supprimer. Le lot n'a pas de nom unique,
-      // d'où le mot à taper.
-      const word = this.t('files.delete.batch.typed');
-      const typed = await this.dialog.prompt({
+      // doit pas être plus facile à supprimer. Mais un lot n'a pas de nom
+      // unique à retaper, et taper un mot pour un lot est plus lourd que la
+      // situation ne l'exige : une case à cocher explicite suffit, un geste
+      // délibéré sans demander de saisie.
+      const acknowledged = await this.dialog.confirm({
         title: this.t('files.delete.batch.dirsTitle', { count: entries.length, dirs }),
         message: this.t('files.delete.batch.dirsMessage', { detail }),
-        placeholder: word,
+        acknowledge: this.t('files.delete.batch.dirsAcknowledge', { count: entries.length }),
         confirmLabel: this.t('common.buttons.deleteAll'),
         danger: true,
       });
-      // Le mot à retaper est celui qu'on vient d'AFFICHER : en anglais on
-      // attend « delete », pas « supprimer ».
-      if (typed?.trim().toLowerCase() !== word) {
+      if (!acknowledged) {
         return;
       }
     } else if (

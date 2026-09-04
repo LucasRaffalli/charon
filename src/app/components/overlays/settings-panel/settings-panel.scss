@@ -656,3 +656,15 @@
     background: var(--warning);
   }
 }
+
+// La ligne du bas de l'onglet À propos : un indice, pas un réglage. Aucun nom
+// en gras, aucun contrôle, aucune bordure qui la rattache aux lignes
+// au-dessus — elle doit se lire comme une signature qu'on remarque en
+// passant, pas comme une fonctionnalité documentée.
+.about__whisper {
+  margin: var(--space-lg) 0 0;
+  font-size: calc(11px * var(--text-scale));
+  font-style: italic;
+  color: var(--text-faint);
+  text-align: center;
+}

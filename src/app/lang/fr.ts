@@ -72,12 +72,12 @@ export const fr = {
         guardedTitle: 'Serveur protégé : supprimer {count} éléments ?',
         guardedMessage: '{detail} Tape « {host} » pour confirmer.',
         dirsTitle: 'Supprimer {count} éléments, dont {dirs} dossier(s) ?',
-        dirsMessage: '{detail} Tape « supprimer » pour confirmer.',
+        dirsMessage: '{detail}',
+        dirsAcknowledge: 'Je veux supprimer ces {count} éléments définitivement.',
         filesTitle: 'Supprimer {count} fichiers ?',
         filesMessage: '{detail} Cette action est définitive.',
         detailDirs: '{count} éléments, dont {dirs} dossier(s) et tout leur contenu.',
         detailFiles: '{count} fichiers.',
-        typed: 'supprimer',
       },
     },
     create: {
@@ -359,6 +359,7 @@ export const fr = {
       idea: 'Une idée',
       repo: 'Le dépôt',
       author: "L'auteur",
+      whisper: 'Certains passages de Charon ne s’ouvrent qu’à qui frappe au bon rythme.',
       open: 'Ouvrir',
     },
     data: {

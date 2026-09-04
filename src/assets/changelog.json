@@ -1,5 +1,84 @@
 [
   {
+    "version": "1.2.2",
+    "date": "2026-09-04",
+    "title": "Palette",
+    "cover": "assets/webp/neutral.webp",
+    "notes": [
+      {
+        "kind": "new",
+        "text": "Le fond libre devient composable : jusqu'à six sources de lumière se placent, changent de forme (tache, écharpe, bord, anneau), d'orientation, de couleur et d'intensité, chacune indépendamment des autres",
+        "how": "Réglages → Design → Fond et panneaux → Motif du dégradé → Libre. Ajoute une lumière dans l'aperçu, puis attrape-la pour la déplacer."
+      },
+      {
+        "kind": "new",
+        "text": "Le panneau local possède son arborescence, avec le même dépliage progressif et le même suivi du dossier que l'arbre serveur",
+        "how": "Dans le panneau « Cet ordinateur », clique le bouton d'arborescence dans l'en-tête pour basculer entre la liste et l'arbre."
+      },
+      {
+        "kind": "new",
+        "text": "Le terminal affiche l'état du dépôt Git du dossier courant (branche, avance, fichiers modifiés) et permet de comparer un fichier à sa version HEAD",
+        "how": "Ouvre un terminal dans un dossier contenant un dépôt Git : la pastille apparaît dans la barre. Clique-la pour voir les fichiers changés."
+      },
+      {
+        "kind": "new",
+        "text": "Les téléchargements peuvent demander un dossier de destination et révéler le fichier terminé dans le Finder",
+        "how": "Active Réglages → Fichiers → Demander le dossier de téléchargement, ou choisis « Télécharger vers… ». Les lots terminés proposent ensuite de révéler leur dossier."
+      },
+      {
+        "kind": "new",
+        "text": "Le catalogue d'icônes des favoris s'étend à la demande : les icônes supplémentaires ne chargent plus au démarrage de l'application",
+        "how": "Dans un favori, commence à chercher une icône : le catalogue complet se charge uniquement à ce moment-là."
+      },
+      {
+        "kind": "new",
+        "text": "Les onglets de session se fusionnent en vue double par glisser-déposer : lâcher au centre d'un autre onglet les met côte à côte, lâcher sur un bord les réordonne",
+        "how": "Glisse un onglet et vise le centre d'un autre pour les afficher ensemble, ou un bord pour changer leur ordre."
+      },
+      {
+        "kind": "new",
+        "text": "Les cartes du mode Design se redimensionnent depuis leur coin, avec une hauteur maximale pour ne plus déborder de l'écran",
+        "how": "Depuis le coin bas-droit d'une carte du mode Design, tire pour l'agrandir ou la réduire."
+      },
+      {
+        "kind": "better",
+        "text": "La barre de sessions reste visible dès la première fenêtre, avec un bouton « Nouvel onglet » explicite plutôt qu'un raccourci à deviner"
+      },
+      {
+        "kind": "better",
+        "text": "L'interface est intégralement traduite en anglais : réglages, mode Design, dialogues et infobulles ne mélangent plus les deux langues"
+      },
+      {
+        "kind": "better",
+        "text": "Le téléchargement d'un fichier affiche son avancement directement sur le bouton (roue qui tourne, coche à l'arrivée)"
+      },
+      {
+        "kind": "better",
+        "text": "Le guide d'écriture de modules est accessible depuis Réglages → Modules, et documente l'événement de visibilité des panneaux"
+      },
+      {
+        "kind": "better",
+        "text": "Un dossier de l'arborescence locale illisible (droits refusés, autorisation macOS manquante) l'indique au lieu de se refermer silencieusement"
+      },
+      {
+        "kind": "fixed",
+        "text": "Réordonner les onglets de session ne fonctionnait plus : le glissé perdait le pointeur dès qu'il quittait l'onglet d'origine"
+      },
+      {
+        "kind": "fixed",
+        "text": "En vue double sur le même serveur, un changement fait dans un panneau ne rafraîchissait pas l'autre"
+      },
+      {
+        "kind": "fixed",
+        "text": "Le second panneau serveur de la vue double ne défilait plus au-delà de la hauteur de son contenu initial"
+      },
+      {
+        "kind": "fixed",
+        "text": "Un refus du trousseau macOS après une mise à jour affichait un message technique au lieu d'expliquer qu'il fallait ressaisir le mot de passe de session"
+      }
+    ]
+  },
+  {
     "version": "1.2.1",
     "date": "2026-09-01",
     "title": "Vigie",

@@ -59,12 +59,12 @@ export const en: Dictionary = {
         guardedTitle: 'Protected server: delete {count} items?',
         guardedMessage: '{detail} Type “{host}” to confirm.',
         dirsTitle: 'Delete {count} items, including {dirs} folder(s)?',
-        dirsMessage: '{detail} Type “delete” to confirm.',
+        dirsMessage: '{detail}',
+        dirsAcknowledge: 'I want to permanently delete these {count} items.',
         filesTitle: 'Delete {count} files?',
         filesMessage: '{detail} This cannot be undone.',
         detailDirs: '{count} items, including {dirs} folder(s) and all their contents.',
         detailFiles: '{count} files.',
-        typed: 'delete',
       },
     },
     create: {
@@ -331,6 +331,7 @@ export const en: Dictionary = {
       idea: 'An idea',
       repo: 'The repository',
       author: 'The author',
+      whisper: 'Some passages in Charon only open to those who strike the right rhythm.',
       open: 'Open',
     },
     data: {

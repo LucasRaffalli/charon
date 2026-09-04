@@ -7,12 +7,22 @@
       @if (state.kind === 'prompt') {
         <app-text-field label="Nom" name="dialog-value" [autofocus]="true" [placeholder]="state.placeholder ?? ''" [(value)]="input" />
       }
+      @if (state.acknowledge) {
+        <!-- Le geste explicite qui remplace le mot à retaper pour un lot :
+             un clic délibéré, sans exiger de saisie. -->
+        <app-toggle [label]="state.acknowledge" [(checked)]="acknowledged" />
+      }
     </form>
 
     <ng-container modal-foot>
       <span class="dialog__spacer"></span>
       <app-button variant="ghost" type="button" (click)="cancel()">{{ t('common.buttons.cancel') }}</app-button>
-      <app-button [variant]="state.danger ? 'danger-solid' : 'primary'" type="button" (click)="onSubmit($event)">
+      <app-button
+        [variant]="state.danger ? 'danger-solid' : 'primary'"
+        type="button"
+        [disabled]="!canSubmit()"
+        (click)="onSubmit($event)"
+      >
         {{ state.confirmLabel }}
       </app-button>
     </ng-container>
